@@ -1,0 +1,25 @@
+frontend/src/v2/pages/chat/Thread.tsx
+  s_8db079f7aff9c6::t_b72142dbc6c35e 5
+frontend/src/v2/pages/Chat.tsx
+  s_8db079f7aff9c6::t_b72142dbc6c35e 7
+frontend/src/pages/Chat.tsx
+  s_8db079f7aff9c6::t_b72142dbc6c35e 18
+frontend/src/v2/pages/chat/Composer.tsx
+  s_8db079f7aff9c6::t_b72142dbc6c35e 5
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "c6d155311046a7842684ebc78a71200e41110bc5",
+  "prompts": {},
+  "sessions": {
+    "s_8db079f7aff9c6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "70af251d-b51c-4bba-be72-900f67794fee",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "linyesh <linyesh@amazon.com>"
+    }
+  }
+}
