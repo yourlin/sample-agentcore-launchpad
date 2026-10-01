@@ -26,6 +26,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from app.core.regions import partition_for_region
 from app.models.ledger import Agent
 from app.schemas.agent import (
     DEFAULT_MODEL_ID,
@@ -67,6 +68,10 @@ class RoleContext:
     # system-preset KB path scopes to it; ordinary agents keep the family grant.
     oauth_provider_arn: str = ""
 
+    @property
+    def partition(self) -> str:
+        return partition_for_region(self.region)
+
 
 def role_context(workspace: WorkspaceContext) -> RoleContext:
     """Build a `RoleContext` from the workspace the agent is deployed into."""
@@ -77,7 +82,7 @@ def role_context(workspace: WorkspaceContext) -> RoleContext:
         region=workspace.region,
         artifacts_bucket=resources.get("artifacts_bucket", ""),
         ecr_repo_arn=(
-            f"arn:aws:ecr:{workspace.region}:{workspace.account_id}:repository/{repo}"
+            f"arn:{workspace.partition}:ecr:{workspace.region}:{workspace.account_id}:repository/{repo}"
         ),
         memory_id=resources.get("memory_id", ""),
         oauth_provider_arn=resources.get("oauth_provider_arn", ""),
@@ -191,12 +196,12 @@ def model_resources(model_id: str, ctx: RoleContext) -> list[str]:
     if profile_prefix:
         bare = model_id[len(profile_prefix):]
         return [
-            f"arn:aws:bedrock:*::foundation-model/{bare}",
-            f"arn:aws:bedrock:{ctx.region}:{ctx.account_id}:inference-profile/{model_id}",
+            f"arn:{ctx.partition}:bedrock:*::foundation-model/{bare}",
+            f"arn:{ctx.partition}:bedrock:{ctx.region}:{ctx.account_id}:inference-profile/{model_id}",
         ]
     if re.match(r"^[a-z0-9-]+\.[A-Za-z0-9.:-]+$", model_id):
-        return [f"arn:aws:bedrock:*::foundation-model/{model_id}"]
-    return ["arn:aws:bedrock:*::foundation-model/*"]
+        return [f"arn:{ctx.partition}:bedrock:*::foundation-model/{model_id}"]
+    return [f"arn:{ctx.partition}:bedrock:*::foundation-model/*"]
 
 
 # Strands Studio canvas flows carry their models on the nodes, not in
@@ -325,7 +330,7 @@ def _preset_kb_oauth_statements(spec: AgentSpec, ctx: RoleContext) -> list[dict[
             "the workspace resource map has no oauth_provider_arn — the KB gateway's "
             "OAuth2 credential provider is required to scope the preset's grants"
         )
-    base = f"arn:aws:bedrock-agentcore:{ctx.region}:{ctx.account_id}"
+    base = f"arn:{ctx.partition}:bedrock-agentcore:{ctx.region}:{ctx.account_id}"
     harness_name = spec.name.replace("-", "_")  # deployer/harness.py harnessName
     return [
         {
@@ -350,7 +355,7 @@ def _preset_kb_oauth_statements(spec: AgentSpec, ctx: RoleContext) -> list[dict[
             "Effect": "Allow",
             "Action": "secretsmanager:GetSecretValue",
             "Resource": (
-                f"arn:aws:secretsmanager:{ctx.region}:{ctx.account_id}:secret:"
+                f"arn:{ctx.partition}:secretsmanager:{ctx.region}:{ctx.account_id}:secret:"
                 f"bedrock-agentcore-identity!default/oauth2/{provider}-*"
             ),
         },
@@ -389,7 +394,7 @@ def policy_document(spec: AgentSpec, ctx: RoleContext, *, system_preset: bool = 
             ],
             # Mantle models are hosted outside the stack region, so the region
             # segment stays wildcarded, and projects are not per-agent.
-            "Resource": [f"arn:aws:bedrock-mantle:*:{ctx.account_id}:project/*"],
+            "Resource": [f"arn:{ctx.partition}:bedrock-mantle:*:{ctx.account_id}:project/*"],
         })
         statements.append({
             # UNSCOPABLE: minting the short-lived bearer token has no resource.
@@ -420,7 +425,7 @@ def policy_document(spec: AgentSpec, ctx: RoleContext, *, system_preset: bool = 
     if spec.memory.short_term or spec.memory.long_term:
         selected_memory = spec.memory.memory_id or ctx.memory_id
         memory_resource = (
-            f"arn:aws:bedrock-agentcore:{ctx.region}:{ctx.account_id}:memory/{selected_memory}"
+            f"arn:{ctx.partition}:bedrock-agentcore:{ctx.region}:{ctx.account_id}:memory/{selected_memory}"
             if selected_memory else "*"
         )
         statements.append({
@@ -461,7 +466,7 @@ def policy_document(spec: AgentSpec, ctx: RoleContext, *, system_preset: bool = 
             "Effect": "Allow",
             "Action": ["secretsmanager:GetSecretValue"],
             "Resource": [
-                f"arn:aws:secretsmanager:{ctx.region}:{ctx.account_id}"
+                f"arn:{ctx.partition}:secretsmanager:{ctx.region}:{ctx.account_id}"
                 ":secret:bedrock-agentcore-identity!*"
             ],
         })
@@ -480,7 +485,7 @@ def policy_document(spec: AgentSpec, ctx: RoleContext, *, system_preset: bool = 
             "Effect": "Allow",
             "Action": ["bedrock-agentcore:InvokeGateway"],
             "Resource": [
-                f"arn:aws:bedrock-agentcore:*:{ctx.account_id}:gateway/{gateway_id}"
+                f"arn:{ctx.partition}:bedrock-agentcore:*:{ctx.account_id}:gateway/{gateway_id}"
                 for gateway_id in gateway_ids
             ],
         })
@@ -522,7 +527,7 @@ def policy_document(spec: AgentSpec, ctx: RoleContext, *, system_preset: bool = 
             repo_name = spec.byoc.image_uri.split(".amazonaws.com/", 1)[1]
             repo_name = repo_name.split("@", 1)[0].rsplit(":", 1)[0]
             repo_arn = (
-                f"arn:aws:ecr:{ctx.region}:{ctx.account_id}:repository/{repo_name}"
+                f"arn:{ctx.partition}:ecr:{ctx.region}:{ctx.account_id}:repository/{repo_name}"
             )
         else:
             repo_arn = ctx.ecr_repo_arn
@@ -548,14 +553,14 @@ def policy_document(spec: AgentSpec, ctx: RoleContext, *, system_preset: bool = 
             "Effect": "Allow",
             "Action": ["s3:GetObject"],
             "Resource": [
-                f"arn:aws:s3:::{ctx.artifacts_bucket}/{prefix}*" for prefix in prefixes
+                f"arn:{ctx.partition}:s3:::{ctx.artifacts_bucket}/{prefix}*" for prefix in prefixes
             ],
         })
         statements.append({
             "Sid": "SkillBundleList",
             "Effect": "Allow",
             "Action": ["s3:ListBucket"],
-            "Resource": [f"arn:aws:s3:::{ctx.artifacts_bucket}"],
+            "Resource": [f"arn:{ctx.partition}:s3:::{ctx.artifacts_bucket}"],
             "Condition": {"StringLike": {"s3:prefix": [f"{p}*" for p in prefixes]}},
         })
 
@@ -568,7 +573,7 @@ def policy_document(spec: AgentSpec, ctx: RoleContext, *, system_preset: bool = 
             "Effect": "Allow",
             "Action": ["bedrock:Retrieve", "bedrock:GetKnowledgeBase"],
             "Resource": [
-                f"arn:aws:bedrock:{ctx.region}:{ctx.account_id}:knowledge-base/{kb.kb_id}"
+                f"arn:{ctx.partition}:bedrock:{ctx.region}:{ctx.account_id}:knowledge-base/{kb.kb_id}"
                 for kb in spec.knowledge_bases
             ],
         })
@@ -603,7 +608,7 @@ def policy_document(spec: AgentSpec, ctx: RoleContext, *, system_preset: bool = 
                 "bedrock-agentcore:GetConfigurationBundleVersion",
             ],
             "Resource": [
-                f"arn:aws:bedrock-agentcore:{ctx.region}:{ctx.account_id}"
+                f"arn:{ctx.partition}:bedrock-agentcore:{ctx.region}:{ctx.account_id}"
                 ":configuration-bundle/*"
             ],
         })
@@ -615,7 +620,7 @@ def policy_document(spec: AgentSpec, ctx: RoleContext, *, system_preset: bool = 
             "Effect": "Allow",
             "Action": ["bedrock-agentcore:InvokeAgentRuntime"],
             "Resource": [
-                f"arn:aws:bedrock-agentcore:{ctx.region}:{ctx.account_id}:runtime/*"
+                f"arn:{ctx.partition}:bedrock-agentcore:{ctx.region}:{ctx.account_id}:runtime/*"
             ],
         })
 
@@ -633,9 +638,9 @@ def policy_document(spec: AgentSpec, ctx: RoleContext, *, system_preset: bool = 
             "logs:DescribeLogStreams",
         ],
         "Resource": [
-            f"arn:aws:logs:{ctx.region}:{ctx.account_id}:log-group:"
+            f"arn:{ctx.partition}:logs:{ctx.region}:{ctx.account_id}:log-group:"
             "/aws/bedrock-agentcore/runtimes/*",
-            f"arn:aws:logs:{ctx.region}:{ctx.account_id}:log-group:"
+            f"arn:{ctx.partition}:logs:{ctx.region}:{ctx.account_id}:log-group:"
             "/aws/bedrock-agentcore/runtimes/*:log-stream:*",
         ],
     })

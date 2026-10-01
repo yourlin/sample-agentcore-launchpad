@@ -13,7 +13,7 @@ import {
   TriangleAlert,
   X,
 } from "lucide-react";
-import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { ToastContext } from "./hooks";
@@ -373,6 +373,7 @@ export function OptionCard({
   onClick,
   badge,
   testId,
+  hint,
 }: {
   title: string;
   desc: string;
@@ -381,21 +382,33 @@ export function OptionCard({
   onClick: () => void;
   badge?: ReactNode;
   testId?: string;
+  /** glossary sentence (T03): a tooltip on hover/focus, wired via aria-describedby.
+   *  Not a nested focusable — the card button itself is the focus target. */
+  hint?: string;
 }) {
+  const hintId = useId();
+  const classes = ["v2-option", on ? "on" : "", hint ? "has-hint" : ""].filter(Boolean).join(" ");
   return (
     <button
       type="button"
-      className={on ? "v2-option on" : "v2-option"}
+      className={classes}
       disabled={disabled}
       onClick={onClick}
       aria-pressed={on}
+      aria-describedby={hint ? hintId : undefined}
       data-testid={testId}
     >
       <span className="t">
         {title}
+        {hint && <Info size={13} className="v2-option-hint" aria-hidden="true" />}
         {badge}
       </span>
       <span className="d">{desc}</span>
+      {hint && (
+        <span role="tooltip" id={hintId} className="v2-hint-tip">
+          {hint}
+        </span>
+      )}
     </button>
   );
 }

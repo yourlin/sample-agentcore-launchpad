@@ -3,9 +3,15 @@ import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
-import { api, errorMessage, type WorkspacePreflightResult } from "../../../lib/api";
+import {
+  api,
+  errorMessage,
+  WORKSPACE_TIERS,
+  type WorkspacePreflightResult,
+  type WorkspaceTier,
+} from "../../../lib/api";
 import { CROSS_ACCOUNT_GUIDE_URL, SPOKE_TEMPLATE_URL } from "../../../lib/links";
-import { ROLE_ARN, suggestExternalId, WORKSPACE_REGIONS } from "../../../lib/workspaces";
+import { ROLE_ARN, suggestExternalId } from "../../../lib/workspaces";
 import { useWorkspace } from "../../../workspace/workspace-context";
 import { useLoad, useV2Toast } from "../../hooks";
 import { Alert, Button, Card, Field, FlowHeader, OptionCard } from "../../ui";
@@ -43,6 +49,7 @@ export function WorkspaceCreate() {
 
   const [id, setId] = useState("");
   const [name, setName] = useState("");
+  const [tier, setTier] = useState<WorkspaceTier>("dev");
   const [choice, setChoice] = useState<string>(OTHER);
   const [freeRegion, setFreeRegion] = useState("");
   const [external, setExternal] = useState(false);
@@ -138,6 +145,7 @@ export function WorkspaceCreate() {
         name: name.trim(),
         account_id: account,
         region,
+        tier,
         ...(external ? { role_arn: roleArn.trim(), external_id: externalId.trim() } : {}),
       });
       await refreshSwitcher();
@@ -198,6 +206,21 @@ export function WorkspaceCreate() {
                   data-testid="v2-ws-name"
                 />
               </Field>
+              <Field label={t("v2.workspaces.field.tier")} hint={t(`v2.workspaces.tierHint.${tier}`)}>
+                <select
+                  className="v2-select"
+                  value={tier}
+                  onChange={(e) => setTier(e.target.value as WorkspaceTier)}
+                  disabled={submitting}
+                  data-testid="v2-ws-tier"
+                >
+                  {WORKSPACE_TIERS.map((option) => (
+                    <option key={option} value={option}>
+                      {t(`v2.workspaces.tier.${option}`)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
             </div>
           </Card>
 
@@ -246,7 +269,7 @@ export function WorkspaceCreate() {
                     data-testid="v2-ws-region-select"
                   >
                     <option value={OTHER}>{t("v2.workspaces.regionOther")}</option>
-                    {WORKSPACE_REGIONS.map((option) => (
+                    {(list.data?.suggested_regions ?? []).map((option) => (
                       <option key={option} value={option}>
                         {option}
                         {/* "in use" is about THIS account's regions */}

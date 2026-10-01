@@ -16,6 +16,7 @@ from app.routers.workspaces import WorkspaceScope, require_workspace
 from app.services.agentcore.client import control_client
 from app.services.governance import attached_policy_engine_id
 from app.services.registry_console import console_list
+from app.services.ttfa import compute_ttfa
 from app.services.workspace import WorkspaceContext
 
 router = APIRouter(prefix="/api", tags=["overview"])
@@ -135,6 +136,16 @@ def overview(
         "services": services,
         "service_detail": detail,
     }
+
+
+@router.get("/overview/ttfa")
+def overview_ttfa(
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    """Time to First Agent for this workspace's registered accounts (admin-only in
+    `route_policy`: it lists per-user activity). Ledger read only, no AWS call."""
+    return compute_ttfa(db, ws.id)
 
 
 @router.get("/overview/online-quality")

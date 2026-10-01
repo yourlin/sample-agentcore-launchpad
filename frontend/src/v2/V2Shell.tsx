@@ -1,5 +1,6 @@
 import "./v2.css";
 import "./v2-classic.css";
+import "./glossary.css";
 
 import { ChevronDown, LogOut, Repeat } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -9,10 +10,12 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/auth-context";
 import { RouteChunk } from "../layout/RouteChunk";
 import { setUiVersion } from "../lib/ui-version";
+import { useNavMode } from "../lib/nav-mode";
 import { useWorkspace } from "../workspace/workspace-context";
 import { V2Lang } from "./Lang";
 import { V2Logo } from "./Logo";
-import { V2_NAV, type V2NavItem } from "./nav";
+import { navGroupsFor, type V2NavItem } from "./nav";
+import { TierTag } from "./pages/workspaces/tags";
 import { V2ToastProvider } from "./ui";
 
 const COLLAPSE_KEY = "launchpad_v2_nav_collapsed";
@@ -48,6 +51,11 @@ function WorkspaceSelect() {
     <label className="v2-filter" title={t("topbar.workspaceTitle")}>
       {t("topbar.workspaceLabel")}
       <b>{current ? `${current.name} · ${current.region}` : "—"}</b>
+      {current && (
+        <span data-testid="v2-workspace-tier" data-tier={current.tier ?? "dev"}>
+          <TierTag tier={current.tier} />
+        </span>
+      )}
       <ChevronDown size={14} aria-hidden="true" />
       <select
         value={current?.id ?? ""}
@@ -58,6 +66,7 @@ function WorkspaceSelect() {
         {workspaces.map((ws) => (
           <option key={ws.id} value={ws.id}>
             {ws.name} · {ws.region}
+            {ws.tier && ws.tier !== "dev" ? ` · ${t(`v2.workspaces.tier.${ws.tier}`)}` : ""}
           </option>
         ))}
       </select>
@@ -79,6 +88,10 @@ export function V2Shell({ classic = false }: { classic?: boolean }) {
   const { isAdmin, authRequired, username, logout } = useAuth();
   const { current } = useWorkspace();
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(readCollapsed);
+  // T11: members land on the pared-down sidebar, admins on the full one; either
+  // can switch. A filter only — every route stays reachable by URL.
+  const [navMode, setNavMode] = useNavMode(isAdmin);
+  const navGroups = navGroupsFor(navMode, isAdmin);
 
   // Opening a /v2 page (a bookmark, a shared link) is choosing V2: the classic
   // modules reached from its sidebar then stay inside this shell too.
@@ -152,9 +165,8 @@ export function V2Shell({ classic = false }: { classic?: boolean }) {
         </header>
         <div className="v2-layout">
           <aside className="v2-side" aria-label={t("v2.nav.label")}>
-            {V2_NAV.map((group) => {
-              const items = group.items.filter((item) => !item.admin || isAdmin);
-              if (items.length === 0) return null;
+            {navGroups.map((group) => {
+              const items = group.items;
               const closed = collapsed[group.key] === true;
               return (
                 <div key={group.key} className="v2-side-group">
@@ -178,6 +190,7 @@ export function V2Shell({ classic = false }: { classic?: boolean }) {
                           className={active ? "v2-side-item active" : "v2-side-item"}
                           aria-current={active ? "page" : undefined}
                           data-testid={`v2-nav-${item.to}`}
+                          title={item.hintKey ? t(item.hintKey) : undefined}
                         >
                           <Icon size={16} aria-hidden="true" />
                           {t(item.labelKey)}
@@ -187,6 +200,14 @@ export function V2Shell({ classic = false }: { classic?: boolean }) {
                 </div>
               );
             })}
+            <button
+              type="button"
+              className="v2-side-mode"
+              data-testid="v2-nav-mode"
+              onClick={() => setNavMode(navMode === "business" ? "expert" : "business")}
+            >
+              {navMode === "business" ? t("v2.nav.showExpert") : t("v2.nav.showBusiness")}
+            </button>
           </aside>
           <div className="v2-main">
             {/* Workspace-bound pages refetch on selection; hub-global content

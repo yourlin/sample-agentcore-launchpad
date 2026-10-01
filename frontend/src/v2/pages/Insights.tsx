@@ -5,6 +5,7 @@ import { api, type V2Range } from "../../lib/api";
 import { evaluatorLabel } from "../../lib/evaluators";
 import { RANGE_HOURS, RANGES, rangeLabel } from "../format";
 import { useLoad } from "../hooks";
+import { FeedbackCard } from "./feedback/FeedbackCard";
 import { EvaluatorBreakdown, ResultsTable, SummaryKpis } from "../ResultsView";
 import { type ResultRow, rowsFromOnline, rowsFromRun, summarize } from "../results";
 import { loadTasks, type V2Task } from "../tasks";
@@ -170,6 +171,7 @@ export function V2Insights() {
       </Card>
       <SummaryKpis summary={summary} />
       <EvaluatorBreakdown summary={summary} />
+      <FeedbackCard range={range} />
       <Card title={t("v2.insights.details")}>
         <ResultsTable rows={rows} loading={loading} error={error} onRetry={reload} range={range} exportName={`insights-${range}`} />
       </Card>

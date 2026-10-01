@@ -154,21 +154,27 @@ def test_service_linked_roles_are_limited_to_an_allowlist(statements: list[dict[
     assert all(name.endswith(".amazonaws.com") for name in services)
 
 
-def test_the_role_cannot_push_images(statements: list[dict[str, Any]]):
+def test_the_role_pushes_images_only_through_the_artifact_copy_statement(
+    statements: list[dict[str, Any]],
+):
     """CodeBuild builds and pushes, under a role of its own that this stack lets
-    the hub create. The hub itself only reads back the digest and scan findings,
-    so an ECR write grant here would be an unexplained widening."""
-    ecr = [
-        action
-        for statement in statements
-        for action in statement["Action"]
-        if action.startswith("ecr:")
-    ]
-    assert set(ecr) == {
-        "ecr:CreateRepository",
-        "ecr:DescribeImageScanFindings",
-        "ecr:DescribeImages",
-        "ecr:DescribeRepositories",
+    the hub create. The hub itself only reads back the digest and scan findings —
+    except for a PROMOTED image (roadmap T24), which it copies by digest through
+    the ECR API. That grant lives in one named, single-repository statement so an
+    ECR write anywhere else is still an unexplained widening."""
+    by_sid = {s["Sid"]: s for s in statements}
+    writes = {"ecr:CompleteLayerUpload", "ecr:InitiateLayerUpload", "ecr:PutImage",
+              "ecr:UploadLayerPart"}
+    for statement in statements:
+        pushed = writes & set(statement["Action"])
+        assert not pushed or statement["Sid"] == "EcrArtifactCopy", statement["Sid"]
+    copy = by_sid["EcrArtifactCopy"]
+    assert set(copy["Action"]) >= writes | {"ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer"}
+    assert copy["Resource"] != "*" and copy["Resource"]["Fn::Sub"].endswith(
+        "repository/launchpad-agents"
+    )
+    assert "ecr:GetAuthorizationToken" not in {
+        a for s in statements for a in s["Action"]
     }
 
 

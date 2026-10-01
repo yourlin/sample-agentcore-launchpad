@@ -9,8 +9,10 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, get_args
 
+from botocore.exceptions import ClientError
 from fastapi import APIRouter, Depends, Request
 from fastapi.concurrency import run_in_threadpool
+from pydantic import ValidationError
 from sqlalchemy.orm import Session
 from starlette.datastructures import UploadFile
 
@@ -31,10 +33,12 @@ from app.schemas.agent import (
     InvokeRequest,
     InvokeResponse,
     RuntimeImportRequest,
+    display_name_of,
 )
-from app.services import agent_iam, agent_names, byoc_uploads
+from app.services import agent_iam, agent_names, agent_templates, byoc_uploads, snapshots
 from app.services.agent_versions import list_agent_versions
-from app.services.agentcore.client import control_client
+from app.services.agentcore import registry as registry_api
+from app.services.agentcore.client import control_client, registry_control_client
 from app.services.attachments import attachment_capability, prepare_attachments
 from app.services.invoke import invoke_agent_text
 from app.services.memory import scoped_actor
@@ -47,6 +51,7 @@ from app.services.runtime_discovery import (
     scan_harnesses,
     scan_runtimes,
 )
+from app.services.suggestions import suggested_questions
 from app.services.workspace import WorkspaceContext
 from app.system_agents import service as system_agents
 from app.system_agents.presets import is_reserved_name
@@ -65,6 +70,8 @@ def _agent_out(agent: Agent, deployment: Deployment | None = None) -> dict[str, 
     out = {
         "id": agent.id,
         "name": agent.name,
+        # Human label from the spec (T04); the console renders display_name || name.
+        "display_name": display_name_of(agent.spec),
         "method": agent.method,
         "status": agent.status,
         "arn": agent.arn,
@@ -142,12 +149,47 @@ def _delete_agent_resources(agent: Agent, workspace: WorkspaceContext) -> bool:
         workspace,
         lambda msg: logger.info("agent %s: %s", agent.id, msg),
     )
+    _retire_registry_record(agent, workspace)
     return True
+
+
+def _retire_registry_record(agent: Agent, workspace: WorkspaceContext) -> str:
+    """Delete the A2A record the register stage created for this agent.
+
+    Without this, every deleted agent left its record in the catalog — still DRAFT or
+    PENDING_APPROVAL, still discoverable once approved, advertising an endpoint that no
+    longer exists (found by the roadmap e2e: 15 orphans after a few runs).
+
+    Deleted rather than set DEPRECATED: DEPRECATED is terminal *and* keeps the record in
+    the catalog, which is the wrong end state for an agent that is gone; the ledger row
+    (status `deleted`) is the history. Only the record this agent owns is touched — the
+    id comes from `Agent.registry_record_id`, which the register stage wrote.
+
+    Fail-soft like the role delete above: a Registry failure must not block deleting the
+    agent, so it returns an outcome string for the log instead of raising.
+    """
+    record_id = agent.registry_record_id
+    registry_id = (workspace.resources or {}).get("registry_id")
+    if not record_id or not registry_id:
+        return "skipped: no record" if not record_id else "skipped: registry unavailable"
+    try:
+        registry_api.delete_record(registry_control_client(workspace), registry_id, record_id)
+    except ClientError as exc:
+        code = exc.response.get("Error", {}).get("Code", "ClientError")
+        if code == "ResourceNotFoundException":
+            return "already gone"
+        logger.warning(
+            "agent %s: registry record %s not deleted (%s) — retire it from the Registry "
+            "console", agent.id, record_id, code,
+        )
+        return f"failed: {code}"
+    return "deleted"
 
 
 @router.post("/agents", status_code=202)
 def create_agent(
     spec: AgentSpec,
+    request: Request,
     db: Session = Depends(get_db),
     ws: WorkspaceScope = Depends(require_workspace),
 ) -> dict[str, Any]:
@@ -178,6 +220,8 @@ def create_agent(
         method=spec.method,
         status="deploying",
         spec=spec.model_dump(),
+        # the creating account (TTFA and display); server-derived, never from the spec
+        owner=require_identity(request).username,
     )
     db.add(agent)
     db.flush()
@@ -209,6 +253,16 @@ def list_agents(
         )
         out.append(row)
     return {"agents": out}
+
+
+@router.get("/agent-templates")
+def list_agent_templates() -> dict[str, Any]:
+    """The scenario-template catalogue the wizard's gallery shows (T10).
+
+    Static data: no ledger, no AWS, and nothing workspace-specific — the wizard
+    applies a template client-side and still posts an ordinary ``AgentSpecInput``.
+    """
+    return {"templates": agent_templates.catalogue()}
 
 
 @router.get("/agents/discovery")
@@ -343,6 +397,22 @@ def get_agent(
     return out
 
 
+@router.get("/agents/{agent_id}/suggested-questions")
+def get_suggested_questions(
+    agent_id: str,
+    lang: str = "en",
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    """3-5 starter questions for the try-chat panel; cached, never 500s on model failure."""
+    agent = _agent_in(db, ws, agent_id)
+    if agent is None:
+        raise NotFoundError("agent.not_found", "agent not found")
+    return suggested_questions(
+        ws.context, agent.id, agent.spec or {}, "zh-CN" if lang.startswith("zh") else "en"
+    )
+
+
 @router.get("/agents/{agent_id}/conversions")
 def list_agent_conversions(
     agent_id: str,
@@ -402,6 +472,7 @@ def get_agent_versions(
 def redeploy_agent(
     agent_id: str,
     spec: AgentSpec,
+    request: Request,
     db: Session = Depends(get_db),
     ws: WorkspaceScope = Depends(require_workspace),
 ) -> dict[str, Any]:
@@ -420,6 +491,16 @@ def redeploy_agent(
     agent = _agent_in(db, ws, agent_id)
     if agent is None or agent.status == "deleted":
         raise NotFoundError("agent.not_found", "agent not found")
+    return _republish(db, agent, spec, actor=require_identity(request).username)
+
+
+def _republish(
+    db: Session, agent: Agent, spec: AgentSpec, *, actor: str, note: str | None = None
+) -> dict[str, Any]:
+    """The one in-place re-publish: every guard, then an "update"-mode deploy job.
+
+    Shared by the redeploy route and snapshot rollback (T18), so a rollback is —
+    by construction — an ordinary redeploy that happens to carry an older spec."""
     system_agents.refuse_system_mutation(agent, "redeploy")
     if agent.method == DISCOVERED_METHOD:
         raise AppError(
@@ -463,14 +544,103 @@ def redeploy_agent(
     agent.error = None
     agent.updated_at = datetime.now(UTC)
     db.flush()
-    deployment, job = create_deployment(db, agent, mode="update")
+    deployment, job = create_deployment(
+        db, agent, mode="update", actor=actor, note=note
+    )
     start_deploy_async(job.id)
     return {"agent": _agent_out(agent), "job_id": job.id, "deployment_id": deployment.id}
+
+
+@router.get("/agents/{agent_id}/snapshots")
+def list_agent_snapshots(
+    agent_id: str,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    """Ledger spec snapshots, newest first (no specs — fetch one for its body)."""
+    agent = _agent_in(db, ws, agent_id)
+    if agent is None:
+        raise NotFoundError("agent.not_found", "agent not found")
+    return {
+        "snapshots": [
+            snapshots.snapshot_out(snap, with_spec=False)
+            for snap in snapshots.list_snapshots(db, agent.id)
+        ]
+    }
+
+
+@router.get("/agents/{agent_id}/snapshots/diff")
+def diff_agent_snapshots(
+    agent_id: str,
+    from_seq: int,
+    to_seq: int,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    """Field-level, human-readable difference between two snapshots' specs."""
+    agent = _agent_in(db, ws, agent_id)
+    if agent is None:
+        raise NotFoundError("agent.not_found", "agent not found")
+    before = snapshots.get_snapshot(db, agent.id, from_seq)
+    after = snapshots.get_snapshot(db, agent.id, to_seq)
+    return {
+        "from": snapshots.snapshot_out(before, with_spec=False),
+        "to": snapshots.snapshot_out(after, with_spec=False),
+        "changes": snapshots.diff_specs(before.spec or {}, after.spec or {}),
+    }
+
+
+@router.get("/agents/{agent_id}/snapshots/{seq}")
+def get_agent_snapshot(
+    agent_id: str,
+    seq: int,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    agent = _agent_in(db, ws, agent_id)
+    if agent is None:
+        raise NotFoundError("agent.not_found", "agent not found")
+    return snapshots.snapshot_out(snapshots.get_snapshot(db, agent.id, seq), with_spec=True)
+
+
+@router.post("/agents/{agent_id}/snapshots/{seq}/rollback", status_code=202)
+def rollback_agent_snapshot(
+    agent_id: str,
+    seq: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    """Re-deploy a stored spec as a NEW publish (never an AWS-side version revert).
+
+    Goes through `_republish`, so the redeploy guards apply unchanged: system presets,
+    discovered runtimes, an in-flight deploy, and a converted agent's baked prompt and
+    model all refuse exactly as they do on redeploy. Prod workspaces refuse members
+    centrally (`PROD_PROTECTED`).
+    """
+    agent = _agent_in(db, ws, agent_id)
+    if agent is None or agent.status == "deleted":
+        raise NotFoundError("agent.not_found", "agent not found")
+    system_agents.refuse_system_mutation(agent, "rollback")
+    snap = snapshots.get_snapshot(db, agent.id, seq)
+    try:
+        spec = AgentSpec.model_validate(snap.spec or {})
+    except ValidationError as exc:
+        raise AppError(
+            "snapshot.spec_invalid",
+            "this snapshot's spec no longer validates against the current schema",
+            {"errors": len(exc.errors())},
+            status_code=409,
+        ) from exc
+    return _republish(
+        db, agent, spec, actor=require_identity(request).username, note=f"rollback to #{seq}"
+    )
 
 
 @router.post("/agents/{agent_id}/convert", status_code=202)
 def convert_agent(
     agent_id: str,
+    request: Request,
     db: Session = Depends(get_db),
     ws: WorkspaceScope = Depends(require_workspace),
 ) -> dict[str, Any]:
@@ -535,7 +705,7 @@ def convert_agent(
 
     agent = Agent(
         workspace_id=ws.id, name=spec.name, method=spec.method, status="deploying",
-        spec=spec.model_dump(),
+        spec=spec.model_dump(), owner=require_identity(request).username,
     )
     db.add(agent)
     db.flush()
@@ -568,6 +738,7 @@ def invoke_agent(
         **extra,
     )
     return InvokeResponse(
+        answered_by=result.get("answered_by", "model"),
         text=result["text"],
         session_id=result["session_id"],
         latency_ms=int((time.monotonic() - started) * 1000),

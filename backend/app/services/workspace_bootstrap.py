@@ -47,6 +47,7 @@ from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from app.core.db import SessionLocal
+from app.core.regions import partition_for_region
 from app.models.ledger import Job, Workspace
 from app.services import aws_clients, gateway_bootstrap, policy_bootstrap, workspace_iam
 from app.services import bootstrap as hub_bootstrap
@@ -522,7 +523,8 @@ def _stage_validate_access(ctx: BootstrapContext) -> str:
 
 def _ecr_repo_arn(ctx: BootstrapContext) -> str:
     repo = ctx.resources.get("ecr_repo") or ECR_REPO_NAME
-    return f"arn:aws:ecr:{ctx.region}:{ctx.account_id}:repository/{repo}"
+    partition = partition_for_region(ctx.region)
+    return f"arn:{partition}:ecr:{ctx.region}:{ctx.account_id}:repository/{repo}"
 
 
 def _artifacts_bucket_name(ctx: BootstrapContext) -> str:

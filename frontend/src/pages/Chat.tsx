@@ -16,13 +16,13 @@ import {
   ViewHead,
 } from "../components";
 import { AttachmentHint, MessageAttachments, PendingAttachments } from "../components/chat/Attachments";
-import type { PendingAttachment } from "../components/chat/attachments";
+import type { PendingAttachment } from "../components/chat/attachmentModel";
 import {
   attachmentMediaType,
   attachmentMetadata,
   encodeAttachment,
   validateAttachments,
-} from "../components/chat/attachments";
+} from "../components/chat/attachmentModel";
 import type {
   AgentInfo,
   ChatAttachmentMetadata,

@@ -1,10 +1,10 @@
-import { Database, MessagesSquare, Wrench } from "lucide-react";
+import { Database, MessagesSquare, ThumbsDown, ThumbsUp, Wrench } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 
 import { MessageAttachments } from "../../../components/chat/Attachments";
 import { Markdown } from "../../../components/Markdown";
-import type { ChatAttachmentMetadata } from "../../../lib/api";
+import type { ChatAttachmentMetadata, FeedbackVerdict } from "../../../lib/api";
 import { Alert, Spin, Tag } from "../../ui";
 
 export interface ChatMessage {
@@ -13,6 +13,12 @@ export interface ChatMessage {
   name?: string;
   streaming?: boolean;
   attachments?: ChatAttachmentMetadata[];
+  /** ledger id of a persisted agent answer — what a thumbs verdict attaches to */
+  id?: number;
+  /** the viewer's current verdict on this answer */
+  verdict?: FeedbackVerdict | null;
+  /** T35: a curated answer (rule), not the model, produced this reply */
+  curated?: boolean;
 }
 
 /** The conversation: user / agent bubbles, tool calls, memory writes and errors. */
@@ -21,11 +27,14 @@ export function Thread({
   userLabel,
   agentLabel,
   restoring,
+  onRate,
 }: {
   messages: ChatMessage[];
   userLabel: string;
   agentLabel: string;
   restoring: boolean;
+  /** thumbs handler (T15); omitted ⇒ no controls. `none` withdraws a verdict. */
+  onRate?: (index: number, verdict: FeedbackVerdict | "none") => void;
 }) {
   const { t } = useTranslation();
   const ref = useRef<HTMLDivElement>(null);
@@ -55,6 +64,11 @@ export function Thread({
           <div key={i} className="v2-chat-msg agent">
             <div className="v2-chat-who">
               {agentLabel}
+              {msg.curated && (
+                <Tag tone="orange" title={t("v2.chat.curatedHint")}>
+                  {t("v2.chat.curated")}
+                </Tag>
+              )}
               {msg.streaming && (
                 <Tag tone="blue" dot>
                   {t("v2.chat.streaming")}
@@ -65,6 +79,27 @@ export function Thread({
               <Markdown text={msg.text} />
               {msg.streaming && <span className="v2-chat-caret" />}
             </div>
+            {onRate && msg.id != null && !msg.streaming && (
+              <div className="v2-chat-thumbs" role="group" aria-label={t("v2.chat.rateAnswer")}>
+                {(["up", "down"] as const).map((verdict) => {
+                  const Icon = verdict === "up" ? ThumbsUp : ThumbsDown;
+                  const active = msg.verdict === verdict;
+                  return (
+                    <button
+                      key={verdict}
+                      type="button"
+                      className={active ? `v2-chat-thumb on ${verdict}` : "v2-chat-thumb"}
+                      aria-pressed={active}
+                      title={t(verdict === "up" ? "v2.chat.thumbUp" : "v2.chat.thumbDown")}
+                      onClick={() => onRate(i, active ? "none" : verdict)}
+                      data-testid={`thumb-${verdict}`}
+                    >
+                      <Icon size={14} aria-hidden="true" />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         ) : msg.kind === "tool" ? (
           <div key={i} className="v2-chat-tool" data-testid="tool-call">

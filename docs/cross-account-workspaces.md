@@ -112,6 +112,27 @@ StackSets specifically.
 > ExternalId — so a spoke does not have to be in the same Organization for the
 > mechanism to work; Organizations only make the *rollout* manageable.
 
+## Which template
+
+Two templates ship in `infra/spoke/`. They share the trust policy, the parameters and
+everything needed to deploy, invoke, observe and evaluate an agent; they differ only in
+whether the account can **build**.
+
+| | `launchpad-workspace-role.yaml` | `launchpad-workspace-role-prod.yaml` |
+|---|---|---|
+| Use for | `dev`, `staging`, any workspace where members create agents | a `prod` workspace that only **receives** releases |
+| Builds (CodeBuild) | yes | no: no `codebuild:*`, no PassRole to CodeBuild |
+| ECR | create/describe, plus both halves of an artifact copy | create/describe, plus the **receiving** half only (`PutImage`, layer upload); no read-out of layers, no `GetAuthorizationToken` |
+| BYOC image from any repo in the account | yes | no: images arrive by promotion into `launchpad-agents` |
+| Artifact deletion (`s3:DeleteObject`) | yes | no: released artifacts are the rollback and audit record |
+
+Rule of thumb: if a human could reasonably ask this account to build something, use the
+standard template; if the only way an agent gets here is a promotion, use the prod
+template, and mark the workspace `prod` in the console. Every removed statement is
+documented in the prod template's header. Known limit: the workspace bootstrap still
+probes CodeBuild, so bootstrapping with the prod role fails at that stage until it learns
+to skip it for a receive-only workspace.
+
 ## The trust boundary, stated plainly
 
 `LaunchpadWorkspaceRole` is powerful. It creates IAM roles, because Launchpad

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { AttachmentCapability, ChatAttachmentMetadata } from "../../lib/api";
-import type { PendingAttachment } from "./attachments";
-import { formatAttachmentSize } from "./attachments";
+import type { PendingAttachment } from "./attachmentModel";
+import { formatAttachmentSize } from "./attachmentModel";
 
 function ImagePreview({ file }: { file: File }) {
   const [url, setUrl] = useState<string>();

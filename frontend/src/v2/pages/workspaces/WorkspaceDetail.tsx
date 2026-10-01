@@ -10,6 +10,8 @@ import {
   type StageInfo,
   type WorkspaceBootstrapJob,
   type WorkspacePurgeResult,
+  WORKSPACE_TIERS,
+  type WorkspaceTier,
 } from "../../../lib/api";
 import {
   formatRowCounts,
@@ -21,8 +23,9 @@ import { useWorkspace } from "../../../workspace/workspace-context";
 import { fmtTime } from "../../format";
 import { useLoad, useV2Toast } from "../../hooks";
 import { Alert, Button, Card, Confirm, Descriptions, FlowHeader, Spin, Tag } from "../../ui";
-import { ExternalTag, HubTag, StatusTag } from "./tags";
+import { ExternalTag, HubTag, StatusTag, TierTag } from "./tags";
 import { GrantsCard } from "./GrantsCard";
+import { MappingsCard } from "./MappingsCard";
 
 const POLL_MS = 2000;
 
@@ -48,7 +51,9 @@ export function WorkspaceDetail({ workspaceId }: { workspaceId: string }) {
   const row = list.data?.workspaces.find((w) => w.id === workspaceId) ?? null;
 
   const [busy, setBusy] = useState(false);
-  const [confirm, setConfirm] = useState<"bootstrap" | "detach" | "purge" | null>(null);
+  const [confirm, setConfirm] = useState<"bootstrap" | "detach" | "purge" | "tier" | null>(null);
+  /** a tier move into or out of prod, waiting on the operator's confirmation */
+  const [pendingTier, setPendingTier] = useState<WorkspaceTier | null>(null);
   /** the dry run behind the purge dialog: what a purge would take with it */
   const [purgePreview, setPurgePreview] = useState<WorkspacePurgeResult | null>(null);
   const [jobId, setJobId] = useState<string | null>(() => readBootstrapJobIds()[workspaceId] ?? null);
@@ -123,6 +128,33 @@ export function WorkspaceDetail({ workspaceId }: { workspaceId: string }) {
       setBusy(false);
       setConfirm(null);
     }
+  };
+
+  const changeTier = async (tier: WorkspaceTier, confirmed: boolean) => {
+    if (!row) return;
+    setBusy(true);
+    try {
+      await api.patchWorkspace(row.id, { tier, confirm_tier_change: confirmed });
+      toast("success", t("v2.workspaces.tierChanged", { name: row.name, tier: t(`v2.workspaces.tier.${tier}`) }));
+      await reload();
+    } catch (err) {
+      toast("error", errorMessage(err));
+    } finally {
+      setBusy(false);
+      setPendingTier(null);
+      setConfirm(null);
+    }
+  };
+
+  /** Crossing prod (in or out) changes who may modify agents, so it is confirmed. */
+  const pickTier = (tier: WorkspaceTier) => {
+    if (!row || tier === row.tier) return;
+    if (tier === "prod" || row.tier === "prod") {
+      setPendingTier(tier);
+      setConfirm("tier");
+      return;
+    }
+    void changeTier(tier, false);
   };
 
   const detach = async () => {
@@ -269,6 +301,7 @@ export function WorkspaceDetail({ workspaceId }: { workspaceId: string }) {
           <span className="v2-row">
             {row.name}
             <StatusTag status={row.bootstrap_status} />
+            <TierTag tier={row.tier} />
             {row.is_default && <HubTag />}
           </span>
         }
@@ -337,6 +370,26 @@ export function WorkspaceDetail({ workspaceId }: { workspaceId: string }) {
                 ),
               },
               { label: t("v2.workspaces.field.region"), value: <span className="mono">{row.region}</span> },
+              {
+                label: t("v2.workspaces.field.tier"),
+                value: (
+                  <select
+                    className="v2-select"
+                    value={row.tier ?? "dev"}
+                    onChange={(e) => pickTier(e.target.value as WorkspaceTier)}
+                    disabled={busy}
+                    aria-label={t("v2.workspaces.field.tier")}
+                    title={t(`v2.workspaces.tierHint.${row.tier ?? "dev"}`)}
+                    data-testid="v2-ws-tier"
+                  >
+                    {WORKSPACE_TIERS.map((tier) => (
+                      <option key={tier} value={tier}>
+                        {t(`v2.workspaces.tier.${tier}`)}
+                      </option>
+                    ))}
+                  </select>
+                ),
+              },
               ...(row.cross_account
                 ? [
                     {
@@ -412,6 +465,8 @@ export function WorkspaceDetail({ workspaceId }: { workspaceId: string }) {
 
       <GrantsCard workspaceId={workspaceId} onTotal={setGrantedTotal} />
 
+      <MappingsCard workspaceId={workspaceId} />
+
       <Confirm
         open={confirm === "bootstrap"}
         title={t(resume ? "v2.workspaces.bootstrapResume" : "v2.workspaces.bootstrapRun")}
@@ -420,6 +475,22 @@ export function WorkspaceDetail({ workspaceId }: { workspaceId: string }) {
         busy={busy}
         onConfirm={() => void startBootstrap()}
         onClose={() => setConfirm(null)}
+      />
+      <Confirm
+        open={confirm === "tier" && pendingTier !== null}
+        title={t("v2.workspaces.tierConfirmTitle")}
+        body={t(pendingTier === "prod" ? "v2.workspaces.tierConfirmToProd" : "v2.workspaces.tierConfirmFromProd", {
+          name: row.name,
+          tier: t(`v2.workspaces.tier.${pendingTier ?? "dev"}`),
+        })}
+        confirmLabel={t("v2.workspaces.tierConfirmOk")}
+        danger={pendingTier === "prod"}
+        busy={busy}
+        onConfirm={() => pendingTier && void changeTier(pendingTier, true)}
+        onClose={() => {
+          setPendingTier(null);
+          setConfirm(null);
+        }}
       />
       <Confirm
         open={confirm === "detach"}

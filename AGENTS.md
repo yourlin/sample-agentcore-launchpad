@@ -4,7 +4,8 @@ AgentCore Launchpad is a production-grade sample asset: one React console over o
 FastAPI backend that wires the real Amazon Bedrock AgentCore services (Runtime,
 Harness, Memory, Gateway, Identity, Registry, Policy/Cedar, Evaluation, Observability)
 into a unified **create → deploy → invoke → observe** experience. Everything targets a
-real AWS account in `us-west-2`; there is no mock plane. Read
+real AWS account, in whatever AgentCore region each workspace names (the
+`default` workspace's comes from `config/launchpad.yaml`); there is no mock plane. Read
 [docs/architecture.md](docs/architecture.md) first — it is the authoritative,
 up-to-date map of how each console feature backs onto an AgentCore service and resource.
 

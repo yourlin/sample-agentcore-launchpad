@@ -7,8 +7,6 @@ import {
   type AttachableKb,
   type AttachableMcp,
   type AttachableSkill,
-  resolveKb,
-  selectableKbs,
   skillNameFromPath,
   toggle,
 } from "../../../lib/agent-spec";
@@ -21,6 +19,7 @@ import {
   supportsReasoningEffort,
 } from "../../../lib/models";
 import { EFFORT_NONE, type EffortChoice } from "../../../pages/create/presetSettings";
+import { HintLabel } from "../../Glossary";
 import { useV2Toast } from "../../hooks";
 import { Alert, Button, Card, Field, Segmented, Spin } from "../../ui";
 
@@ -239,11 +238,12 @@ export function SkillsKbCard({
   cat,
   customSkills,
   setCustomSkills,
-  kbNote,
+  kbSlot,
 }: SectionProps & {
   customSkills: WizardUi["customSkills"];
   setCustomSkills: Dispatch<SetStateAction<WizardUi["customSkills"]>>;
-  kbNote: string;
+  /** the knowledge field (see `KnowledgeField`); omitted when the caller renders it apart */
+  kbSlot?: ReactNode;
 }) {
   const { t } = useTranslation();
   const toast = useV2Toast();
@@ -253,7 +253,6 @@ export function SkillsKbCard({
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<{ stagingId: string; skills: InspectedSkill[]; picked: number[] } | null>(null);
 
-  const kbs = selectableKbs(cat.kbCatalog);
   const extraSkills = form.skills
     .filter((path) => !cat.skills.some((s) => s.path === path))
     .map((path) => {
@@ -269,13 +268,6 @@ export function SkillsKbCard({
         ),
       };
     });
-  const extraKbs = form.selectedKbs
-    .filter((id) => !kbs.some((k) => k.kb_id === id))
-    .map((id) => {
-      const info = resolveKb(id, cat.kbCatalog, []);
-      return { key: id, label: info.name, hint: info.description || info.name };
-    });
-
   const toggleSkill = (path: string) => {
     if (form.skills.includes(path)) {
       set((prev) => ({ skills: prev.skills.filter((s) => s !== path) }));
@@ -336,9 +328,9 @@ export function SkillsKbCard({
 
   const gitValid = gitUrl.trim().startsWith("https://");
   return (
-    <Card title={t("v2.agents.wizard.skillsKb")}>
+    <Card title={kbSlot ? t("v2.agents.wizard.skillsKb") : t("v2.agents.wizard.skills")}>
       <div className="v2-form">
-        <Field label={t("v2.agents.wizard.skills")} hint={t("v2.agents.wizard.skillsHintSources")}>
+        <Field label={<HintLabel term="skill">{t("v2.agents.wizard.skills")}</HintLabel>} hint={t("v2.agents.wizard.skillsHintSources")}>
           {cat.loading ? (
             <Spin />
           ) : (
@@ -417,19 +409,7 @@ export function SkillsKbCard({
             </div>
           )}
         </Field>
-        <Field label={t("v2.agents.kbTitle")} hint={kbNote}>
-          <CheckList
-            items={kbs}
-            keyOf={(kb) => kb.kb_id}
-            labelOf={(kb) => kb.name}
-            hintOf={(kb) => kb.description || kb.name}
-            selected={form.selectedKbs}
-            onToggle={(id) => set({ selectedKbs: toggle(form.selectedKbs, id) })}
-            empty={t("v2.agents.wizard.noKbs")}
-            extra={extraKbs}
-            testId="v2-agent-kbs"
-          />
-        </Field>
+        {kbSlot}
       </div>
     </Card>
   );
@@ -448,7 +428,7 @@ export function MemoryCard({ form, set, cat, err, loop, note }: SectionProps & {
             {t("v2.agents.wizard.longTermOn")}
           </label>
         </Field>
-        <Field label={t("v2.agents.wizard.memoryResource")} hint={t("create.configure.memoryResourceHint")}>
+        <Field label={<HintLabel term="memory">{t("v2.agents.wizard.memoryResource")}</HintLabel>} hint={t("create.configure.memoryResourceHint")}>
           <select className="v2-select" value={form.memoryId} onChange={(e) => set({ memoryId: e.target.value })} data-testid="v2-agent-memory">
             <option value="">{t("v2.agents.wizard.memoryDefault")}</option>
             {options.map((m) => (
@@ -491,6 +471,34 @@ export function MemoryCard({ form, set, cat, err, loop, note }: SectionProps & {
           <Alert>{note}</Alert>
         </div>
       )}
+    </Card>
+  );
+}
+
+/**
+ * T12 — PII protection. The screen runs in the platform's invoke chain, not inside
+ * the agent, so it applies to every method; the copy says what it costs (buffered
+ * answers) rather than leaving the member to discover it.
+ */
+export function GuardrailCard({ form, set }: Pick<SectionProps, "form" | "set">) {
+  const { t } = useTranslation();
+  return (
+    <Card title={t("v2.agents.wizard.guardrail.title")} sub={t("v2.agents.wizard.guardrail.sub")}>
+      <div className="v2-form">
+        <Field label={t("v2.agents.wizard.guardrail.mode")} hint={t("v2.agents.wizard.guardrail.hint")}>
+          <select
+            className="v2-select"
+            value={form.guardrail}
+            onChange={(e) => set({ guardrail: e.target.value as AgentForm["guardrail"] })}
+            data-testid="v2-agent-guardrail"
+          >
+            <option value="off">{t("v2.agents.wizard.guardrail.off")}</option>
+            <option value="anonymize">{t("v2.agents.wizard.guardrail.anonymize")}</option>
+            <option value="block">{t("v2.agents.wizard.guardrail.block")}</option>
+          </select>
+        </Field>
+        {form.guardrail !== "off" && <Alert>{t("v2.agents.wizard.guardrail.bufferedNote")}</Alert>}
+      </div>
     </Card>
   );
 }

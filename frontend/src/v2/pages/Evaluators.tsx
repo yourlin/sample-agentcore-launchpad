@@ -1,3 +1,4 @@
+import { modelsForActiveRegion } from "../../lib/regions";
 import { Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -512,7 +513,7 @@ function EvaluatorEditor({ id }: { id: string | null }) {
           {draft.definition !== "code" && (
             <Field label={t("v2.evaluators.model")} required hint={t("v2.evaluators.modelHint")}>
               <select className="v2-select" value={draft.model_id} onChange={(e) => set({ model_id: e.target.value })}>
-                {(JUDGE_MODEL_OPTIONS.includes(draft.model_id) ? JUDGE_MODEL_OPTIONS : [draft.model_id, ...JUDGE_MODEL_OPTIONS]).map((m) => (
+                {(modelsForActiveRegion(JUDGE_MODEL_OPTIONS).includes(draft.model_id) ? modelsForActiveRegion(JUDGE_MODEL_OPTIONS) : [draft.model_id, ...modelsForActiveRegion(JUDGE_MODEL_OPTIONS)]).map((m) => (
                   <option key={m} value={m}>
                     {m}
                   </option>
