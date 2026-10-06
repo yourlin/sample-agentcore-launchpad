@@ -1,0 +1,23 @@
+backend/tests/test_dlc_gate_calibration.py
+  s_53a2f2bba8d550::t_5a8952a1cc82c3 1-212
+backend/app/dlc/gate.py
+  s_53a2f2bba8d550::t_b325eb84264c88 1-271
+backend/app/dlc/calibration.py
+  s_53a2f2bba8d550::t_25e248da71309b 1-465
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "b3ebd9fe9bc9bffc5da07ab26c3d0854a13dbbc6",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "linyesh <linyesh@amazon.com>"
+    }
+  }
+}
