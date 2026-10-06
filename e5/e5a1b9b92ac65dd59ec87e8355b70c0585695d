@@ -1,0 +1,29 @@
+backend/app/routers/promotions.py
+  s_53a2f2bba8d550::t_42d16901b4d5d6 322-328
+backend/tests/test_promotion_execution.py
+  s_53a2f2bba8d550::t_18e47d3645cf66 1040-1057
+frontend/src/lib/api.ts
+  s_53a2f2bba8d550::t_93e1cab517382f 6780-6788,6790-6796
+frontend/src/locales/en/common.json
+  s_53a2f2bba8d550::t_7dd0d3cb641ee4 7199-7213
+frontend/src/locales/zh-CN/common.json
+  s_53a2f2bba8d550::t_682ef6eb497005 7199-7213
+frontend/src/v2/pages/dlc/ReleaseGate.tsx
+  s_53a2f2bba8d550::t_1854fc5267d7ff 19,24,346-459,681-682
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "e5e5a1b9b92ac65dd59ec87e8355b70c0585695d",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "linyesh <linyesh@amazon.com>"
+    }
+  }
+}
