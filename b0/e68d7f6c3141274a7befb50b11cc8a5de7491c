@@ -1,0 +1,36 @@
+backend/app/dlc/golden.py
+  s_53a2f2bba8d550::t_b26321e007c8d2 1-286
+backend/app/dlc/releases.py
+  s_53a2f2bba8d550::t_21c3f7f30fd6af 1-577
+backend/tests/test_dlc_releases.py
+  s_53a2f2bba8d550::t_11d751b57b8bb5 1-257
+  s_53a2f2bba8d550::t_5368703b5517a6 258
+backend/app/deployer/pipeline.py
+  s_53a2f2bba8d550::t_d5a76da53634e5 159-161,349-354
+backend/app/dlc/engine.py
+  s_53a2f2bba8d550::t_23473770c5ad69 313
+backend/app/services/agentcore/runtime.py
+  s_53a2f2bba8d550::t_fee17ef839199a 428-468
+backend/app/services/chat.py
+  s_53a2f2bba8d550::t_98772a249cdd44 190-192
+backend/app/services/invoke.py
+  s_53a2f2bba8d550::t_8f66e0c011ee83 455-466,568,600,644,742,777
+backend/app/services/release_gates.py
+  s_53a2f2bba8d550::t_935b77b74be002 151-170
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "b0e68d7f6c3141274a7befb50b11cc8a5de7491c",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "linyesh <linyesh@amazon.com>"
+    }
+  }
+}
