@@ -1,0 +1,441 @@
+AGENTS.md
+  s_53a2f2bba8d550::t_dd43bff5cc2474 30,35,106-108
+CLAUDE.md
+  s_53a2f2bba8d550::t_28ca4aafe79e67 34,39,110-112
+backend/app/assistant/evaluation_plan.py
+  s_53a2f2bba8d550::t_d0e498233a34ac 327,493-499
+backend/app/assistant/proposal.py
+  s_53a2f2bba8d550::t_721d8178a72c71 91-95,242-243,245,247-248,254-255,294,613
+backend/app/assistant/service.py
+  s_53a2f2bba8d550::t_f2d58386a84c0f 64,113-129,222-232,238-241,246-251,366-368,400-402,1038,1363-1376,1412,1414,1824-1837,1846,1856-1859,1882-1883,1898-1903,1930-1932,1934-1959,1961-1981,1983-2000,2023-2047
+backend/app/assistant/submission.py
+  s_53a2f2bba8d550::t_7b44a745caac9b 73-77
+backend/app/assistant/tool_catalog.py
+  s_53a2f2bba8d550::t_07c8ff64e7bf91 15,135
+backend/app/core/config.py
+  s_53a2f2bba8d550::t_5d13a038339a2f 51-63
+backend/app/core/db.py
+  s_53a2f2bba8d550::t_27254a1b033a30 45,61-64,232,284-286,297-395,562-578,701,728-737
+backend/app/core/errors.py
+  s_53a2f2bba8d550::t_fbb329d895d48d 66-117,119-123
+backend/app/core/route_policy.py
+  s_53a2f2bba8d550::t_9be80b875e6160 35-39,53-54,98-100,126,136,245-275,569-577,581,713
+backend/app/data/video_sections.json
+  s_53a2f2bba8d550::t_19dbe11d17e902 165-173,264-272
+backend/app/deployer/byoc.py
+  s_53a2f2bba8d550::t_2e52421416d565 33,37,372,380-381,397-398,404,426,443-446,452-457,460-465
+backend/app/deployer/container.py
+  s_53a2f2bba8d550::t_3951af8d6f6b4e 19,24,240-241,256,258-260,273,290-293,299-304
+backend/app/deployer/environment.py
+  s_53a2f2bba8d550::t_2e474c204b0706 6,19-30,34-37,65-73
+backend/app/deployer/filesystem.py
+  s_53a2f2bba8d550::t_51daf4463578fb 1-32
+backend/app/deployer/harness.py
+  s_53a2f2bba8d550::t_6b790c643091aa 16,20,55-57,69-73,294-300,656-659
+backend/app/deployer/pipeline.py
+  s_53a2f2bba8d550::t_a26255794c20bc 27,223-227
+backend/app/deployer/return_url.py
+  s_53a2f2bba8d550::t_bcf91e06b84de5 1-112
+backend/app/deployer/zip_runtime.py
+  s_53a2f2bba8d550::t_0f1f5d91916e0b 29,31,35,45-50,543-547,551,563-568,581,598-601,607-612,618-623
+backend/app/evaluation/agentcore_eval.py
+  s_53a2f2bba8d550::t_d73caf08859824 123-129,431-455,458-460,462-486,875,888
+backend/app/evaluation/models.py
+  s_53a2f2bba8d550::t_fe9695918403e4 73-75
+backend/app/evaluation/recommendations.py
+  s_53a2f2bba8d550::t_a1f5e506ad0553 24-30,50,58-63,436-471,474-475,556-557,583-585,590-592,594-608,628-633,638-639,652-653,661-770,780-782,834-841,931,934
+backend/app/evaluation/routers.py
+  s_53a2f2bba8d550::t_5cf2b9d77bc5a4 1229-1230,1516-1525,1579-1580,1590,1603-1610,1617,1626
+backend/app/evaluation/service.py
+  s_53a2f2bba8d550::t_68c36ff05d4606 28,203-259,282,337-346,355,362-400,402,406-407,463-465,527-528,557-568,794-799,835-837,868
+backend/app/evaluation/simulation.py
+  s_53a2f2bba8d550::t_e9e1e2c7862da6 41,47-49,68-69
+backend/app/harness_tool_access.py
+  s_53a2f2bba8d550::t_60d37ae4b044d1 9-12,34-42
+backend/app/main.py
+  s_53a2f2bba8d550::t_fca4d02531e463 4,51,122-148,152,194
+backend/app/models/assistant.py
+  s_53a2f2bba8d550::t_81889774c770c1 94-95
+backend/app/models/ledger.py
+  s_53a2f2bba8d550::t_cedcdb3f7f3c00 72-76,124-132,220-247,352,650-799
+backend/app/optimization/canary_harness.py
+  s_53a2f2bba8d550::t_ffe9ce1df64582 254-411
+backend/app/optimization/canary_infra.py
+  s_53a2f2bba8d550::t_0af6fed90f75b9 27,196-197
+backend/app/optimization/canary_routers.py
+  s_53a2f2bba8d550::t_750294251bdc0b 98-99,229,232-238,323,328-329,344-345
+backend/app/optimization/canary_service.py
+  s_53a2f2bba8d550::t_540d27566f721b 205,211-213,228,361,365,369-373,380,466-468,584-589,613-615,768-858,864,869-881,917-985,992-996
+backend/app/optimization/service.py
+  s_53a2f2bba8d550::t_6a3fc56adf785a 70-72,386-397,1589-1594,1598-1599,1609
+backend/app/routers/agents.py
+  s_53a2f2bba8d550::t_b80d7410a19b76 15,38-50,68,104-108,207-219,248-251,506-521,545,552,563,589-632,727-732,736-786,861-862,931-932
+backend/app/routers/assistant.py
+  s_53a2f2bba8d550::t_9d7a38603d2c2a 184-186,301-302,321-322
+backend/app/routers/chat.py
+  s_53a2f2bba8d550::t_0298ac7807b256 3,14,21,23,36-40,79-128,166,181-183,190,360-362,382
+backend/app/routers/identity.py
+  s_53a2f2bba8d550::t_8fe1f519cd9154 1-427
+backend/app/routers/memory_resources.py
+  s_53a2f2bba8d550::t_3386f6ec66d2d7 12-17,23,30,32,152,155-157,164-165,168,177-184,190-202,205-220,227,237-238,245,254,264-266
+backend/app/routers/observability.py
+  s_53a2f2bba8d550::t_64a76128daf939 155-172
+backend/app/routers/public_api.py
+  s_53a2f2bba8d550::t_1fd5bd4ba97a2d 118-120,124,127,135,154-155,157-158
+backend/app/routers/registry.py
+  s_53a2f2bba8d550::t_145aff21ae9253 68-76
+backend/app/schemas/agent.py
+  s_53a2f2bba8d550::t_8c0d47fc711102 10,43-47,78-165,172-173,176,179-183,554-557,576-607,637,644-654,694-744,826-833
+backend/app/schemas/inbound_auth.py
+  s_53a2f2bba8d550::t_a153505da2ffa0 1-241
+backend/app/services/agent_iam.py
+  s_53a2f2bba8d550::t_c75aa5986e8708 280,284-288,295-299,323-407,457-463,470-472,549-551,597-622,904-909,916-933
+backend/app/services/agent_identity.py
+  s_53a2f2bba8d550::t_398910afcff235 1-217
+backend/app/services/agentcore/consent_portal.py
+  s_53a2f2bba8d550::t_b013f311e96660 1-107
+backend/app/services/agentcore/harness.py
+  s_53a2f2bba8d550::t_e92359f4779ee6 49-71
+backend/app/services/agentcore/runtime.py
+  s_53a2f2bba8d550::t_c4556177318d7c 12,15,18-19,28-61,86-87,93-95,109-112,140,160-161,199-200,206-212,226-229,243,246-248,261-262,497-519,545,561-579,724,729-731,745-767,778,792,846,848-853,855-1011
+backend/app/services/chat.py
+  s_53a2f2bba8d550::t_7a72121180c10d 18,41-42,48-52,73-79,129-132
+backend/app/services/chat_ledger.py
+  s_53a2f2bba8d550::t_41bac1410c3422 94-95,98-108,132-142,156-159
+backend/app/services/consent_portals.py
+  s_53a2f2bba8d550::t_bbde6e5ae591bc 1-190
+backend/app/services/identity_gateway_targets.py
+  s_53a2f2bba8d550::t_360763732fbdb9 1-453
+backend/app/services/identity_providers.py
+  s_53a2f2bba8d550::t_f87b6855045d0a 1-875
+backend/app/services/inbound_auth.py
+  s_53a2f2bba8d550::t_6ded2965f70354 1-388
+backend/app/services/invoke.py
+  s_53a2f2bba8d550::t_5d133bdcf3a972 23-24,37,66-162,385-454,464-465,469-472,507-508,530-531,538-564,616,620,626-629,632-636,694-695,704,709-740,746,750,758-761,763-771,774-776,787-788
+backend/app/services/memory_ownership.py
+  s_53a2f2bba8d550::t_c5a4b716108b3d 1-155
+backend/app/services/oauth_sessions.py
+  s_53a2f2bba8d550::t_f6b8b7268fe0a4 1-518
+backend/app/services/observability.py
+  s_53a2f2bba8d550::t_033b7b69e77a23 30,46,304,306-315,318,1279-1280,1284-1297,1301,1350-1369,1455-1476,1834-1838,1840-1841,1843-1852,1872-1882,1887
+backend/app/services/public_fetch.py
+  s_53a2f2bba8d550::t_10a136e3021ce8 1-160
+backend/app/services/users.py
+  s_53a2f2bba8d550::t_360b97406f8392 43-45,61-64,66-68,71
+backend/app/system_agents/presets.py
+  s_53a2f2bba8d550::t_49b021bb95cb86 154
+backend/app/system_agents/skills/aws-agent-solution-architect/SKILL.md
+  s_53a2f2bba8d550::t_78ad297481071e 4,268-302,307-311
+backend/app/system_agents/skills/aws-agent-solution-architect/references/proposal-self-check.md
+  s_53a2f2bba8d550::t_41f252359c0fa6 40,51-55,154-155
+backend/app/templates/gateway_support.py
+  s_53a2f2bba8d550::t_f0a0477748a9b5 88-91,94-98
+backend/app/templates/identity_support.py
+  s_53a2f2bba8d550::t_6a04978774049a 1-137
+backend/app/templates/identity_tools.py.tmpl
+  s_53a2f2bba8d550::t_04de8dfbf44419 1-469
+backend/app/templates/strands_agent/__init__.py
+  s_53a2f2bba8d550::t_2820b3309bbbc5 12,63-73
+backend/app/templates/strands_agent/main.py.tmpl
+  s_53a2f2bba8d550::t_828996583c063c 182-184,190-196,389-390,394-395,404-407,410-413
+backend/pyproject.toml
+  s_53a2f2bba8d550::t_8b311db7d6aa93 12
+backend/scripts/e2e_identity_3lo.py
+  s_53a2f2bba8d550::t_a4a32960ad11b5 1-569
+backend/scripts/e2e_identity_connections.py
+  s_53a2f2bba8d550::t_0da9ceef8810db 1-351
+backend/scripts/e2e_identity_inbound.py
+  s_53a2f2bba8d550::t_a046374d716a23 1-681
+backend/tests/evaluation/test_eval_transient_retry.py
+  s_53a2f2bba8d550::t_a8ac96aedd3414 1-149
+backend/tests/evaluation/test_rec_adversarial_exclusion.py
+  s_53a2f2bba8d550::t_1bd8d44759dcc4 1-111
+backend/tests/evaluation/test_run_recommendations.py
+  s_53a2f2bba8d550::t_60b0dfe2c45609 242,301,679-680,808-984
+backend/tests/evaluation/test_run_scores_counts.py
+  s_53a2f2bba8d550::t_89c6688be9d2c8 1-85
+backend/tests/optimization/test_canary_infra.py
+  s_53a2f2bba8d550::t_57515ad212f39e 130-133
+backend/tests/optimization/test_canary_paired.py
+  s_53a2f2bba8d550::t_618793a0bb7275 1-160
+backend/tests/optimization/test_gateway_traffic_concurrency.py
+  s_53a2f2bba8d550::t_cf17a1fdca6933 241,266-274
+backend/tests/optimization/test_harness_canaries.py
+  s_53a2f2bba8d550::t_a0e44e2e62561c 119-121,148-198,258,267-302,403-417,420-421,423,425-426,439-441,449-477
+backend/tests/optimization/test_verdict_polarity.py
+  s_53a2f2bba8d550::t_407177b1b4382b 3,25-27,62-63,65-66
+backend/tests/test_agent_timeout_defaults.py
+  s_53a2f2bba8d550::t_c23cefa3056864 10,14,17-54
+backend/tests/test_agents_api.py
+  s_53a2f2bba8d550::t_6d4c01d33ff960 6-8,138-142,147-150,444
+backend/tests/test_architect_builtin_tools.py
+  s_53a2f2bba8d550::t_308cf90c4771a2 1-67
+backend/tests/test_assistant.py
+  s_53a2f2bba8d550::t_502eded3aeb6e0 653-654,963-964,981-1026,2245-2305
+backend/tests/test_assistant_preparation.py
+  s_53a2f2bba8d550::t_d9b3983a55b271 202,525
+backend/tests/test_assistant_readonly_evaluation.py
+  s_53a2f2bba8d550::t_56e4aaa79045e6 87,109
+backend/tests/test_assistant_tool_catalog.py
+  s_53a2f2bba8d550::t_edb2363142b274 467
+backend/tests/test_consent_portal.py
+  s_53a2f2bba8d550::t_b2fe6ce162a55a 1-294
+backend/tests/test_frontend_preset_editor_contract.py
+  s_53a2f2bba8d550::t_a21d7a3c944095 113,115-117,119,126-127
+backend/tests/test_harness_deployer.py
+  s_53a2f2bba8d550::t_53eb131f340046 42-43,401-414
+backend/tests/test_harness_execution.py
+  s_53a2f2bba8d550::t_0b2398b686e18e 108,130-131,272-273
+backend/tests/test_identity_connections.py
+  s_53a2f2bba8d550::t_a3677b361442f6 1-571
+backend/tests/test_identity_gateway_targets.py
+  s_53a2f2bba8d550::t_649da9b59bffdf 1-256
+backend/tests/test_inbound_auth.py
+  s_53a2f2bba8d550::t_c7c0950cea4edd 1-835
+backend/tests/test_inbound_auth_p3.py
+  s_53a2f2bba8d550::t_c683fa667b1a92 1-712
+backend/tests/test_inbound_connection_source.py
+  s_53a2f2bba8d550::t_fa13df4d33581e 1-219
+backend/tests/test_inbound_issuer_mismatch.py
+  s_53a2f2bba8d550::t_69e706cbd4c81e 1-115
+backend/tests/test_inbound_switch_edit.py
+  s_53a2f2bba8d550::t_427862cceeb0fc 1-109
+backend/tests/test_member_permissions.py
+  s_53a2f2bba8d550::t_babe7de41d60e4 35-46,157-172
+backend/tests/test_memory_ownership.py
+  s_53a2f2bba8d550::t_d4f500c6d36780 1-355
+backend/tests/test_memory_resources.py
+  s_53a2f2bba8d550::t_819960ec1cd85d 24,110-118,399,411,451,461
+backend/tests/test_native_tools_defaults.py
+  s_53a2f2bba8d550::t_fac30d75f54d64 1-46
+backend/tests/test_obo.py
+  s_53a2f2bba8d550::t_a2030ee4c019cd 1-219
+backend/tests/test_observability.py
+  s_53a2f2bba8d550::t_dd343e3eade02b 893-924,1070-1138,1323-1354
+backend/tests/test_public_fetch.py
+  s_53a2f2bba8d550::t_fae352a3a3968d 1-179
+backend/tests/test_runtime_container_fs.py
+  s_53a2f2bba8d550::t_47c8696bf269d8 3-4
+backend/tests/test_session_storage_methods.py
+  s_53a2f2bba8d550::t_48d31f03e97284 1-218
+backend/tests/test_tool_auth.py
+  s_53a2f2bba8d550::t_3b6aabb6aea422 1-473
+backend/tests/test_user_federation.py
+  s_53a2f2bba8d550::t_c333858ea9f242 1-936
+backend/tests/test_workspaces.py
+  s_53a2f2bba8d550::t_d4b0707eb7f1af 55-64
+backend/uv.lock
+  s_53a2f2bba8d550::t_0f66004142d218 225,232,234,239,246,248,872
+docs/agent-runbook-dev.md
+  s_53a2f2bba8d550::t_9266754688c9e8 61-66,116
+docs/agent-runbook-prod.md
+  s_53a2f2bba8d550::t_4e88be6f5ba18d 63-72,82-100
+docs/api.md
+  s_53a2f2bba8d550::t_d80291cf0b7b0f 40,174-220,316,670-671,673-686,706,851,904
+docs/api.zh-CN.md
+  s_53a2f2bba8d550::t_fdc5d56c2d2f75 394-395,397-401,418-431,600
+docs/architecture.md
+  s_53a2f2bba8d550::t_2b573eda2a9651 96,99,288-325,601-602,635-638,897-902,1096-1113,1214-1215,1221-1222,2589-2604,2606-2616,2621-2624,2630-2632,3103-3115
+docs/architecture.zh-CN.md
+  s_53a2f2bba8d550::t_fac7d2f92d47f2 61,64,221-250,703-705,1470-1471,1683-1684
+docs/identity-e2e-evidence-p1.md
+  s_53a2f2bba8d550::t_03793029812518 1-115
+docs/identity-e2e-evidence-p2.md
+  s_53a2f2bba8d550::t_cad46cfe02a65c 1-169
+docs/identity-e2e-evidence-p3.md
+  s_53a2f2bba8d550::t_19a993a61f746e 1-107
+docs/identity.md
+  s_53a2f2bba8d550::t_c3f3924e9cea6c 1-823
+docs/troubleshooting.md
+  s_53a2f2bba8d550::t_4252adc2bae957 159-173
+docs/troubleshooting.zh-CN.md
+  s_53a2f2bba8d550::t_a7dabf5335a1ee 116-126
+frontend/package-lock.json
+  s_53a2f2bba8d550::t_eea864b045301a 44-45,2648-2658,2717-2723,3150-3264,3448-3457,3644-3653,3695-3711,3769-3778,4110-4119,4197-4203,4446-4455,4466-4475,5361-5367,5402-5411,6516-6532,7150-7156,7195-7201,7208-7214,7257-7276,7326-7339,7357-7386,7765-7787,7811-7883,7915-7931
+frontend/package.json
+  s_53a2f2bba8d550::t_9a1c1531e70444 10-11,47-48
+frontend/src/App.tsx
+  s_53a2f2bba8d550::t_674a93eb293a91 122-126,283-290,323-324
+frontend/src/components/ClassicIdentitySection.tsx
+  s_53a2f2bba8d550::t_02eff1dad72939 1-162
+frontend/src/components/chat/AttachmentViews.tsx
+  s_53a2f2bba8d550::t_3581fc1044b5e2 4-5
+frontend/src/lib/agent-defaults.ts
+  s_53a2f2bba8d550::t_e3736c97b4083e 2-5
+frontend/src/lib/agent-spec.test.ts
+  s_53a2f2bba8d550::t_1799c71505fcb1 1-144
+frontend/src/lib/agent-spec.ts
+  s_53a2f2bba8d550::t_6953021c2e5f09 11,15,25-34,140-143,302-433,495-503,526,549-551,569,586,631-632,669-672,742-757,776-778,836,875,879-881,921-922,929-956,968-974,979-980,990-992,995-996,999,1011,1017,1059-1133,1135-1136,1140,1142-1143
+frontend/src/lib/api.ts
+  s_53a2f2bba8d550::t_73baf9d7132185 112-117,153-156,170-177,595-601,603-616,646,663-664,694-697,707-710,865-871,900-902,1328-1329,2147-2150,2191-2192,2522-2526,2655-2942,2953-2956,2966-2968,4668-4670,4680-4682,4685,5237-5325,5333-5334,5343,5644-5650,5681-5687
+frontend/src/lib/assistant.ts
+  s_53a2f2bba8d550::t_8e7d359b3ba7ec 8,105-106,109-112,114-126,160,164,223-224
+frontend/src/lib/chat.test.ts
+  s_53a2f2bba8d550::t_42490fa6c845ba 1-24
+frontend/src/lib/chat.ts
+  s_53a2f2bba8d550::t_11e05f13772c25 59-78
+frontend/src/lib/evaluation.ts
+  s_53a2f2bba8d550::t_63397327c28902 1-2,23-41,129-131,140-146,256-263,274-275,281-299
+frontend/src/lib/evaluators.ts
+  s_53a2f2bba8d550::t_647604bf83d804 20-22
+frontend/src/lib/governance-prefill.test.ts
+  s_53a2f2bba8d550::t_56912effeef9ec 1-28
+frontend/src/lib/governance.ts
+  s_53a2f2bba8d550::t_5bc88aa24f0cfb 93-106
+frontend/src/lib/identity-ui.test.ts
+  s_53a2f2bba8d550::t_622be00870092e 1-23
+frontend/src/lib/identity-ui.ts
+  s_53a2f2bba8d550::t_6bdbf13d4d9d29 1-63
+frontend/src/lib/inbound-auth.test.ts
+  s_53a2f2bba8d550::t_6a8e50fb432f62 1-318
+frontend/src/lib/inbound-auth.ts
+  s_53a2f2bba8d550::t_a0a20f515ab06a 1-265
+frontend/src/lib/obo.test.ts
+  s_53a2f2bba8d550::t_05e2521f70b177 1-44
+frontend/src/lib/obo.ts
+  s_53a2f2bba8d550::t_35f542ab3b3a7e 1-46
+frontend/src/lib/user-grants.test.ts
+  s_53a2f2bba8d550::t_9e21fd5e5c4b43 1-270
+frontend/src/lib/user-grants.ts
+  s_53a2f2bba8d550::t_969dd87cfc854c 1-161
+frontend/src/locales/en/common.json
+  s_53a2f2bba8d550::t_5e07c72340f02b 119-121,449,721,2368-2413,2420,3329-3330,3376-3378,3394-3395,3416-3424,4052-4060,4177,4184-4191,4576-4579,4768,4823,4827-4831,4835,4851,5457,5472,5545,5653-5698,5891-5900,6196,6614-6626,6686-6707,6815-6823,7383-7385,7582-7589,7772-7773,7813,7852-7887,7889-8048,8423-8567
+frontend/src/locales/zh-CN/common.json
+  s_53a2f2bba8d550::t_f3f3896fb9eaaf 119-121,449,721,2368-2413,2420,3329-3330,3376-3378,3394-3395,3416-3424,4052-4060,4177,4184-4191,4576-4579,4768,4823,4827-4831,4835,4851,5457,5472,5545,5653-5698,5891-5900,6196,6614-6626,6686-6707,6815-6823,7383-7385,7582-7589,7772-7773,7813,7852-7887,7889-8048,8423-8567
+frontend/src/pages/Chat.tsx
+  s_53a2f2bba8d550::t_a2452a2ccd911a 18-19,25,28,36,39,44-45,92-123,256-259,350-356,360-362,364,648-649
+frontend/src/pages/CreateAgent.tsx
+  s_53a2f2bba8d550::t_91cb48680dc63b 31,48,53-54,63,82,85,87,173,822,908-920,961-962,1123,1129,1260,1526-1530,1797-1801,2348-2354,2866-2874,3396-3397,3410-3418
+frontend/src/pages/CreateAgentAssistant.tsx
+  s_53a2f2bba8d550::t_b3523cfda498fe 615-622
+frontend/src/pages/EvaluationOnline.tsx
+  s_53a2f2bba8d550::t_e14d183c2544e5 256
+frontend/src/pages/EvaluationRuntimeCanary.tsx
+  s_53a2f2bba8d550::t_f7711d1923228b 296-297,568-569,595-596,598-603,843-845
+frontend/src/pages/Users.tsx
+  s_53a2f2bba8d550::t_7584c7e16ecd15 332
+frontend/src/pages/create/presetSettings.ts
+  s_53a2f2bba8d550::t_31d2e8dc82bde1 25
+frontend/src/pages/memory/ResourcesTab.tsx
+  s_53a2f2bba8d550::t_9d074283b919a5 4-5,148-150,164,392-409,464-468,484-486,488-490,492,494-519,725-726,754-765
+frontend/src/v2/ResultsView.tsx
+  s_53a2f2bba8d550::t_2adc04d7ca148b 108-109,111-112
+frontend/src/v2/format.ts
+  s_53a2f2bba8d550::t_cb4cea7599b13d 37
+frontend/src/v2/nav.ts
+  s_53a2f2bba8d550::t_eae90a59775d5a 11,13,102,138
+frontend/src/v2/pages/Agents.tsx
+  s_53a2f2bba8d550::t_33c0db98eff27f 16,20,22-23,620-624,695-707,778
+frontend/src/v2/pages/AuthReturn.tsx
+  s_53a2f2bba8d550::t_7eeaefff7ff3e0 1-122
+frontend/src/v2/pages/Chat.tsx
+  s_53a2f2bba8d550::t_82d4985848f49b 7-8,14,23,29-38,46,80-84,175-183,211,217-225,232-235,240,248-251,269,280-291,294,313,322,327,329,362,502,508-523,621-622
+frontend/src/v2/pages/Connections.tsx
+  s_53a2f2bba8d550::t_823ea53e49b428 1-37
+frontend/src/v2/pages/Governance.tsx
+  s_53a2f2bba8d550::t_b4ec85c8760253 20,36-43
+frontend/src/v2/pages/MyConnections.tsx
+  s_53a2f2bba8d550::t_f8bb6cb2e6e3bd 1-140
+frontend/src/v2/pages/agents/AgentIdentity.tsx
+  s_53a2f2bba8d550::t_f1cd8adda7d23a 1-131
+frontend/src/v2/pages/agents/AgentWizard.tsx
+  s_53a2f2bba8d550::t_13ce8e166335c9 16,22,26,58-59,186-191,266-270,277-281,304,311,357-366,533,551-561,563,576,594-602,613-614
+frontend/src/v2/pages/agents/IdentityCard.tsx
+  s_53a2f2bba8d550::t_f9738a223f1af5 1-202
+frontend/src/v2/pages/agents/InboundAuthFields.tsx
+  s_53a2f2bba8d550::t_ee9cc024976c06 1-576
+frontend/src/v2/pages/agents/MethodSections.tsx
+  s_53a2f2bba8d550::t_770baadd1f583c 10,386-388,397-401,422
+frontend/src/v2/pages/agents/WizardReview.tsx
+  s_53a2f2bba8d550::t_72f83ac8b01fe6 13-14,18,28-29,38-41,135-139,154,175,200-219,223
+frontend/src/v2/pages/agents/agents.css
+  s_53a2f2bba8d550::t_3cb2f71566ea63 16-21,53-54
+frontend/src/v2/pages/agents/wizardKit.tsx
+  s_53a2f2bba8d550::t_999f6f841b2b1e 413-414,436-444
+frontend/src/v2/pages/assistant/AssistantDetail.tsx
+  s_53a2f2bba8d550::t_982bc31549ddd8 74-75,273-280,524-528,531-538
+frontend/src/v2/pages/assistant/Discussion.tsx
+  s_53a2f2bba8d550::t_d8c6f1ba407225 7,16,27-30,39-45,87-90,93-100,136-145
+frontend/src/v2/pages/assistant/HarnessCanary.tsx
+  s_53a2f2bba8d550::t_8666aac1988023 9-10,20-21,64,86,149,168-170
+frontend/src/v2/pages/assistant/NextSteps.tsx
+  s_53a2f2bba8d550::t_9a0ce6c45ad6da 15,18,22,38,163-173,199-202,204-207,314-332,345,352
+frontend/src/v2/pages/assistant/Proposal.tsx
+  s_53a2f2bba8d550::t_d3800c1b29d343 63,122-127
+frontend/src/v2/pages/assistant/RecommendationHistory.tsx
+  s_53a2f2bba8d550::t_ac89c92eb62b7f 1-63
+frontend/src/v2/pages/authReturnParams.ts
+  s_53a2f2bba8d550::t_ec7ca1a570c4ea 1-34
+frontend/src/v2/pages/canary/CanaryDetail.tsx
+  s_53a2f2bba8d550::t_df64b145c96f9a 5,10-18,99-102,130-187,215,221-225,238-240,250-254,256-266,280-286,289-295,368,372-373,376,447,518-520
+frontend/src/v2/pages/canary/CanaryStart.tsx
+  s_53a2f2bba8d550::t_55f5e08a35108e 9,53,77,137
+frontend/src/v2/pages/canary/RampPlan.tsx
+  s_53a2f2bba8d550::t_b15a8e4bd0454e 1-38
+frontend/src/v2/pages/canary/common.ts
+  s_53a2f2bba8d550::t_cc8d6d258225cf 12-14,16-22
+frontend/src/v2/pages/chat/AuthCard.tsx
+  s_53a2f2bba8d550::t_33394717464963 1-118
+frontend/src/v2/pages/chat/Composer.tsx
+  s_53a2f2bba8d550::t_9ae36d2818738f 5-6
+frontend/src/v2/pages/chat/Thread.tsx
+  s_53a2f2bba8d550::t_70ab1531564d1c 5,7,9-10,12,14-15,22-23,31-33,106-113
+frontend/src/v2/pages/chat/chat.css
+  s_53a2f2bba8d550::t_663d1f31c23378 79-89
+frontend/src/v2/pages/chat/messages.ts
+  s_53a2f2bba8d550::t_8757e52b7ca14b 1-41
+frontend/src/v2/pages/connections/ConnectionList.tsx
+  s_53a2f2bba8d550::t_663ff9f7d17fb8 1-446
+frontend/src/v2/pages/connections/GatewayTargets.tsx
+  s_53a2f2bba8d550::t_450cfb81530a3c 1-375
+frontend/src/v2/pages/connections/connections.css
+  s_53a2f2bba8d550::t_51eb1cbb85f8ca 1-36
+frontend/src/v2/pages/data/Datasets.tsx
+  s_53a2f2bba8d550::t_1837ad16a435a9 20,233,239-266,280-287,311-334,353-373
+frontend/src/v2/pages/governance/PolicyEditor.tsx
+  s_53a2f2bba8d550::t_7eb25f32ed9d07 2,21,44-56,81,97-105,121,324-330
+frontend/src/v2/pages/memory/Resources.tsx
+  s_53a2f2bba8d550::t_838b1c8991bc11 6,109-142,145-149,153-154,161,182,191-198,201,203-207,232-246,251-252,276-282,311,359-360,393-399,417-422
+frontend/src/v2/pages/tasks/RunRecommendations.tsx
+  s_53a2f2bba8d550::t_0f60683ca7e63c 6-12,15-16,86-92,95,108-115,118-119,147,149,158-162,169,191,267-309,327-328,404,417-423,453-454,458-459,462,485-489,492,502,531,537-541,543-552,588-590,592-628
+frontend/src/v2/pages/tasks/TaskDetail.tsx
+  s_53a2f2bba8d550::t_4cbd897c94f443 142-151
+frontend/src/v2/pages/users/UserDetail.tsx
+  s_53a2f2bba8d550::t_0734b4ae0c4416 163
+frontend/src/v2/pages/workspaces/InboundDefaultCard.tsx
+  s_53a2f2bba8d550::t_6987590929d09e 1-124
+frontend/src/v2/pages/workspaces/WorkspaceDetail.tsx
+  s_53a2f2bba8d550::t_a4e7c6541d781a 28,463
+frontend/src/v2/results.ts
+  s_53a2f2bba8d550::t_0c90aea2eebdec 13,45,73
+frontend/src/v2/ui.tsx
+  s_53a2f2bba8d550::t_1a3e2436acf154 104,110,113,964,973-974,980,991,999,1005,1007-1008
+frontend/src/v2/v2.css
+  s_53a2f2bba8d550::t_f3dac073b9fc35 251,345,425-426,536-538
+samples/inbound-jwt/README.md
+  s_53a2f2bba8d550::t_24f7e0292339fb 1-135
+samples/inbound-jwt/README.zh-CN.md
+  s_53a2f2bba8d550::t_ce5ee2319cfc3a 1-119
+samples/inbound-jwt/invoke_with_jwt.py
+  s_53a2f2bba8d550::t_668c396389c180 1-170
+samples/inbound-jwt/invoke_with_jwt.sh
+  s_53a2f2bba8d550::t_8d97c04e64815f 1-41
+scripts/verify.sh
+  s_53a2f2bba8d550::t_7f300bdeea3cfc 51-53
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "8b40b0b2f5b492ddba70cebd66578031a0f63282",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "linyesh <linyesh@amazon.com>"
+    }
+  }
+}
