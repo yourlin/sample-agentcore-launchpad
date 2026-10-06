@@ -1,0 +1,25 @@
+backend/app/services/agentcore/registry.py
+  s_53a2f2bba8d550::t_67cf3f82bbb26e 11,578-587,589-605
+backend/tests/test_registry.py
+  s_53a2f2bba8d550::t_3aa26237cc5e86 6-7,426-466
+docs/troubleshooting.md
+  s_53a2f2bba8d550::t_98e59faee63ac6 181
+docs/troubleshooting.zh-CN.md
+  s_53a2f2bba8d550::t_29979354b49892 134
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "ac9796a5c388e3ccfabb243dd6969644edbd0cdf",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5"
+      },
+      "human_author": "linyesh <linyesh@amazon.com>"
+    }
+  }
+}
