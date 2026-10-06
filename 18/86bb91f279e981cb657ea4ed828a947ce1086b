@@ -1,0 +1,30 @@
+backend/app/routers/dlc.py
+  s_53a2f2bba8d550::t_2117787bdb8cfa 1-654
+  s_53a2f2bba8d550::t_a985e42b9ad02b 655-1305
+backend/app/core/route_policy.py
+  s_53a2f2bba8d550::t_10010b129f81fd 101-108,525-582,791-801,823-834
+backend/app/main.py
+  s_53a2f2bba8d550::t_911ba743e2764f 46,233
+backend/app/services/users.py
+  s_53a2f2bba8d550::t_dcab0251e12f32 46-54,76-77,81-82
+backend/tests/test_prod_protection.py
+  s_53a2f2bba8d550::t_9205c31d095261 202-212,317-320
+frontend/src/lib/api.ts
+  s_53a2f2bba8d550::t_53a809fe91dc06 2956-2964,2977-2982
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "1886bb91f279e981cb657ea4ed828a947ce1086b",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5"
+      },
+      "human_author": "linyesh <linyesh@amazon.com>"
+    }
+  }
+}
