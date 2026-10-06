@@ -1,0 +1,32 @@
+backend/scripts/e2e_agent_dlc.py
+  s_53a2f2bba8d550::t_633429d161f041 1-399
+  s_53a2f2bba8d550::t_2d6e639b22b6b9 400
+backend/app/deployer/byoc.py
+  s_53a2f2bba8d550::t_d1bc767bbf9151 496-500
+backend/app/deployer/container.py
+  s_53a2f2bba8d550::t_dfbd3b0b4fc233 337-341
+backend/app/deployer/harness.py
+  s_53a2f2bba8d550::t_9a4b65d74ff5c2 725-729
+backend/app/deployer/zip_runtime.py
+  s_53a2f2bba8d550::t_d693198efc2565 650-654
+backend/app/dlc/releases.py
+  s_53a2f2bba8d550::t_221e30e85cf433 596-632
+backend/tests/test_dlc_releases.py
+  s_53a2f2bba8d550::t_91892e51b6ee33 307-348
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "3b33384fdfe468129963f1979c31b9f904452ecc",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "linyesh <linyesh@amazon.com>"
+    }
+  }
+}
