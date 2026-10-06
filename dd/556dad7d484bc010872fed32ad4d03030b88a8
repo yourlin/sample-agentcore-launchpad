@@ -1,0 +1,48 @@
+frontend/src/share/AnnotatePage.tsx
+  s_53a2f2bba8d550::t_044eea58015d16 1-177
+frontend/src/lib/annotate.ts
+  s_53a2f2bba8d550::t_34c067a822ee7e 1-52
+backend/tests/test_dlc_annotation_links.py
+  s_53a2f2bba8d550::t_65b802a89c4b37 1-218
+  s_53a2f2bba8d550::t_320a99f58cc855 219-227
+backend/app/services/annotation_links.py
+  s_53a2f2bba8d550::t_3766b8969d03c7 1-158
+backend/app/routers/share_annotate.py
+  s_53a2f2bba8d550::t_1556dda4cf868c 1-50
+backend/app/core/route_policy.py
+  s_53a2f2bba8d550::t_4b9d0bf9ec33a3 520-524,562-564,732-733
+backend/app/main.py
+  s_53a2f2bba8d550::t_9674c74b30b14c 68,235-236
+backend/app/routers/dlc.py
+  s_53a2f2bba8d550::t_528dae070da108 1333-1434
+backend/app/services/share_links.py
+  s_53a2f2bba8d550::t_779a8c8b24985f 96,103,105-109,117,174,176-180,186-193
+frontend/src/lib/api.ts
+  s_53a2f2bba8d550::t_491044d253ee91 6464,6609-6620
+frontend/src/lib/dlc.ts
+  s_53a2f2bba8d550::t_60a0b2ca9e6256 312-324
+frontend/src/locales/en/common.json
+  s_53a2f2bba8d550::t_d26dbcdf716a13 6927-6947,9535-9557
+frontend/src/locales/zh-CN/common.json
+  s_53a2f2bba8d550::t_3c76cc6167e68d 6927-6947,9535-9557
+frontend/src/main.tsx
+  s_53a2f2bba8d550::t_1a9182467c16d3 24-36
+frontend/src/v2/pages/dlc/CalibrationBench.tsx
+  s_53a2f2bba8d550::t_0b68f5554a5404 17,37-160,373-374
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "dd556dad7d484bc010872fed32ad4d03030b88a8",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5"
+      },
+      "human_author": "linyesh <linyesh@amazon.com>"
+    }
+  }
+}
