@@ -1,0 +1,45 @@
+backend/app/optimization/canary_service.py
+  s_53a2f2bba8d550::t_5deaa5c3f73dce 1104-1111
+backend/app/optimization/routers.py
+  s_53a2f2bba8d550::t_8b0ee86b157faa 197-198,302-306
+backend/app/optimization/service.py
+  s_53a2f2bba8d550::t_4d39fce8dd667a 1732-1761
+backend/app/services/agent_versions.py
+  s_53a2f2bba8d550::t_82745de8579fb2 19,34-41,194
+backend/app/services/alerts.py
+  s_53a2f2bba8d550::t_34e03bfdaa3524 60-62,78-83,99-100,105-108,112,114
+backend/app/services/costs.py
+  s_53a2f2bba8d550::t_014e9825f08ecd 121-122,129-132,140
+backend/app/services/promotion_exec.py
+  s_53a2f2bba8d550::t_3f4d1b59eca1c5 457,473-475,508,803-868,954
+backend/tests/optimization/test_runtime_canaries.py
+  s_53a2f2bba8d550::t_49122811e82086 879-894
+backend/tests/optimization/test_stepwise_actions.py
+  s_53a2f2bba8d550::t_138a53580ff08d 799-803,1571-1600
+backend/tests/test_agent_versions.py
+  s_53a2f2bba8d550::t_e354c37aaad8cb 430-439
+backend/tests/test_costs_alerts.py
+  s_53a2f2bba8d550::t_43ae92a84d0a55 424-488
+backend/tests/test_promotion_execution.py
+  s_53a2f2bba8d550::t_2a59c7205dcb57 1004-1039
+frontend/src/v2/pages/Costs.tsx
+  s_53a2f2bba8d550::t_1a8b6f448e55b5 45-46,251-254,280-283
+frontend/src/v2/pages/experiments/ExperimentDetail.tsx
+  s_53a2f2bba8d550::t_8642ce215c9f46 980-981
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "d09bad7388be8c3aa7ace0b839066c3743ceb6dd",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "linyesh <linyesh@amazon.com>"
+    }
+  }
+}
