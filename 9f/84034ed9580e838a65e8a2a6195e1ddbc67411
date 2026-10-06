@@ -1,0 +1,41 @@
+README.md
+  s_53a2f2bba8d550::t_1d6ffbebbbb25f 51-60,259,276
+docs/agent-dlc-design.md
+  s_53a2f2bba8d550::t_9d09ac0cae8a8c 594-601,605-614
+docs/agent-dlc-design.zh-CN.md
+  s_53a2f2bba8d550::t_ffc99979c5e7fb 584-591,595-601
+docs/api.md
+  s_53a2f2bba8d550::t_1e8105f64204b1 863-1030
+docs/api.zh-CN.md
+  s_53a2f2bba8d550::t_491b0c8a6461dc 571-714
+docs/architecture.md
+  s_53a2f2bba8d550::t_a52220efcd8f47 4061-4062,4067-4086,4119-4125
+docs/architecture.zh-CN.md
+  s_53a2f2bba8d550::t_f5541246693972 1856-1859
+docs/release-smoke-test.md
+  s_53a2f2bba8d550::t_9c14ecac9225f9 193-194
+docs/setup.md
+  s_53a2f2bba8d550::t_9304807937e2dd 558-623
+docs/setup.zh-CN.md
+  s_53a2f2bba8d550::t_dc86c3345ad075 466-510
+docs/troubleshooting.md
+  s_53a2f2bba8d550::t_a458059b549856 174-196
+docs/troubleshooting.zh-CN.md
+  s_53a2f2bba8d550::t_028bc5c4eb6a08 127-149
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "9f84034ed9580e838a65e8a2a6195e1ddbc67411",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5"
+      },
+      "human_author": "linyesh <linyesh@amazon.com>"
+    }
+  }
+}
