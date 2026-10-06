@@ -1,0 +1,23 @@
+backend/app/evaluation/service.py
+  s_53a2f2bba8d550::t_9f009e83393b97 215-218
+backend/app/services/promotion_exec.py
+  s_53a2f2bba8d550::t_ef4eb0e36ca585 81-84,587-589,596-597,614-620
+backend/tests/test_promotion_execution.py
+  s_53a2f2bba8d550::t_758c77a2e5af65 943-985
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "eeee312bc06850ebdf4cc4ed7600b686f1529472",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "linyesh <linyesh@amazon.com>"
+    }
+  }
+}
