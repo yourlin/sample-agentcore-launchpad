@@ -1,0 +1,33 @@
+backend/app/dlc/watch.py
+  s_53a2f2bba8d550::t_180a384b2ca945 1-171,174-270,272-404
+  s_53a2f2bba8d550::t_6d97a93772fcc2 271
+  s_53a2f2bba8d550::t_9609ffb04265c2 172-173,405-407
+backend/app/dlc/admission.py
+  s_53a2f2bba8d550::t_20a54e76333d47 1-401
+  s_53a2f2bba8d550::t_407840b50d13e7 402-404
+backend/tests/test_dlc_admission_watch.py
+  s_53a2f2bba8d550::t_302696c471cc9e 1-394
+  s_53a2f2bba8d550::t_b96260820df6e6 395
+backend/app/dlc/scheduler.py
+  s_53a2f2bba8d550::t_c7212be2e365ab 1-220
+backend/app/evaluation/stats.py
+  s_53a2f2bba8d550::t_698a8c5830f0ed 250,252-260
+backend/app/main.py
+  s_53a2f2bba8d550::t_5ff652d673089a 277-281
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "7a2f9723edf3b9dd5223000077c4e6626090bf29",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5"
+      },
+      "human_author": "linyesh <linyesh@amazon.com>"
+    }
+  }
+}
