@@ -1,0 +1,33 @@
+backend/app/evaluation/online.py
+  s_53a2f2bba8d550::t_b6cf89dde5901e 176,192-193
+backend/app/evaluation/service.py
+  s_53a2f2bba8d550::t_43047458b59b0f 127-142,144-145,148,156,166,170-171,173-175,185,188-189,870-876
+backend/app/optimization/providers/evidence.py
+  s_53a2f2bba8d550::t_17eeba37de82e6 154,157-158
+backend/app/optimization/service.py
+  s_53a2f2bba8d550::t_40d58a9c2da298 440-441,570-572,577,1656-1661,1674-1675
+backend/app/services/observability.py
+  s_53a2f2bba8d550::t_16bda08278c381 1533-1536
+backend/scripts/e2e_agent_dlc.py
+  s_53a2f2bba8d550::t_5b45de1e5fa4fe 187-188,201-207,209-211
+backend/tests/test_dlc_telemetry_endpoint.py
+  s_53a2f2bba8d550::t_8c02bc8a50fd22 1-57
+frontend/src/v2/pages/dlc/ReleaseGate.tsx
+  s_53a2f2bba8d550::t_a3b259a7835e73 527-528
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "d6933d49f21d43007ce21f39e354b7355ff915d3",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "linyesh <linyesh@amazon.com>"
+    }
+  }
+}
