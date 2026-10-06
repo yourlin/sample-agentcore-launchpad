@@ -1,0 +1,41 @@
+backend/scripts/e2e_agent_dlc_browser.py
+  s_53a2f2bba8d550::t_68038c164980f4 1-97
+backend/app/dlc/releases.py
+  s_53a2f2bba8d550::t_c40c0c0b275834 22,44-51,211-227,624-638,640-648,653,655,660-661,668-678,682-699
+backend/app/routers/dlc.py
+  s_53a2f2bba8d550::t_d3b21dcf032b9d 1285-1295,1315,1318-1319,1336-1338
+backend/tests/test_dlc_api.py
+  s_53a2f2bba8d550::t_a05d6f4b2cd50f 617-654
+backend/tests/test_dlc_releases.py
+  s_53a2f2bba8d550::t_32ad4d3ee3f0a3 320,327-393,408
+frontend/src/lib/dlc.ts
+  s_53a2f2bba8d550::t_c14f78e629433c 809-818,829-831
+frontend/src/locales/en/common.json
+  s_53a2f2bba8d550::t_7783ab6beec5df 7181-7183
+frontend/src/locales/zh-CN/common.json
+  s_53a2f2bba8d550::t_002e4347e74189 7181-7183
+frontend/src/v2/pages/dlc/ReleaseGate.tsx
+  s_53a2f2bba8d550::t_4ede3181b094b3 471-473,475-476
+frontend/src/v2/pages/dlc/Scorecard.tsx
+  s_53a2f2bba8d550::t_2119f3263283e1 45-52
+frontend/src/v2/pages/dlc/charts.tsx
+  s_53a2f2bba8d550::t_4233e2be38db58 370-385
+frontend/src/v2/pages/dlc/dlc.css
+  s_53a2f2bba8d550::t_4f83bcac09bfb3 97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "48a0ae8deb622b23db1f9e6093fe3ff25367d2a2",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "linyesh <linyesh@amazon.com>"
+    }
+  }
+}
