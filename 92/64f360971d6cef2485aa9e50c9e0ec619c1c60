@@ -1,0 +1,30 @@
+backend/tests/test_dlc_stats.py
+  s_53a2f2bba8d550::t_326b0b43da9321 1-125
+backend/app/models/dlc.py
+  s_53a2f2bba8d550::t_caaaf3697bfea5 1-308
+backend/app/evaluation/stats.py
+  s_53a2f2bba8d550::t_a7ad5e26b084d6 1-297
+  s_53a2f2bba8d550::t_bd87c398aec459 298-299
+backend/app/core/db.py
+  s_53a2f2bba8d550::t_f9632e869e85e8 65-74,123,205-210,233-236,254-270,776-792
+backend/app/evaluation/models.py
+  s_53a2f2bba8d550::t_ced2630a205fdf 40-47,85-100
+backend/app/models/ledger.py
+  s_53a2f2bba8d550::t_d4d8f249b78e16 124-129
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "9264f360971d6cef2485aa9e50c9e0ec619c1c60",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "linyesh <linyesh@amazon.com>"
+    }
+  }
+}
