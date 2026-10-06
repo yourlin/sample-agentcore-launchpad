@@ -1,0 +1,24 @@
+backend/app/dlc/compare.py
+  s_53a2f2bba8d550::t_1979a04ae07f5c 1-241
+backend/tests/test_dlc_cost_compare.py
+  s_53a2f2bba8d550::t_a382e0149677e6 1-213
+  s_53a2f2bba8d550::t_70994e615e309a 214-240
+backend/app/dlc/cost.py
+  s_53a2f2bba8d550::t_3372b2eac586f8 1-264
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "492fff746f1a91d1b638ecc2924ba034100e4c94",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5"
+      },
+      "human_author": "linyesh <linyesh@amazon.com>"
+    }
+  }
+}
