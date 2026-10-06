@@ -1,0 +1,21 @@
+docs/agent-dlc-design.md
+  s_53a2f2bba8d550::t_2a457b490e005e 116-120,127,164-169,247,394-395,425,437,481,522,533-534,619,621-625
+docs/agent-dlc-design.zh-CN.md
+  s_53a2f2bba8d550::t_6f74c95443929a 106-110,117,154-159,237,384-385,415,427,471,512,523-524,609,611-615
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "605872bcf8be78edf2e10dd6fccf798b0ec2e307",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "linyesh <linyesh@amazon.com>"
+    }
+  }
+}
