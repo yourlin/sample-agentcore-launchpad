@@ -1,0 +1,28 @@
+docs/architecture.md
+  s_53a2f2bba8d550::t_f29e04eabe37b3 3663-3666
+  s_53a2f2bba8d550::t_e5a7b302255822 3653-3656
+backend/app/core/route_policy.py
+  s_53a2f2bba8d550::t_a0ac4596fc35bd 704-705,719-724
+backend/app/services/promotion_exec.py
+  s_53a2f2bba8d550::t_6a3562fc2ceb73 422-425
+backend/tests/test_prod_protection.py
+  s_53a2f2bba8d550::t_db62295c7f3edd 286-288,290-292,297-305
+backend/tests/test_promotion_execution.py
+  s_53a2f2bba8d550::t_7b2db0fd885bcb 683-707
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "4a7a47443eded1af77c283b9043118f72a764a80",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "linyesh <linyesh@amazon.com>"
+    }
+  }
+}
