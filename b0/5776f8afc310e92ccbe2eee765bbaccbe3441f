@@ -1,0 +1,55 @@
+backend/app/core/route_policy.py
+  s_53a2f2bba8d550::t_ad49fd0a6f52e5 665-667
+frontend/src/v2/pages/Costs.tsx
+  s_5d337f0cdaa36b::t_a1fd325cd72eab 25,130,132-135,243,245-251,273-277
+frontend/src/v2/pages/Promotions.tsx
+  s_5d337f0cdaa36b::t_60411bb9be0999 30,561,563-570
+frontend/src/v2/pages/agents/AgentWizard.tsx
+  s_53a2f2bba8d550::t_73c536595cb5c6 52-53
+frontend/src/v2/pages/agents/ReleaseCard.tsx
+  s_5d337f0cdaa36b::t_fd5f63206f23d5 9,173,175-181
+frontend/src/v2/pages/agents/TemplateGallery.tsx
+  s_5d337f0cdaa36b::t_b0c7cc43515801 3
+frontend/src/v2/pages/agents/templateForms.ts
+  s_5d337f0cdaa36b::t_7ffbe0d5bf30d1 1-39
+frontend/src/v2/pages/agents/wizardKit.tsx
+  s_53a2f2bba8d550::t_cc24a0dde731a1 485,487-494
+frontend/src/v2/pages/chat/ShareLinks.tsx
+  s_5d337f0cdaa36b::t_648b2182d41336 14,132,134-139,142-143,156,158-164,189,191-196
+frontend/src/v2/pages/selfservice/AnswerRules.tsx
+  s_5d337f0cdaa36b::t_75c5dd1f65d249 8,263-270
+frontend/src/v2/pages/selfservice/IssueBox.tsx
+  s_5d337f0cdaa36b::t_32d5a34bcf0dee 17,236-243
+frontend/src/v2/pages/selfservice/Reviewers.tsx
+  s_5d337f0cdaa36b::t_afd4ce544a31fd 8,85-93
+frontend/src/v2/pages/workspaces/MappingsCard.tsx
+  s_5d337f0cdaa36b::t_7a9885fe61b919 13,146,148-151
+frontend/src/v2/pages/workspaces/WorkspaceCreate.tsx
+  s_5d337f0cdaa36b::t_9885c7ef6756c2 210,212-213,215-216
+frontend/src/v2/pages/workspaces/WorkspaceDetail.tsx
+  s_53a2f2bba8d550::t_f404a588c47c52 25,376-385
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "b05776f8afc310e92ccbe2eee765bbaccbe3441f",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "linyesh <linyesh@amazon.com>"
+    },
+    "s_5d337f0cdaa36b": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "9d333720-8dec-44c9-937f-4a2ecf2b81dc",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "linyesh <linyesh@amazon.com>"
+    }
+  }
+}
