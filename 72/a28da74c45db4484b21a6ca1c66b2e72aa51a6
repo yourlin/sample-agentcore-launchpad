@@ -1,0 +1,39 @@
+backend/app/data/video_sections.json
+  s_53a2f2bba8d550::t_dfdabe2428ca2e 228-236
+backend/app/dlc/releases.py
+  s_53a2f2bba8d550::t_eb61516b9e484e 240-241,243-247,272-283
+backend/app/evaluation/routers.py
+  s_53a2f2bba8d550::t_d7b663654793e8 1206-1210,1316,1437-1459,1478-1481,1486-1506
+backend/app/routers/dlc.py
+  s_53a2f2bba8d550::t_77b2e09e3fd03d 776-777
+backend/tests/test_dlc_annotation_links.py
+  s_53a2f2bba8d550::t_30b1c734377b90 228-240
+backend/tests/test_dlc_api.py
+  s_53a2f2bba8d550::t_58beb70ca0549a 543-616
+backend/tests/test_share_links.py
+  s_53a2f2bba8d550::t_8f426a23fbd16e 376,379-380
+frontend/src/lib/api.ts
+  s_53a2f2bba8d550::t_c6ec441d684a89 4139-4142
+frontend/src/locales/en/common.json
+  s_53a2f2bba8d550::t_42863f919eedba 6173-6178
+frontend/src/locales/zh-CN/common.json
+  s_53a2f2bba8d550::t_03d6819512cc59 6173-6178
+frontend/src/v2/pages/tasks/TaskWizard.tsx
+  s_53a2f2bba8d550::t_7e25f91d02ba5d 5,64-66,88-89,182-193,272,661-698
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "72a28da74c45db4484b21a6ca1c66b2e72aa51a6",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "linyesh <linyesh@amazon.com>"
+    }
+  }
+}
