@@ -274,6 +274,11 @@ def create_app(resume_jobs: bool = False) -> FastAPI:
                 "reaped %d orphaned studio exec container(s)", reaped
             )
         start_auto_refresh()  # periodic model-price refresh (real server only)
+        # Agent-DLC: the one background tick — due watch re-evaluations, alert rules,
+        # calibration and waiver expiry (docs/agent-dlc-design.md §10)
+        from app.dlc.scheduler import start as start_dlc_scheduler
+
+        start_dlc_scheduler()
 
     app.add_api_route("/api/health", health, methods=["GET"])
 

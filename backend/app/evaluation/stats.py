@@ -247,9 +247,17 @@ def largest_shift(a: dict[str, float], b: dict[str, float]) -> tuple[str, float,
     sa = sum(a.values()) or 1.0
     sb = sum(b.values()) or 1.0
     best = None
-    for key in set(a) | set(b):
+    for key in sorted(set(a) | set(b)):
         before, after = a.get(key, 0.0) / sa, b.get(key, 0.0) / sb
-        if best is None or abs(after - before) > abs(best[2] - best[1]):
+        if best is None:
+            best = (key, before, after)
+            continue
+        moved, best_moved = abs(after - before), abs(best[2] - best[1])
+        # ties go to the component that grew: "returns 8% → 21%" is the actionable
+        # half of the pair, its complement falling is the same fact restated
+        if moved > best_moved or (
+            moved == best_moved and (after - before) > (best[2] - best[1])
+        ):
             best = (key, before, after)
     return best
 
