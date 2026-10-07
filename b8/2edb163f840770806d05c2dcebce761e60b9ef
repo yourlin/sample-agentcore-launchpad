@@ -1,0 +1,76 @@
+frontend/src/v3/host.css
+  s_53a2f2bba8d550::t_eb0debf9f641b0 1-167
+  s_53a2f2bba8d550::t_b91774185b71ae 168-198
+backend/scripts/e2e_v3_console_browser.py
+  s_53a2f2bba8d550::t_e4c8e2413df6e4 5-8,110,120,126-127,134-135,152-153
+docs/architecture.md
+  s_53a2f2bba8d550::t_46ac181519bc4d 2823-2842
+docs/architecture.zh-CN.md
+  s_53a2f2bba8d550::t_e2fd22512dfd9b 1483-1484
+frontend/src/App.tsx
+  s_53a2f2bba8d550::t_f2492d6919da4b 149,167,181,205,267,272-273,277-297,332
+frontend/src/locales/en/common.json
+  s_53a2f2bba8d550::t_a7e94a19d1e859 9599,9683,9726-9727,9792-9793
+frontend/src/locales/zh-CN/common.json
+  s_53a2f2bba8d550::t_95d01e4923a2cc 9599,9683,9726-9727,9792-9793
+frontend/src/v2/V2Shell.tsx
+  s_53a2f2bba8d550::t_17fca3aad74c7b 148-149
+frontend/src/v2/auth.css
+  s_53a2f2bba8d550::t_8a2c20cdc33a0b 35
+frontend/src/v2/pages/agents/tryChat.css
+  s_53a2f2bba8d550::t_b0da463e573c9a 5
+frontend/src/v2/pages/assistant/assistant.css
+  s_53a2f2bba8d550::t_aec9d5037e388f 12,17,46,66,82
+frontend/src/v2/pages/chat/chat.css
+  s_53a2f2bba8d550::t_6901c7a3fc1d2e 68,72,96
+frontend/src/v2/pages/connections/connections.css
+  s_53a2f2bba8d550::t_3efcac741a53be 7
+frontend/src/v2/pages/governance/governance.css
+  s_53a2f2bba8d550::t_732a0230a4210e 3,8,23,39,57-58,63
+frontend/src/v2/pages/home/home.css
+  s_53a2f2bba8d550::t_85181992461729 16,22
+frontend/src/v2/pages/observability/observability.css
+  s_53a2f2bba8d550::t_6c1d38a1913567 49-55,58-60,68,74,82,86
+frontend/src/v2/pages/registry/registry.css
+  s_53a2f2bba8d550::t_4613bfce27df56 29
+frontend/src/v2/pages/skilllab/skilllab.css
+  s_53a2f2bba8d550::t_326fefa8ba7ad1 22,75,77
+frontend/src/v2/pages/users/users.css
+  s_53a2f2bba8d550::t_88bb2ec7714a3c 30
+frontend/src/v2/pages/videos/videos.css
+  s_53a2f2bba8d550::t_45e238befabe75 18,71
+frontend/src/v2/v2-classic.css
+  s_53a2f2bba8d550::t_1aa59a308ec7b1 53,56-57
+frontend/src/v2/v2.css
+  s_53a2f2bba8d550::t_e85a8b4617b249 42-57,78,88,91,99,148,159-160,180,185-187,190,204,217,236,273,286,298,316,326-328,330,336,356-359,391,411,413,437,439,443,451,457,481,484,486
+frontend/src/v3/Shell.tsx
+  s_53a2f2bba8d550::t_6908b69482a0a3 2-3,5,10,16,21,87-91,94,122-123,126-132,135-136,138,140,152-154,166,168-169,209-215,221-224,231,241,243-249,265-291
+frontend/src/v3/nav.test.ts
+  s_53a2f2bba8d550::t_96afb8e262d905 4,6,8,16,23,27-41
+frontend/src/v3/nav.ts
+  s_53a2f2bba8d550::t_2a00ec020beb12 9,15,22-24,26,35-45
+frontend/src/v3/pages/Agents.tsx
+  s_53a2f2bba8d550::t_d7a24d53cd408a 1,163-164
+frontend/src/v3/pages/Chat.tsx
+  s_53a2f2bba8d550::t_6099d2ad49a0dc 1,290-291
+frontend/src/v3/pages/Gate.tsx
+  s_53a2f2bba8d550::t_e98beeed2f9930 1,186,298,301
+frontend/src/v3/v3.css
+  s_53a2f2bba8d550::t_fc7b89444f3119 221-223
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "b82edb163f840770806d05c2dcebce761e60b9ef",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "AI Ape Wisdom <xiehust@163.com>"
+    }
+  }
+}
