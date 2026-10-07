@@ -630,7 +630,7 @@ AWS Dataset，各有不可变版本。样本出处记录在 `metadata.dlc`（`ca
 | `POST` | `/api/annotation-tasks/{id}/labels` | `{item_ref, label, rationale?, answer?}` → 201。只有该任务的标注人可提交（`403 annotation.not_annotator`）；仲裁阶段只有仲裁人可提交 |
 | `POST` | `/api/annotation-tasks/{id}/adjudicate` | 进入仲裁——由仲裁人裁定有分歧的样本 |
 | `GET` | `/api/annotation-tasks/{id}/agreement` | `{n, pairs, human_human_kappa, judge_human_kappa, kappa_ci, band, confusion, disagreements, accuracy, policy, suggested_verdict}`。**先看人—人**：如果人都判不一致，这条判据写不下来，换裁判也救不了 |
-| `POST` | `/api/annotation-tasks/{id}/decide` | `judge.calibrate` —— `{verdict: aligned\|not_aligned, note}` → 校准记录。数据不支持 `aligned` 时返回 `409 calibration.not_supported` 并带上那几个数字；若判定人本身是该任务的标注人，返回 `403 calibration.own_labels`——标注就是证据，写证据的人不同时裁定它。此外 `aligned` 需要真实的人类上限：只有一个人标注的样本不计入，因此一个人无法自行认证裁判 |
+| `POST` | `/api/annotation-tasks/{id}/decide` | `judge.calibrate` —— `{verdict: aligned\|not_aligned, note}` → 校准记录。数据不支持 `aligned` 时返回 `409 calibration.not_supported` 并带上那几个数字；若判定人参与产生了该任务的标注——标注人、仲裁人，或发放过该任务标注链接的人（同一个人发出的两个链接只算一位标注人，不是两位）——返回 `403 calibration.own_labels`：标注就是证据，写证据的人不同时裁定它。此外 `aligned` 需要真实的人类上限：只有一个人标注的样本不计入，因此一个人无法自行认证裁判 |
 | `GET` | `/api/calibration/{criterion_key}?agent_id` | `{records, status, policy}`。记录在工作区 `calibration.period_days` 之后过期——此后该裁判重新只作观察 |
 
 **标注链接**让没有控制台账号的专家也能参与标注。链接**本身就是一个标注人**：生成时会把

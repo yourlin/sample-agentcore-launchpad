@@ -238,3 +238,53 @@ def test_annotate_routes_are_public_hub_global_and_mint_is_prod_protected():
     mint = ("POST", "/api/annotation-tasks/{task_id}/links")
     assert ROUTE_POLICY[mint] != PUBLIC
     assert mint not in PROD_PROTECTED  # prod is refused by the service with a remedy
+
+
+def test_the_person_who_minted_the_links_cannot_certify_the_judge(client):
+    """Security review: two links minted by one person are two "agreeing raters" that
+    are really one. Labelling through both and then deciding would certify a judge on
+    that person's own labels, so the link issuer is refused like an annotator."""
+    task_id = _task(items=14)
+    first = client.post(f"/api/annotation-tasks/{task_id}/links", json={"label": "A"}).json()
+    second = client.post(f"/api/annotation-tasks/{task_id}/links", json={"label": "B"}).json()
+    db = SessionLocal()
+    try:
+        # only the two links are annotators: the issuer is not named on the task
+        task = db.get(AnnotationTask, task_id)
+        task.annotators = [first["annotator"], second["annotator"]]
+        task.adjudicator = None
+        db.commit()
+    finally:
+        db.close()
+    for n in range(14):
+        label = "pass" if n % 2 else "fail"  # exactly the judge's verdicts
+        for link in (first, second):
+            res = client.post(f"/share/annotate/{link['token']}/label",
+                              json={"item_ref": f"i{n}", "label": label})
+            assert res.status_code == 200
+    agreement = client.get(f"/api/annotation-tasks/{task_id}/agreement").json()
+    assert agreement["suggested_verdict"] == "aligned"  # the numbers look perfect
+    decided = client.post(f"/api/annotation-tasks/{task_id}/decide",
+                          json={"verdict": "aligned"})
+    assert decided.status_code == 403
+    assert decided.json()["code"] == "calibration.own_labels"
+
+
+def test_the_adjudicator_cannot_certify_the_judge_either(client):
+    """The adjudicator sets the consensus on disputed items, so it is evidence too."""
+    task_id = _task(items=12)
+    db = SessionLocal()
+    try:
+        task = db.get(AnnotationTask, task_id)
+        task.adjudicator = ADMIN["username"]
+        for who in ("alice", "bob"):
+            for n in range(12):
+                cal.record_label(db, task, annotator=who, item_ref=f"i{n}",
+                                 label="pass" if n % 2 else "fail")
+        db.commit()
+    finally:
+        db.close()
+    decided = client.post(f"/api/annotation-tasks/{task_id}/decide",
+                          json={"verdict": "aligned"})
+    assert decided.status_code == 403
+    assert decided.json()["code"] == "calibration.own_labels"

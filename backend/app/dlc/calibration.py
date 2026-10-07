@@ -308,6 +308,29 @@ def suggested_verdict(stats_out: dict[str, Any], policy: dict[str, Any]) -> str:
     return "aligned" if jh >= max(policy["kappa_floor"], hh - 0.05) else "not_aligned"
 
 
+def _evidence_authors(db: Session, task: AnnotationTask) -> set[str]:
+    """Everyone who could have written or settled this task's labels.
+
+    Not just the named annotators: the adjudicator sets the consensus on disputed
+    items, and whoever minted an annotation link holds that link's token — two links
+    minted by one person are two "agreeing raters" that are really one. Any of them
+    deciding the calibration would be certifying a judge on their own labels.
+    """
+    from app.models.ledger import ShareLink
+
+    authors = {name for name in (task.annotators or []) if name}
+    if task.adjudicator:
+        authors.add(task.adjudicator)
+    authors.update(
+        row for row in db.scalars(
+            select(ShareLink.created_by).where(
+                ShareLink.kind == "annotate", ShareLink.target_id == task.id
+            )
+        ).all() if row
+    )
+    return authors
+
+
 def decide(
     db: Session,
     task: AnnotationTask,
@@ -325,11 +348,12 @@ def decide(
     support it — the human decides only between what the data allows."""
     if verdict not in ("aligned", "not_aligned"):
         raise AppError("calibration.bad_verdict", "verdict must be aligned or not_aligned")
-    if actor in (task.annotators or []):
+    if actor in _evidence_authors(db, task):
         raise AppError(
             "calibration.own_labels",
-            "an annotator on this task cannot certify its judge — the labels are the "
-            "evidence, so the person who wrote them is not the person who rules on them",
+            "you produced labels on this task — as an annotator, its adjudicator, or by "
+            "issuing one of its annotation links — so you cannot also certify its judge: "
+            "the labels are the evidence, and whoever wrote them does not rule on them",
             status_code=403,
         )
     measured = agreement(db, task)

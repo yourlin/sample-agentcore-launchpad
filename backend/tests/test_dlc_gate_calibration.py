@@ -178,7 +178,7 @@ def test_kappa_and_verdict_rules(db):
     assert measured["n"] == 14 and measured["judge_human_kappa"] == pytest.approx(1.0)
     policy = cal.policy_of(None)
     assert cal.suggested_verdict(measured, policy) == "aligned"
-    record = cal.decide(db, task, verdict="aligned", actor="lead", policy=policy,
+    record = cal.decide(db, task, verdict="aligned", actor="reviewer", policy=policy,
                         evaluator_id="ev-J1", evaluator_updated_at="v1",
                         criteria_lineage_id="L", criteria_set_version=1)
     assert record.verdict == "aligned"
@@ -198,7 +198,7 @@ def test_a_rubber_stamp_judge_cannot_be_recorded_aligned(db):
         for who in ("ann1", "ann2"):
             cal.record_label(db, task, annotator=who, item_ref=f"i{n}", label=label)
     with pytest.raises(AppError) as exc:
-        cal.decide(db, task, verdict="aligned", actor="lead", policy=cal.policy_of(None),
+        cal.decide(db, task, verdict="aligned", actor="reviewer", policy=cal.policy_of(None),
                    evaluator_id="ev-J1", evaluator_updated_at=None, criteria_lineage_id=None,
                    criteria_set_version=None)
     assert exc.value.code == "calibration.not_supported"
