@@ -1037,3 +1037,21 @@ def test_a_failed_first_release_has_nothing_to_revert(admin, world):
     execute(admin, promotion_id)
     assert promotion_row(promotion_id).status == "failed"
     assert world["deploy"] == 1  # a create has no previous spec to restore
+
+
+def test_the_agent_dlc_policy_keys_round_trip_through_the_api(admin, world):
+    """release_mode / calibration / the spend guard used to be dropped by the request
+    model, so a workspace could not be switched to a gated release from the API."""
+    put = admin.put(f"/api/release-policies/{TARGET['id']}", json={
+        "release_mode": "gated",
+        "calibration": {"period_days": 30, "kappa_floor": 0.7},
+        "eval_cost_confirm_usd": 2.5,
+        "eval_cost_max_usd": 20,
+    })
+    assert put.status_code == 200, put.text
+    policy = put.json()["policy"]
+    assert policy["release_mode"] == "gated"
+    assert policy["calibration"] == {"period_days": 30, "kappa_floor": 0.7}
+    assert policy["eval_cost_confirm_usd"] == 2.5 and policy["eval_cost_max_usd"] == 20
+    bad = admin.put(f"/api/release-policies/{TARGET['id']}", json={"release_mode": "yolo"})
+    assert bad.status_code == 422 and bad.json()["code"] == "release_policy.invalid"

@@ -7196,6 +7196,21 @@
         "actor": "Who",
         "action": "What",
         "target": "On"
+      },
+      "policy": {
+        "title": "Release policy",
+        "sub": "How releases into this {{tier}} workspace are decided. Administrators only.",
+        "mode": "Release mode",
+        "modeHint": "Gated: a deploy lands on the candidate endpoint and waits for the gate. Agents must use live/candidate endpoints.",
+        "period": "Calibration valid for (days)",
+        "periodHint": "A judge must be re-calibrated after this long. 7–365.",
+        "floor": "Required judge–human κ",
+        "floorHint": "0.2–0.95. 0.6 is 'substantial' agreement.",
+        "confirm": "Ask to confirm above (USD)",
+        "confirmHint": "An evaluation estimated above this asks the person to confirm the cost. Empty = never ask.",
+        "max": "Refuse above (USD)",
+        "maxHint": "An evaluation estimated above this is refused unless an administrator starts it. Empty = no limit.",
+        "saved": "Release policy saved"
       }
     },
     "picker": {

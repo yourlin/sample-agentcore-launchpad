@@ -16,11 +16,12 @@
  * Traffic only moves when `live` is re-pointed, so a candidate can be gated without
  * a single user seeing it, and a rollback is re-pointing `live` back.
  */
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { useAuth } from "../../../auth/auth-context";
 import { dlcApi, errorMessage } from "../../../lib/api";
+import { storedWorkspaceId } from "../../../lib/workspace-header";
 import { type GateRow, type ReleaseState, type Waiver, gateTone } from "../../../lib/dlc";
 import { useLoad, useV2Toast } from "../../hooks";
 import {
@@ -342,6 +343,120 @@ function WaiverPanel({
   );
 }
 
+
+/**
+ * The workspace's release policy, as far as Agent-DLC reads it (administrator).
+ * The PUT replaces the policy wholesale, so the other keys are sent back untouched.
+ */
+function PolicyCard() {
+  const { t } = useTranslation();
+  const { isAdmin } = useAuth();
+  const toast = useV2Toast();
+  const workspaceId = storedWorkspaceId() ?? "default";
+  const [nonce, setNonce] = useState(0);
+  const [busy, setBusy] = useState(false);
+  const policy = useLoad(
+    () => (isAdmin ? dlcApi.releasePolicy(workspaceId) : Promise.resolve(null)),
+    `release-policy:${workspaceId}:${nonce}`,
+  );
+  const [form, setForm] = useState<{ mode: string; period: number; floor: number; confirm: string; max: string } | null>(
+    null,
+  );
+  useEffect(() => {
+    const raw = policy.data?.policy;
+    if (!raw) return;
+    const cal = (raw.calibration ?? {}) as { period_days?: number; kappa_floor?: number };
+    const num = (v: unknown) => (v === undefined || v === null ? "" : String(v));
+    setForm({
+      mode: String(raw.release_mode ?? "direct"),
+      period: cal.period_days ?? 90,
+      floor: cal.kappa_floor ?? 0.6,
+      confirm: num(raw.eval_cost_confirm_usd),
+      max: num(raw.eval_cost_max_usd),
+    });
+  }, [policy.data]);
+  const data = policy.data;
+  if (!isAdmin || !data || !form) return null;
+
+  const save = () => {
+    setBusy(true);
+    dlcApi
+      .putReleasePolicy(workspaceId, {
+        ...data.policy,
+        release_mode: form.mode,
+        calibration: { period_days: form.period, kappa_floor: form.floor },
+        eval_cost_confirm_usd: form.confirm === "" ? null : Number(form.confirm),
+        eval_cost_max_usd: form.max === "" ? null : Number(form.max),
+      })
+      .then(() => {
+        toast("success", t("v2.dlc.policy.saved"));
+        setNonce((n) => n + 1);
+      })
+      .catch((error: unknown) => toast("error", errorMessage(error)))
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <Card title={t("v2.dlc.policy.title")} sub={t("v2.dlc.policy.sub", { tier: data.tier })}>
+      <div className="v2-dlc-grid3">
+        <Field label={t("v2.dlc.policy.mode")} hint={t("v2.dlc.policy.modeHint")}>
+          <Select
+            value={form.mode}
+            onChange={(v) => setForm({ ...form, mode: v })}
+            options={["direct", "gated"].map((m) => ({ value: m, label: t(`v2.dlc.release.mode.${m}`) }))}
+          />
+        </Field>
+        <Field label={t("v2.dlc.policy.period")} hint={t("v2.dlc.policy.periodHint")}>
+          <input
+            className="v2-input"
+            type="number"
+            min={7}
+            max={365}
+            value={form.period}
+            onChange={(e) => setForm({ ...form, period: Number(e.target.value) })}
+          />
+        </Field>
+        <Field label={t("v2.dlc.policy.floor")} hint={t("v2.dlc.policy.floorHint")}>
+          <input
+            className="v2-input"
+            type="number"
+            min={0.2}
+            max={0.95}
+            step={0.05}
+            value={form.floor}
+            onChange={(e) => setForm({ ...form, floor: Number(e.target.value) })}
+          />
+        </Field>
+        <Field label={t("v2.dlc.policy.confirm")} hint={t("v2.dlc.policy.confirmHint")}>
+          <input
+            className="v2-input"
+            type="number"
+            min={0}
+            step={0.5}
+            value={form.confirm}
+            onChange={(e) => setForm({ ...form, confirm: e.target.value })}
+          />
+        </Field>
+        <Field label={t("v2.dlc.policy.max")} hint={t("v2.dlc.policy.maxHint")}>
+          <input
+            className="v2-input"
+            type="number"
+            min={0}
+            step={1}
+            value={form.max}
+            onChange={(e) => setForm({ ...form, max: e.target.value })}
+          />
+        </Field>
+      </div>
+      <div className="v2-dlc-actions">
+        <Button kind="primary" disabled={busy} onClick={save}>
+          {t("v2.common.save")}
+        </Button>
+      </div>
+    </Card>
+  );
+}
+
 export function ReleaseGate({ agentId }: { agentId: string }) {
   const { t } = useTranslation();
   const { can } = useAuth();
@@ -562,6 +677,8 @@ export function ReleaseGate({ agentId }: { agentId: string }) {
       )}
 
       <WaiverPanel state={state.data} rows={rows} onReload={() => setNonce((n) => n + 1)} />
+
+      <PolicyCard />
 
       <Card
         title={t("v2.dlc.release.history")}

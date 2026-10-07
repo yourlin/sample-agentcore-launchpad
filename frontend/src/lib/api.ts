@@ -6777,4 +6777,20 @@ export const dlcApi = {
     return request<{ events: AuditEntry[] }>(`/api/audit${q ? `?${q}` : ""}`);
   },
   scorecard: (agentId: string) => request<Scorecard>(dlcAgent(agentId, "/scorecard")),
+  /** The workspace's release policy (administrator). Unset keys use tier defaults. */
+  releasePolicy: (workspaceId: string) =>
+    request<ReleasePolicyView>(`/api/release-policies/${encodeURIComponent(workspaceId)}`),
+  /** Replaces the policy wholesale — send back every key you read, changed or not. */
+  putReleasePolicy: (workspaceId: string, policy: Record<string, unknown>) =>
+    request<ReleasePolicyView>(`/api/release-policies/${encodeURIComponent(workspaceId)}`, {
+      method: "PUT",
+      body: JSON.stringify(policy),
+    }),
 };
+
+export interface ReleasePolicyView {
+  workspace_id: string;
+  tier: string;
+  policy: Record<string, unknown>;
+  effective: Record<string, unknown>;
+}

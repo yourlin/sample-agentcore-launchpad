@@ -319,6 +319,13 @@ class ReleasePolicyRequest(BaseModel):
     smoke_prompts: list[str] | None = None
     window: dict[str, Any] | None = None
     freezes: list[dict[str, Any]] | None = None
+    # Agent-DLC (docs/agent-dlc-design.md §6, §10): whether a deploy waits on the gate,
+    # how long a judge calibration holds, and the evaluation spend guard. Validated
+    # by `release_gates.normalize_policy`, so they are typed loosely here.
+    release_mode: str | None = None
+    calibration: dict[str, Any] | None = None
+    eval_cost_confirm_usd: float | None = Field(default=None, ge=0)
+    eval_cost_max_usd: float | None = Field(default=None, ge=0)
 
 
 @router.get("/release-policies/{workspace_id}")
