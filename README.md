@@ -48,6 +48,16 @@ infrastructure (CDK) and a vendored Strands Studio sub-app. It delivers:
   and an optimization loop that produces control/treatment **configuration
   bundles**, runs A/B and canary traffic through the gateway, and promotes the
   winner.
+- **Agent-DLC: the release is decided by evaluation.** A signed **criteria table**
+  (判据) across five dimensions in three tiers, a **golden set** whose holdout is
+  sealed after one curation, **judge calibration** that measures whether an LLM may
+  stand in for a person (Cohen's κ, blind labelling, account-free annotation links),
+  and a **gate in front of production traffic**: a gated agent serves through a named
+  `live` endpoint, a deploy lands on `candidate`, and only a signed-off PASS moves
+  `live`. INVALID ("the evidence cannot decide") is kept distinct from BLOCKED, every
+  rate is shown with its confidence interval, and waivers need an owner, an expiry and
+  a second person — never for a red line. See
+  [docs/agent-dlc-design.md](docs/agent-dlc-design.md).
 - **Workspaces (multi-account / multi-region).** One console manages several
   AWS environments: a **workspace** is one `(account, region)` pair with its
   own AgentCore resource set, provisioned by a resumable ten-stage bootstrap
@@ -246,7 +256,7 @@ For terminal-attached development, use `make dev` and stop it with `Ctrl+C`.
 | `backend/` | FastAPI backend — deploy pipeline, invoke chain, evaluation & optimization, SQLite ledger |
 | `backend/app/routers/` | Console `/api` + public `/v1` endpoints |
 | `backend/app/deployer/` | Unified pipeline + per-method stages (harness, zip_runtime, container, studio, byoc) |
-| `frontend/` | React console (Vite) — Overview, Create Agent, Registry, Chat, Observability, Evaluation, Skill Lab, Governance |
+| `frontend/` | React console (Vite) — Overview, Create Agent, Registry, Chat, Observability, Evaluation, Standards (Agent-DLC), Skill Lab, Governance |
 | `infra/` | AWS CDK app — the `launchpad-base` shared stack |
 | `apps/studio/` | Vendored Strands Studio sub-app (方式C), rewired to the platform pipeline |
 | `vendor/skillopt/` | Vendored SkillOpt subset (skill evaluation & training engine; pin + patches in `LAUNCHPAD_DEVIATIONS.md`) |
@@ -263,6 +273,7 @@ For terminal-attached development, use `make dev` and stop it with `Ctrl+C`.
 | [docs/setup.md](docs/setup.md) | Environment setup, bootstrap, teardown ([中文](docs/setup.zh-CN.md)) |
 | [docs/architecture.md](docs/architecture.md) | Platform ↔ AgentCore mapping, pipeline, invoke chain ([中文](docs/architecture.zh-CN.md)) |
 | [docs/api.md](docs/api.md) | Public `/v1` API reference ([中文](docs/api.zh-CN.md)) |
+| [docs/agent-dlc-design.md](docs/agent-dlc-design.md) | **Agent-DLC** — criteria tables, golden sets, judge calibration, the release gate ([中文](docs/agent-dlc-design.zh-CN.md)); turning it on: [setup](docs/setup.md#agent-dlc-turning-the-gate-on--打开放行门) |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | Verified gotchas and timings ([中文](docs/troubleshooting.zh-CN.md)) |
 | [docs/teardown.md](docs/teardown.md) | Demo resources vs shared infra cleanup ([中文](docs/teardown.zh-CN.md)) |
 | [docs/cross-account-workspaces.md](docs/cross-account-workspaces.md) | Managing a workspace in another AWS account: the spoke role template, StackSets, the trust boundary |

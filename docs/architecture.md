@@ -4058,12 +4058,32 @@ also make the verdict INVALID. INVALID is not a failure: the evidence cannot dec
 **Gate before traffic.** `UpdateAgentRuntime` / `UpdateHarness` auto-roll the DEFAULT
 endpoint, so a gated agent (`agents.endpoint_mode="live"`) serves production through a
 named `live` endpoint and every invoke path passes `qualifier="live"`
-(`services/invoke.production_endpoint`). With the workspace policy
+(`services/invoke.production_endpoint`). A new invoke path must go through that helper
+or it bypasses the gate. With the workspace policy
 `release_mode="gated"`, `pipeline._finish` calls `releases.after_deploy`, which points
 `candidate` at the new version and opens a `ReleaseRecord`; `live` is untouched. Signing
 (`release.sign`, signer ≠ requester) re-points `live`; rollback re-points it to the
 previous version. Nothing is deleted. `POST /api/agents/{id}/release/migrate` moves an
-agent onto named endpoints. Waivers need a reason, a named risk owner, an expiry
+agent onto named endpoints, and carries `release.sign`: what production serves is a
+release decision, not a build step.
+
+**Two traps named by the real-AWS e2e** (`backend/scripts/e2e_agent_dlc.py`), both of
+which only appear once an agent actually has named endpoints:
+
+* *Telemetry is per endpoint.* Every AgentCore endpoint writes its own content-log
+  group (`…-<endpoint>`) and service name (`….<endpoint>`). Evaluation, observability,
+  online-eval matching and experiment recommendations all used to hardcode `DEFAULT`,
+  so a gate run against `candidate` timed out waiting for telemetry that was in
+  `…-candidate` — and, worse, a gated agent's production traffic (`…-live`) would have
+  vanished from the dashboards. `evaluation.service.telemetry_endpoint(agent,
+  qualifier)` is now the single rule: a pinned run reads its own endpoint, a gated
+  agent reads `live`, everything else `DEFAULT` (unchanged).
+* *Endpoint deletion is asynchronous.* AgentCore refuses to delete a runtime or
+  harness that still has endpoints, and `DeleteHarnessEndpoint` only moves the
+  endpoint to DELETING. All four delete paths call `releases.delete_endpoints` first,
+  which issues both deletes (AWS removes them in parallel) and then waits each out
+  with a bounded timeout; a stuck endpoint is reported, never raised, so it cannot
+  make an agent undeletable. Waivers need a reason, a named risk owner, an expiry
 ≤ 30 days and a second person (`waiver.approve`); the gate report counts how often a
 criterion has been waived.
 
@@ -4095,6 +4115,13 @@ never by role), `waiver.approve`, `release.sign` (operator). Every route is clas
 in `route_policy.py`; publish, sign, seed, item adds, admit, waiver approval, migrate,
 evaluate, release sign/block/rollback are `PROD_PROTECTED`. Decisions are written to
 `audit_events` and read back at `GET /api/audit`.
+
+**Cost is enforced, not just displayed.** `dlc/cost.estimate` prices items × k ×
+(agent per-session + judge per-item) with its basis named, and `assert_allowed` is
+called on both entry points — `POST /api/eval/runs` and the release gate's
+`start_evaluation` — so `eval_cost_max_usd` / `eval_cost_confirm_usd` refuse before a
+session is spent. `PUT /api/release-policies/{workspace_id}` is where an administrator
+sets `release_mode`, `calibration` and those two ceilings.
 
 **Known limits.** pass^k multiplies cost by k and is opt-in with the estimate shown;
 load and stress testing are out of scope; A/B experiments remain gateway-only with two

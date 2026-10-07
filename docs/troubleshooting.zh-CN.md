@@ -124,3 +124,26 @@ English: [troubleshooting.md](troubleshooting.md)
 - **创建 obo 目标时出现签发者警告。** 连接的 IdP 不是网关的入站签发者。只有该
   IdP 信任网关签发者的令牌作为主体令牌时，交换才会成功；请在 IdP 侧配置该信任，
   或选择同一签发者的连接（[identity.md §8.3](identity.md#83-obo-on-behalf-of-token-exchange)）。
+
+## Agent-DLC：判据、黄金集与放行门
+
+这里多数情况是**有意的拒绝**——报错信息会说明该怎么做。
+
+| 你看到的 | 含义 → 怎么处理 |
+|---|---|
+| `422 criteria.invalid`，带 `detail.findings` | 判据表违反了方法论的规则。`criteria.redline_judge`：红线不能交给大模型裁判——改用代码断言、轨迹匹配或指标。`criteria.dimension_uncovered`：每个维度要么有判据、要么写明 `n/a:<dimension>`。`criteria.no_redline`：没有红线的表不能发布 |
+| 某条门限判据显示“声明为门限 · 仅观察” | 裁判类判据在校准通过前不拦人。去「判据 → 裁判校准」跑一次标注任务并记录 `aligned`；在那之前它只记录，不强制 |
+| `409 calibration.not_supported` | 数据不支持把裁判判定为一致。detail 里带着裁判—人 κ、人—人 κ、样本量与下限。如果**人之间**就判不一致，请改写判据——写不下来的规则换裁判也救不了 |
+| 放行判定为 `INVALID` | 这不是“不达标”：是证据判不了。`provenance.issues` 会说明原因——判据版本未签署、运行用的是别的版本或端点、没有评估保留集——每行的 `reason` 会指出判定缺失或无法判定占比超过 5%。该修的是证据；豁免是用错了工具，而红线永不可豁免 |
+| `409 golden.holdout_sealed` | 保留集只编制一次，之后封存。正是这一点让它成为保留集；新用例请加到 `dev` 或 `regression` |
+| `409 golden.holdout_closed` | 样本准入与样本编辑永不写入保留集。请用 `dev` 或 `regression` |
+| `409 release.nothing_pending` | 没有等待判定的候选版本。`gated` 工作区里一次部署就会开出放行记录；`direct` 工作区根本不做门控（`PUT /api/release-policies/{workspace}` 的 `release_mode`） |
+| `409 release.not_gateable` 并附原因 | A2A 运行时不接受端点限定符；系统预置由平台放行；尚未部署的智能体没有可指向的版本 |
+| 放行报告显示“2 次放行运行未完成”，且是遥测超时 | 评估根本没看到这些会话。每个端点写自己的日志组，所以这通常是一个从未被调用过的新端点：先在该端点上调用一次，再重跑放行门 |
+| `409 run.cost_over_limit` / `run.cost_confirm_required` | 工作区的成本闸门。detail 带预估值；超过上限的运行只有管理员能发起，`confirm_cost: true` 表示已确认成本 |
+| `422 run.repeats_scope` | pass^k 是对智能体回放数据集用例——它无法重复历史会话或日志源 |
+| `409 watch.over_cost_ceiling` | 排程重评的预估成本超过上限，于是被跳过并上报，而不是先花掉。调高 `max_cost_usd` 或缩小切分 |
+| `409 annotation.links_not_allowed` | prod 级工作区不发放无账号标注链接：那里的标注会接触真实客户会话。请把标注人邀请为成员并授予 `judge.calibrate` |
+| 标注链接返回 `404 share.not_found` | 所有不可用状态刻意返回同一个答案（未知、已撤销、已过期、任务已删，或工作区升为 prod）。重新生成一个链接 |
+| 签署 / 准入 / 校准时 `403 auth.permission_required` | `criteria.sign`、`golden.admit`、`judge.calibrate` 只授予具体的人，不按角色给——它们决定“什么叫好”。由管理员按用户授予 |
+| 删除门控智能体曾返回 409“仍有端点” | 已修复：删除路径现在会先删 `candidate` 与 `live` 并等待 AWS 完成。若仍报 `timeout`，说明端点在 AWS 侧卡住了——等它稳定后重试删除 |

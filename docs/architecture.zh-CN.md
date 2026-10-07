@@ -1853,7 +1853,10 @@ Users 页面按账号编辑（审批时会分配授权，`PATCH /api/users/{id}`
 - **判据表**：按 `lineage_id` 版本化，发布即冻结，须由编辑人以外的人签署（`criteria.sign`）。红线不能交给大模型裁判；成本与性能必须是指标；裁判类判据在校准通过前实际档位为“观察”。
 - **黄金集**：开发集 / 回归集 / 保留集三个切分。`POST /api/golden-sets/{id}/seed` 是唯一写入保留集的路径，写入后即封存。
 - **放行门**：按固定顺序判定——红线 → 分母 → 各维度门限 → 观察项。证据不足判为 INVALID（无法判定），而不是不达标。
-- **流量前置门控**：门控智能体通过具名 `live` 端点对外服务，新版本部署到 `candidate`；签署后才把 `live` 指过去，回滚即重新指回，不删除任何资源。
+- **流量前置门控**：门控智能体通过具名 `live` 端点对外服务，新版本部署到 `candidate`；签署后才把 `live` 指过去，回滚即重新指回，不删除任何资源。切换到具名端点（`release/migrate`）需要 `release.sign`——生产服务哪个版本是放行决定，不是构建动作。
+- **遥测按端点区分**（真实 AWS e2e 发现）：每个 AgentCore 端点各写自己的内容日志组（`…-<endpoint>`）与 service name（`….<endpoint>`）。统一由 `evaluation.service.telemetry_endpoint(agent, qualifier)` 决定读哪个：钉住端点的运行读自己的，门控智能体读 `live`，其余读 `DEFAULT`。
+- **端点删除是异步的**：AgentCore 不允许删除仍带端点的 runtime / harness，而删除端点只是把它置为 DELETING。四条删除路径都先调 `releases.delete_endpoints`，先发出两个删除再分别等待（有超时上限）；卡住的端点只上报、不抛错，不会让智能体变成删不掉。
+- **成本是强制的，不只是展示**：`POST /api/eval/runs` 与放行门的 `start_evaluation` 都会调 `cost.assert_allowed`，`eval_cost_max_usd` / `eval_cost_confirm_usd` 在花掉第一个会话之前就拒绝。
 - **校准与标注链接**：标注期间对标注人隐藏裁判判定；数据不支持时拒绝判定为“一致”。标注链接（`/r/annotate/<token>`）让无账号的专家参与标注，prod 级工作区拒绝生成。
 - **权限**：新增 `criteria.manage`、`criteria.sign`、`golden.admit`、`judge.calibrate`、`waiver.approve`、`release.sign` 六项，关键写操作均在 `PROD_PROTECTED` 之列。
 

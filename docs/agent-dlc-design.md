@@ -591,16 +591,26 @@ Single-writer safety: each task claims a ledger row (`scheduler_claims(task, due
 
 Each phase follows `docs/roadmap.md` definition of done (hermetic tests, i18n parity, architecture section, `make verify`, e2e on the throwaway stack twice, security review before push).
 
-| Phase | Scope | Unlocks |
-|---|---|---|
-| **P0 — foundations** | F1–F6 fixes; `evaluation/stats.py`; persist `criterion_results`; run lineage columns; V2 dataset-version picker | trustworthy numbers |
-| **P1 — define + gate** | `criteria_sets/criteria` + editor (§7.1, import from assistant plan); criterion engine (§5.1–5.2); gate report (§5.4, §7.5) on the existing pooled-mean path as a second gate; INCONCLUSIVE label; field-alignment check | workshop core: define → evaluate → "red line blocks" demo |
-| **P2 — calibration + golden lifecycle** | annotation tasks, annotate links, κ engine, calibration bench (§7.3); golden splits + coverage matrix (§7.2); effective-tier demotion | "uncalibrated judges cannot gate" |
-| **P3 — gated release** | `live`/`candidate` endpoints, migration job, `release_mode`, release records, waivers, rollback-by-repoint (§6, §4.5); run comparison + fix ladder (§7.4) | gate before traffic; F1→F5 ladder demo |
-| **P4 — pass^k + cost** | repeats in `execute_run`, estimate endpoint, wizard prompt, actual-cost accounting (§5.3) | reliability gating with cost awareness |
-| **P5 — observe + feedback** | scheduler (§10), watch configs and drift bench (§7.7), admission queue (§7.6), two-number reporting, scorecard (§7.9), handoff-point panel (§7.8), audit read API | the flywheel turns unattended |
+| Phase | Scope | Unlocks | Delivered |
+|---|---|---|---|
+| **P0 — foundations** | F1–F6 fixes; `evaluation/stats.py`; persist `criterion_results`; run lineage columns; V2 dataset-version picker | trustworthy numbers | ✅ |
+| **P1 — define + gate** | `criteria_sets/criteria` + editor (§7.1, import from assistant plan); criterion engine (§5.1–5.2); gate report (§5.4, §7.5) on the existing pooled-mean path as a second gate; INCONCLUSIVE label; field-alignment check | workshop core: define → evaluate → "red line blocks" demo | ✅ |
+| **P2 — calibration + golden lifecycle** | annotation tasks, annotate links, κ engine, calibration bench (§7.3); golden splits + coverage matrix (§7.2); effective-tier demotion | "uncalibrated judges cannot gate" | ✅ |
+| **P3 — gated release** | `live`/`candidate` endpoints, migration job, `release_mode`, release records, waivers, rollback-by-repoint (§6, §4.5); run comparison + fix ladder (§7.4) | gate before traffic; F1→F5 ladder demo | ✅ |
+| **P4 — pass^k + cost** | repeats in `execute_run`, estimate endpoint, wizard prompt, actual-cost accounting (§5.3) | reliability gating with cost awareness | ✅ |
+| **P5 — observe + feedback** | scheduler (§10), watch configs and drift bench (§7.7), admission queue (§7.6), two-number reporting, scorecard (§7.9), handoff-point panel (§7.8), audit read API | the flywheel turns unattended | ✅ |
 
 Workshop readiness: P0 + P1 support the 1-day criteria workshop (define, build, evaluate, block on red line, fix, re-run); P2 + P3 make the release-gate story true on the platform itself.
+
+**Delivered 2026-10-07.** All six phases are implemented, with the console at
+`/v2/eval/standards` (nine `?view=` sub-pages), 57 routes in `app/routers/dlc.py` plus
+the public `/share/annotate/*` pair, and the loop verified against real AWS by
+`backend/scripts/e2e_agent_dlc.py` (38 checks) and `e2e_agent_dlc_browser.py`
+(nine views × two languages). Three things the real-AWS run changed in the design's
+assumptions, all now in `docs/architecture.md`: telemetry is **per endpoint** (a gate
+run must read `…-candidate`, a gated agent's dashboards must read `…-live`), endpoint
+deletion is **asynchronous** (the agent delete has to wait it out), and the cost
+estimate is **enforced** on both entry points rather than only displayed.
 
 ## 13. Testing
 
