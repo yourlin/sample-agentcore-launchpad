@@ -268,3 +268,13 @@ export LAUNCHPAD_AUTH_ALLOWED_EMAIL_DOMAINS='["your-company.com"]'   # 白名单
 
 **用完后请删除演示 Agent**（通过控制台或 `DELETE /api/agents/{id}`），再运行
 `scripts/teardown.py` 移除共享基础设施。见 [docs/teardown.zh-CN.md](docs/teardown.zh-CN.md)。
+
+## 安全
+
+如何报告安全问题，请参见 [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) 与
+[SECURITY](SECURITY.md)。欢迎贡献——请先阅读 [CONTRIBUTING.md](CONTRIBUTING.md) 与
+[行为准则](CODE_OF_CONDUCT.md)。
+
+## 许可证
+
+本项目基于 MIT-0 许可证发布，详见 [LICENSE](LICENSE) 文件。

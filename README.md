@@ -310,3 +310,13 @@ how much you exercise each layer:
 **Delete demo agents after use** (console, or `DELETE /api/agents/{id}`), then
 run `scripts/teardown.py` to remove the shared infra. See
 [docs/teardown.md](docs/teardown.md).
+
+## Security
+
+See [CONTRIBUTING](CONTRIBUTING.md#security-issue-notifications) and [SECURITY](SECURITY.md) for
+how to report a security issue. Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md)
+and the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## License
+
+This library is licensed under the MIT-0 License. See the [LICENSE](LICENSE) file.
