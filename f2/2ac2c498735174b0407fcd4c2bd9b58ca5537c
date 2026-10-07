@@ -1,0 +1,23 @@
+infra/spoke/launchpad-workspace-role-prod.yaml
+  s_53a2f2bba8d550::t_7262e68d00c625 403-442
+infra/spoke/launchpad-workspace-role.yaml
+  s_53a2f2bba8d550::t_6783ffd6b7a8b9 420-459
+infra/tests/test_spoke_template.py
+  s_53a2f2bba8d550::t_641644b347fee2 208-230
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "f22ac2c498735174b0407fcd4c2bd9b58ca5537c",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "AI Ape Wisdom <xiehust@163.com>"
+    }
+  }
+}
