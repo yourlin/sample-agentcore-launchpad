@@ -1,20 +1,24 @@
 import "@fontsource-variable/archivo/wdth.css";
+import "../v2/v2.css";
+import "../v2/glossary.css";
 import "./v3.css";
+import "./host.css";
 
 import { ArrowLeftRight, Bot, ChevronRight, LayoutDashboard, LogOut, MessagesSquare, Scale, Search } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth/auth-context";
 import { RouteChunk } from "../layout/RouteChunk";
 import { api } from "../lib/api";
 import { setUiVersion } from "../lib/ui-version";
+import { V2ToastProvider } from "../v2/ui";
 import { useWorkspace } from "../workspace/workspace-context";
 import { type Command, CommandPalette } from "./CommandPalette";
 import { ToastProvider } from "./ui";
 import { useLoad } from "./hooks";
-import { inV2Groups } from "./nav";
+import { hostedGroups, isActive } from "./nav";
 
 const RAIL_KEY = "launchpad_v3_rail_open";
 
@@ -80,9 +84,14 @@ function Lang() {
  * rebuilt are still in the rail, marked, and open in V2 rather than being
  * wrapped in a shell whose look they do not share.
  */
-export function V3Shell() {
+/** Pages whose content belongs to the installation, not a workspace: they must not
+ *  remount (and lose an admin's draft) when the workspace switches. */
+const HUB_GLOBAL = new Set(["/announcements", "/v2/announcements", "/videos", "/v2/videos", "/v2/video-management"]);
+
+export function V3Shell({ hosted }: { hosted?: "v2" | "classic" } = {}) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAdmin, authRequired, username, logout } = useAuth();
   const { current } = useWorkspace();
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -110,17 +119,25 @@ export function V3Shell() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // A hosted page has the same URL in V2, which simply re-renders it in the V2
+  // shell; a native V3 page goes to its V2 counterpart.
   const backToV2 = () => {
     setUiVersion("v2");
-    navigate("/v2");
+    const { pathname, search } = location;
+    if (!pathname.startsWith("/v3")) return;
+    const id = new URLSearchParams(search).get("id");
+    if (pathname === "/v3/chat") navigate(`/v2/chat${search}`);
+    else if (pathname === "/v3/agents") navigate(id ? `/v2/agents?view=detail&id=${encodeURIComponent(id)}` : "/v2/agents");
+    else if (pathname === "/v3/gate") navigate("/v2/eval/standards");
+    else navigate("/v2");
   };
 
-  const inV2 = useMemo(() => inV2Groups(isAdmin), [isAdmin]);
-  // V2's groups start folded: the rail leads with what V3 does natively
+  const groups = useMemo(() => hostedGroups(isAdmin), [isAdmin]);
+  // the module groups start folded, except the one holding the current page
   const [open, setOpen] = useState<Record<string, boolean>>(readOpen);
-  const toggle = (key: string) =>
+  const toggle = (key: string, wasOpen: boolean) =>
     setOpen((prev) => {
-      const next = { ...prev, [key]: !prev[key] };
+      const next = { ...prev, [key]: !wasOpen };
       try {
         localStorage.setItem(RAIL_KEY, JSON.stringify(next));
       } catch {
@@ -132,23 +149,24 @@ export function V3Shell() {
   const pages = useMemo<Command[]>(() => {
     const group = t("v3.cmdk.pages");
     const all = [
-      ...NATIVE.map((item) => ({ to: item.to, labelKey: item.labelKey, icon: item.icon, v2: false })),
-      ...inV2.flatMap((g) =>
-        g.items.map(({ to, labelKey, icon: Icon }) => ({ to, labelKey, icon: <Icon size={16} />, v2: true })),
+      ...NATIVE.map((item) => ({ to: item.to, labelKey: item.labelKey, icon: item.icon })),
+      ...groups.flatMap((g) =>
+        g.items.map(({ to, labelKey, icon: Icon }) => ({ to, labelKey, icon: <Icon size={16} /> })),
       ),
     ];
     return all.map((item) => ({
       id: `p:${item.to}`,
       group,
       label: t(item.labelKey),
-      hint: item.v2 ? "V2" : undefined,
       icon: item.icon,
       // the English name and the route, so "chat" finds 对话 under zh-CN
       keywords: `${t(item.labelKey, { lng: "en" })} ${item.to.replace(/[/?=&]/g, " ")}`,
       run: () => navigate(item.to),
     }));
-  }, [inV2, navigate, t]);
+  }, [groups, navigate, t]);
 
+  const managingAgent =
+    location.pathname === "/v2/agents" && new URLSearchParams(location.search).get("view") !== "new";
   const closePalette = useCallback(() => setPaletteOpen(false), []);
   const displayName = authRequired ? (username ?? "—") : "operator";
   const failing = (agents.data?.agents ?? []).filter((a) => a.status === "failed").length;
@@ -188,22 +206,29 @@ export function V3Shell() {
 
         <nav className="v3-rail" aria-label={t("v3.nav.label")}>
           {NATIVE.map((item) => (
-            <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => (isActive ? "on" : "")}>
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
+              // an agent's V2 management page (hosted) still belongs to Agents
+              className={({ isActive: on }) => (on || (item.to === "/v3/agents" && managingAgent) ? "on" : "")}
+            >
               {item.icon}
               {t(item.labelKey)}
               {item.to === "/v3/agents" && failing > 0 && <span className="count">{failing}</span>}
             </NavLink>
           ))}
-          <div className="v3-rail-label" title={t("v3.nav.inV2Hint")}>{t("v3.nav.inV2")}</div>
-          {inV2.map((group) => {
-            const isOpen = open[group.key] === true;
+          <div className="v3-rail-label">{t("v3.nav.more")}</div>
+          {groups.map((group) => {
+            const current = group.items.some((item) => isActive(item, location.pathname, location.search));
+            const isOpen = open[group.key] ?? current;
             return (
               <div key={group.key} className="v3-rail-group">
                 <button
                   type="button"
                   className="v3-rail-item v3-rail-group-head"
                   aria-expanded={isOpen}
-                  onClick={() => toggle(group.key)}
+                  onClick={() => toggle(group.key, isOpen)}
                   data-testid={`v3-rail-group-${group.key}`}
                 >
                   <ChevronRight size={14} className="chev" aria-hidden="true" />
@@ -213,11 +238,17 @@ export function V3Shell() {
                 {isOpen &&
                   group.items.map((item) => {
                     const Icon = item.icon;
+                    const on = isActive(item, location.pathname, location.search);
                     return (
-                      <Link key={item.to} to={item.to} title={t("v3.nav.inV2Hint")} className="v3-rail-sub">
+                      <Link
+                        key={item.to}
+                        to={item.to}
+                        className={on ? "v3-rail-sub on" : "v3-rail-sub"}
+                        aria-current={on ? "page" : undefined}
+                        title={item.hintKey ? t(item.hintKey) : undefined}
+                      >
                         <Icon size={15} aria-hidden="true" />
                         {t(item.labelKey)}
-                        <span className="ext">V2</span>
                       </Link>
                     );
                   })}
@@ -231,10 +262,33 @@ export function V3Shell() {
           </div>
         </nav>
 
-        <main className="v3-main">
-          <RouteChunk>
-            <Outlet />
-          </RouteChunk>
+        <main className={hosted ? "v3-main hosted" : "v3-main"}>
+          {hosted === "v2" ? (
+            <V2ToastProvider>
+              {/* workspace-bound pages refetch on a switch; hub-global ones keep drafts */}
+              <div
+                className="v2 v3-host"
+                key={HUB_GLOBAL.has(location.pathname) ? "hub-global-content" : current?.id ?? "none"}
+              >
+                <RouteChunk key={location.pathname}>
+                  <Outlet />
+                </RouteChunk>
+              </div>
+            </V2ToastProvider>
+          ) : hosted === "classic" ? (
+            <div
+              className="view v3-classic"
+              key={HUB_GLOBAL.has(location.pathname) ? "hub-global-content" : current?.id ?? "none"}
+            >
+              <RouteChunk key={location.pathname}>
+                <Outlet />
+              </RouteChunk>
+            </div>
+          ) : (
+            <RouteChunk>
+              <Outlet />
+            </RouteChunk>
+          )}
         </main>
 
         <CommandPalette open={paletteOpen} onClose={closePalette} agents={agents.data?.agents ?? []} pages={pages} />

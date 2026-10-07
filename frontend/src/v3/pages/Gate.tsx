@@ -1,4 +1,4 @@
-import { ExternalLink, Play, RotateCcw, ShieldCheck, ShieldX } from "lucide-react";
+import { Play, RotateCcw, ShieldCheck, ShieldX } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
@@ -183,7 +183,7 @@ export function V3Gate() {
             <Notice s="wait">
               {t("v3.gate.notGated")}{" "}
               <Link to={`/v2/eval/standards?agent=${agent.id}&view=release`} style={{ textDecoration: "underline" }}>
-                {t("v3.gate.setUp")} <ExternalLink size={11} />
+                {t("v3.gate.setUp")}
               </Link>
             </Notice>
           )}
@@ -295,10 +295,10 @@ export function V3Gate() {
 
           <div style={{ display: "flex", gap: 10 }}>
             <Link to={`/v2/eval/standards?agent=${agent.id}&view=criteria`} className="v3-btn ghost">
-              {t("v3.gate.editCriteria")} <ExternalLink size={13} />
+              {t("v3.gate.editCriteria")}
             </Link>
             <Link to={`/v2/eval/standards?agent=${agent.id}&view=calibration`} className="v3-btn ghost">
-              {t("v3.gate.calibrate")} <ExternalLink size={13} />
+              {t("v3.gate.calibrate")}
             </Link>
           </div>
         </>

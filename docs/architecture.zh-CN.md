@@ -1480,7 +1480,8 @@ DCV live-view chunk（它本来就是懒加载的，见 `pages/governance/ToolsV
 
 - **切换。** V2 顶栏有「试用 V3」（`data-testid="v2-switch-v3"`），V3 顶栏有「返回 V2」。选择以 `v3` 存在 `launchpad_ui_version`（`lib/ui-version.ts`）中，之后访问 `/` 会进入 `/v3`；打开任意 `/v3` 页面即视为选择 V3。
 - **原生页面。** 指挥中心（`/v3`：由部署失败、待签署的放行、被拦下的放行门汇总出的「需要你处理」队列，见 `v3/signals.ts`）、智能体（`/v3/agents`，`?id=` 为单个智能体：生命周期线、部署阶段、版本/端点、试一下）、对话（`/v3/chat`，同一条 `chat_stream` SSE 链路）、放行门（`/v3/gate`：四道门流水线、各判据的区间、签署 / 拦下 / 回滚 / 运行放行门）。
-- **其余页面仍在 V2。** 侧栏在「仍在 V2」下按 V2 自己的分组（可折叠）列出所有 V3 尚未重做的页面，点击直接打开 V2 页面。该列表由 `v2/nav.ts` 派生（`v3/nav.ts` 的 `inV2Groups`），V2 新增页面无需改动 V3 即可到达（由 `v3/nav.test.ts` 保证）。⌘K 命令面板（也可按 `/`）可到达所有页面以及每个智能体的对话与放行门，在 zh-CN 界面下也能匹配英文名称和路由。
+- **其余页面在 V3 中承载，而不是跳回 V2。** 选择 V3 后，`/v2/*` 路由经由 `V2Frame`（`App.tsx`）在 `<V3Shell hosted="v2" />` 内渲染，classic 路由在 `<V3Shell hosted="classic" />` 内渲染——URL 和页面模块不变，外壳换成 V3。因此 V2 页面发出的任何链接都留在 V3 内；在承载页上点「返回 V2」只是用 V2 外壳重新渲染同一 URL。V3 已重做的两个 V2 页面会交给对应的 V3 页面（`/v2` → `/v3`，`/v2/chat` → `/v3/chat`；`/v2/chat?full=1` 保留完整的 V2 对话，V3 对话页在需要授权卡片时链接到它）。侧栏在「功能模块」下按 V2 自己的分组（可折叠）列出这些承载页，列表由 `v2/nav.ts` 派生（`v3/nav.ts` 的 `hostedGroups`，由 `v3/nav.test.ts` 保证完整）；⌘K 命令面板（也可按 `/`）可到达所有页面以及每个智能体的对话与放行门，在 zh-CN 下也能匹配英文名称和路由。
+- **承载主题。** V2 把用到的每个字面颜色都命名为 `--v2-*` token（见 `v2/v2.css` 中 `--v2-mono` 下方的一组；V2 显示完全不变），`v3/host.css` 在 `.v2.v3-host` 容器上把这些 token 重新指向 V3 调色板，并调整面板、标题和表格样式。classic 的 token（`theme/tokens.css`）在 `body.v3-body` 上重新指向，classic 的品牌琥珀色改为 V3 的薄荷绿，因为琥珀色在 V3 中表示「等待」。V2/classic 的弹窗是页面内的 `position: fixed`，所以承载时 `<main>` 不建立层叠上下文（`.v3-main.hosted`）。架构助手的鱼骨图 SVG 有意保留浅色字面调色板——它同时用作独立的 SVG 下载文件。
 - **样式。** V3 的 CSS 全部限定在 `.v3` 之下，所有自定义属性都以 `--v3-*` 为前缀，因为经典版 `theme/` 的 token 和类名（`--ink-2`、`.split`、`.caret`）是全局的，否则会冲突。信号统一使用 `ok` / `wait` / `act` / `info` / `off`。
 - **时间戳。** 账本时间戳是不带时区的 UTC；`lib/timestamps.ts` 的 `parseTimestamp` 按 UTC 解析（V2 的 `fmtTime` 也改用它），避免 `new Date()` 把它当作本地时间。
 - **检查。** `backend/scripts/e2e_v3_console_browser.py`（无头浏览器、基本只读；`--chat` 会发送一条消息）覆盖切换、所有 V3 页面和 ⌘K。

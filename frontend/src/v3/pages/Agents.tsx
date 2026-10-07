@@ -1,4 +1,4 @@
-import { ArrowLeft, ExternalLink, MessagesSquare, Play, Scale, Search } from "lucide-react";
+import { ArrowLeft, MessagesSquare, Play, Scale, Search, Settings2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -160,8 +160,8 @@ function AgentDetail({ id }: { id: string }) {
           <>
             <Link to={`/v3/chat?agent=${a.id}`} className="v3-btn"><MessagesSquare size={14} /> {t("v3.agent.chat")}</Link>
             <Link to={`/v3/gate?agent=${a.id}`} className="v3-btn"><Scale size={14} /> {t("v3.agent.gate")}</Link>
-            <Link to={`/v2/agents?view=detail&id=${a.id}`} className="v3-btn ghost" title={t("v3.nav.inV2Hint")}>
-              {t("v3.agent.edit")} <ExternalLink size={13} />
+            <Link to={`/v2/agents?view=detail&id=${a.id}`} className="v3-btn ghost">
+              <Settings2 size={14} /> {t("v3.agent.edit")}
             </Link>
           </>
         }

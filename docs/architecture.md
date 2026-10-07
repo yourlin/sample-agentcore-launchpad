@@ -2820,12 +2820,26 @@ backend surface.
   deploy stages, versions/endpoints, try-it), Chat (`/v3/chat`, the same
   `chat_stream` SSE chain), and Release gate (`/v3/gate`: the four-gate pipeline,
   per-criterion intervals, sign / block / roll back / run the gate).
-- **Everything else stays in V2.** The rail lists every page V3 has not rebuilt under
-  "Still in V2", in V2's own collapsible groups; they open the V2 page instead of
-  being wrapped in a shell whose look they do not share. The list is derived from
-  `v2/nav.ts` (`v3/nav.ts` `inV2Groups`), so a page added to V2 is reachable from V3
-  without a V3 change (`v3/nav.test.ts` holds that). The ⌘K palette (also `/`) reaches every page and every agent's
-  chat and gate, and matches English names and routes under the zh-CN UI too.
+- **Every other page is hosted, not handed off.** Once V3 is chosen, the `/v2/*`
+  routes render through `V2Frame` (`App.tsx`) inside `<V3Shell hosted="v2" />`, and
+  the classic routes through `<V3Shell hosted="classic" />` — same URLs, same page
+  modules, V3 chrome. So every link a V2 page makes stays inside V3, and "Back to
+  V2" on a hosted page just re-renders the same URL in the V2 shell. The two V2
+  pages V3 rebuilt hand over to their V3 page (`/v2` → `/v3`, `/v2/chat` →
+  `/v3/chat`; `/v2/chat?full=1` keeps the full V2 chat, which V3's chat links to for
+  consent cards). The rail lists the hosted pages under "Modules" in V2's own
+  collapsible groups, derived from `v2/nav.ts` (`v3/nav.ts` `hostedGroups`, held
+  complete by `v3/nav.test.ts`), and the ⌘K palette (also `/`) reaches all of them
+  plus every agent's chat and gate, matching English names and routes under zh-CN.
+- **Hosted theme.** V2 names every literal colour it uses as a `--v2-*` token (the
+  block under `--v2-mono` in `v2/v2.css`; V2 renders identically), and
+  `v3/host.css` re-points those tokens to the V3 palette on the `.v2.v3-host`
+  wrapper, plus panel/heading/table treatments. Classic tokens (`theme/tokens.css`)
+  are re-pointed on `body.v3-body`, the classic brand amber becoming V3's mint
+  since amber is V3's "waiting" signal. V2/classic modals are `position: fixed`
+  inside the page, so a hosted `<main>` drops its stacking context
+  (`.v3-main.hosted`). The assistant fishbone SVG keeps its literal light palette
+  on purpose — it doubles as a standalone SVG download.
 - **Styling.** All V3 CSS is scoped under `.v3` and every custom property is prefixed
   `--v3-*`, because the classic `theme/` tokens and class names (`--ink-2`, `.split`,
   `.caret`) are global and would otherwise collide. Signals use one vocabulary:

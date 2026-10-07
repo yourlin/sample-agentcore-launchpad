@@ -1,4 +1,4 @@
-import { ArrowUp, ExternalLink, Plus, ThumbsDown, ThumbsUp, Wrench } from "lucide-react";
+import { ArrowUp, Plus, ThumbsDown, ThumbsUp, Wrench } from "lucide-react";
 import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
@@ -287,8 +287,8 @@ export function V3Chat() {
             <div className="v3-msg">
               <Notice s="wait">
                 {t("v3.chat.consentInV2")}{" "}
-                <Link to={`/v2/chat?agent=${agentId}${sessionId ? `&session=${sessionId}` : ""}`} style={{ textDecoration: "underline" }}>
-                  {t("v3.chat.openInV2")} <ExternalLink size={11} />
+                <Link to={`/v2/chat?agent=${agentId}${sessionId ? `&session=${sessionId}` : ""}&full=1`} style={{ textDecoration: "underline" }}>
+                  {t("v3.chat.openInV2")}
                 </Link>
               </Notice>
             </div>

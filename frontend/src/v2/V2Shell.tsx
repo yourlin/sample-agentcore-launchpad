@@ -145,10 +145,8 @@ export function V2Shell({ classic = false }: { classic?: boolean }) {
             <button
               type="button"
               className="v2-btn sm"
-              onClick={() => {
-                setUiVersion("v3");
-                navigate("/v3");
-              }}
+              // every V2 page has a V3 home (hosted or rebuilt): stay on this one
+              onClick={() => setUiVersion("v3")}
               data-testid="v2-switch-v3"
               title={t("v3.switch.tryHint")}
             >

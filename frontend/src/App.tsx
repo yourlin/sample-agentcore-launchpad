@@ -146,7 +146,7 @@ const V2NotFound = lazy(() =>
  */
 function V2OrClassic({ classic, toV2 }: { classic: ReactNode; toV2: (search: string) => string }) {
   const { search } = useLocation();
-  if (useUiVersion() === "v2") return <Navigate to={toV2(search)} replace />;
+  if (useUiVersion() !== "v1") return <Navigate to={toV2(search)} replace />;
   return <>{classic}</>;
 }
 
@@ -164,7 +164,7 @@ function IndexRoute() {
  */
 function AgentsRoute({ mode }: { mode: "list" | "detail" }) {
   const { agentId } = useParams();
-  if (useUiVersion() === "v2") {
+  if (useUiVersion() !== "v1") {
     const to = mode === "detail" && agentId ? `/v2/agents?view=detail&id=${agentId}` : "/v2/agents";
     return <Navigate to={to} replace />;
   }
@@ -178,7 +178,7 @@ function AgentsRoute({ mode }: { mode: "list" | "detail" }) {
  */
 function AgentsEditRoute() {
   const { agentId } = useParams();
-  const v2 = useUiVersion() === "v2";
+  const v2 = useUiVersion() !== "v1";
   const [target, setTarget] = useState<string | "classic" | null>(null);
   useEffect(() => {
     if (!v2 || !agentId) return;
@@ -202,7 +202,7 @@ function AgentsEditRoute() {
  */
 function AgentsNewRoute() {
   const { search } = useLocation();
-  const target = useUiVersion() === "v2" ? classicAgentNewToV2(search) : null;
+  const target = useUiVersion() !== "v1" ? classicAgentNewToV2(search) : null;
   return target ? <Navigate to={target} replace /> : <CreateAgent mode="new" />;
 }
 
@@ -264,23 +264,37 @@ function v2EvaluationTarget(search: string): string | null {
 
 function EvaluationRoute() {
   const { search } = useLocation();
-  const target = useUiVersion() === "v2" ? v2EvaluationTarget(search) : null;
+  const target = useUiVersion() !== "v1" ? v2EvaluationTarget(search) : null;
   return target ? <Navigate to={target} replace /> : <Evaluation />;
 }
 
 /**
- * Chrome for the classic routes: the classic shell, or the V2 shell when the
- * operator chose V2 — so links between modules (`/agents/…`, `/chat?agent=…`)
+ * Chrome for the classic routes: the classic shell, or the V2 / V3 shell when the
+ * operator chose one — so links between modules (`/agents/…`, `/chat?agent=…`)
  * work unchanged in both consoles and switching keeps the current page.
  */
 function ConsoleShell() {
-  return useUiVersion() === "v2" ? (
-    <RouteChunk>
-      <V2Shell classic />
-    </RouteChunk>
-  ) : (
-    <Shell />
-  );
+  const version = useUiVersion();
+  if (version === "v1") return <Shell />;
+  return <RouteChunk>{version === "v3" ? <V3Shell hosted="classic" /> : <V2Shell classic />}</RouteChunk>;
+}
+
+/**
+ * Chrome for the native V2 pages: the V2 shell, or — once the operator chose
+ * V3 — the V3 shell hosting the same page on the V3 theme, so every link a V2
+ * page makes (`/v2/...`) stays inside V3. The two V2 pages V3 has rebuilt (the
+ * overview and chat) hand over to their V3 page instead.
+ */
+const V3_TWIN: Record<string, string> = { "/v2": "/v3", "/v2/": "/v3", "/v2/chat": "/v3/chat" };
+
+function V2Frame() {
+  const { pathname, search } = useLocation();
+  if (useUiVersion() !== "v3") return <V2Shell />;
+  // `full=1`: the full V2 chat (attachments, consent cards), which V3's chat
+  // hands over to for what it does not do yet
+  const twin = pathname === "/v2/chat" && new URLSearchParams(search).has("full") ? undefined : V3_TWIN[pathname];
+  if (twin) return <Navigate to={`${twin}${search}`} replace />;
+  return <V3Shell hosted="v2" />;
 }
 
 export default function App() {
@@ -315,7 +329,7 @@ export default function App() {
               path="v2"
               element={
                 <RouteChunk>
-                  <V2Shell />
+                  <V2Frame />
                 </RouteChunk>
               }
             >

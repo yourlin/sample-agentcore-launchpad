@@ -9596,8 +9596,7 @@
       "agents": "智能体",
       "chat": "对话",
       "gate": "放行门",
-      "inV2": "仍在 V2",
-      "inV2Hint": "V3 尚未重做——在 V2 中打开",
+      "more": "功能模块",
       "create": "新建智能体"
     },
     "cmdk": {
@@ -9681,7 +9680,7 @@
       "failed": "最近一次部署失败。",
       "chat": "对话",
       "gate": "放行门",
-      "edit": "在 V2 中编辑",
+      "edit": "管理",
       "lifecycle": "生命周期",
       "pending": "版本 v{{version}} 正在等待放行门。",
       "openGate": "打开放行门",
@@ -9724,8 +9723,8 @@
       "curated": "人工答案",
       "up": "回答得好",
       "down": "回答得不好",
-      "consentInV2": "这一轮需要用户为某个工具授权——授权卡片目前在 V2 中处理。",
-      "openInV2": "在 V2 中继续"
+      "consentInV2": "这一轮需要用户为某个工具授权——授权卡片目前在完整对话中处理。",
+      "openInV2": "在完整对话中继续"
     },
     "gate": {
       "eyebrow": "放行门",
@@ -9790,8 +9789,8 @@
       "standard": "标准 {{v}}",
       "na": "不适用",
       "history": "放行记录",
-      "editCriteria": "在 V2 中编辑判据",
-      "calibrate": "在 V2 中校准裁判"
+      "editCriteria": "编辑判据",
+      "calibrate": "校准裁判"
     }
   }
 }

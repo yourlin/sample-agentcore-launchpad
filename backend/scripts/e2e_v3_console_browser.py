@@ -2,8 +2,10 @@
 """Browser pass over console V3 (`/v3`) — headless Chromium, read-mostly.
 
 Signs in, opens every V3 page (command center, agents list and one agent, chat,
-release gate), exercises the ⌘K palette and the V2 ⇄ V3 switch, and fails on a
-page that does not render, a console error, or an API call that answered 5xx.
+release gate) and every module page V3 hosts from V2 (they must render inside the
+V3 shell, on its theme), exercises the ⌘K palette and the V2 ⇄ V3 switch, and
+fails on a page that does not render, a console error, or an API call that
+answered 5xx.
 Screenshots land in `--out`. It sends one chat message when an agent is
 available (`--chat`), which invokes that agent.
 
@@ -105,7 +107,7 @@ def main() -> int:
             check("chat.answered", len(text.strip()) > 0, repr(text.strip()[:60]))
         visit("gate", "/v3/gate", ".v3-title")
 
-        # "Still in V2": every group unfolds, and every page it lists opens in V2
+        # Modules: every group unfolds, and every page it lists renders hosted in V3
         page.goto(f"{args.ui}/v3", wait_until="networkidle")
         page.wait_for_selector('[data-testid="v3-shell"]', timeout=15000)
         heads = page.locator('[data-testid^="v3-rail-group-"]')
@@ -115,21 +117,22 @@ def main() -> int:
         page.screenshot(path=str(out / f"{args.lang}-rail-open.png"))
         links = page.locator(".v3-rail a.v3-rail-sub").evaluate_all(
             "els => els.map(e => e.getAttribute('href'))")
-        check("rail.inV2", len(links) >= 20, f"{len(links)} pages")
+        check("rail.modules", len(links) >= 20, f"{len(links)} pages")
         for href in links:
             errors.clear()
             bad.clear()
             page.goto(f"{args.ui}{href}", wait_until="networkidle")
             page.wait_for_timeout(600)
-            shown = page.locator(".v2-shell, [data-testid='v2-shell'], .v2-main").count() > 0
+            shown = page.locator("[data-testid='v3-shell'] .v3-host").count() > 0
+            shown = shown and page.locator("[data-testid='v2-shell']").count() == 0
             real = [e for e in errors if "404" not in e and "favicon" not in e]
             if not (shown and not real and not bad):
                 check(f"v2 {href}", False,
                       f"shell={shown} console_errors={len(real)} 5xx={len(bad)}")
                 for line in (real + bad)[:3]:
                     print(f"        {line[:200]}")
-        check("rail.inV2.open", not any(f.startswith("v2 ") for f in failures))
-        # following a V2 link must not undo the V3 choice
+        check("rail.modules.hosted", not any(f.startswith("v2 ") for f in failures))
+        # a hosted page must not undo the V3 choice
         stored = page.evaluate("localStorage.getItem('launchpad_ui_version')")
         check("rail.keeps.v3", stored == "v3", f"stored={stored}")
 
@@ -146,7 +149,8 @@ def main() -> int:
 
         # and back to V2: the choice is honoured on the next visit to "/"
         page.locator('[data-testid="v3-switch-v2"]').click()
-        page.wait_for_url("**/v2", timeout=10000)
+        page.wait_for_selector('[data-testid="v2-shell"]', timeout=15000)
+        check("switch.v3→v2.samepage", "/v2/chat" in page.url, page.url.replace(args.ui, ""))
         page.goto(f"{args.ui}/", wait_until="networkidle")
         check("switch.v3→v2", "/v2" in page.url, page.url.replace(args.ui, ""))
         browser.close()

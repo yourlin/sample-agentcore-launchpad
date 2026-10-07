@@ -9596,8 +9596,7 @@
       "agents": "Agents",
       "chat": "Chat",
       "gate": "Release gate",
-      "inV2": "Still in V2",
-      "inV2Hint": "Not rebuilt in V3 yet — opens in V2",
+      "more": "Modules",
       "create": "New agent"
     },
     "cmdk": {
@@ -9681,7 +9680,7 @@
       "failed": "The last deploy failed.",
       "chat": "Chat",
       "gate": "Release gate",
-      "edit": "Edit in V2",
+      "edit": "Manage",
       "lifecycle": "Lifecycle",
       "pending": "Version v{{version}} is waiting on the release gate.",
       "openGate": "Open the gate",
@@ -9724,8 +9723,8 @@
       "curated": "curated answer",
       "up": "Good answer",
       "down": "Bad answer",
-      "consentInV2": "This turn needs the user's consent for a tool — consent cards are handled in V2 for now.",
-      "openInV2": "Continue in V2"
+      "consentInV2": "This turn needs the user's consent for a tool — consent cards are handled in the full chat for now.",
+      "openInV2": "Continue in the full chat"
     },
     "gate": {
       "eyebrow": "Release gate",
@@ -9790,8 +9789,8 @@
       "standard": "standard {{v}}",
       "na": "not applicable",
       "history": "Release history",
-      "editCriteria": "Edit criteria in V2",
-      "calibrate": "Calibrate judges in V2"
+      "editCriteria": "Edit criteria",
+      "calibrate": "Calibrate judges"
     }
   }
 }

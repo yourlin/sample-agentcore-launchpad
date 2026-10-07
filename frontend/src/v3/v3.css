@@ -218,6 +218,9 @@ body.v3-body {
 .v3 .v3-rail-group-head .chev { transition: transform 0.15s var(--v3-ease); }
 .v3 .v3-rail-group-head[aria-expanded="true"] .chev { transform: rotate(90deg); }
 .v3 .v3-rail a.v3-rail-sub { height: 32px; padding-left: 22px; font-size: 13px; }
+/* hosting a V2 or classic page: their modals and drawers are fixed inside the
+   page, so <main> must not be a stacking context that pins them under the rail */
+.v3 .v3-main.hosted { z-index: auto; }
 .v3 .v3-rail-label {
   font-family: var(--v3-mono);
   font-size: 10px;
