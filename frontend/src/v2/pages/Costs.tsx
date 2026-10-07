@@ -42,6 +42,8 @@ import {
  */
 
 const RANGES = ["1h", "6h", "24h", "7d", "30d"] as const;
+// error rate and latency read the observability dashboard, which has no 30-day range
+const DASHBOARD_RANGES = ["1h", "6h", "24h", "7d"] as const;
 
 const STATE_TONE: Record<AlertRuleInfo["state"], TagTone> = {
   firing: "red",
@@ -246,7 +248,10 @@ function NewRuleModal({ onClose, onDone }: { onClose: () => void; onDone: () => 
               value,
               label: t(`v2.alerts.kindName.${value}`),
             }))}
-            onChange={(v) => setKind(v as AlertKind)}
+            onChange={(v) => {
+              setKind(v as AlertKind);
+              if (v !== "online_quality" && window === "30d") setWindow("7d");
+            }}
             testId="v2-alert-kind"
           />
         </Field>
@@ -272,7 +277,10 @@ function NewRuleModal({ onClose, onDone }: { onClose: () => void; onDone: () => 
           <Field label={t("v2.alerts.window")} hint={t("v2.alerts.windowHint")}>
             <Select
               value={window}
-              options={RANGES.map((value) => ({ value, label: value }))}
+              options={(kind === "online_quality" ? RANGES : DASHBOARD_RANGES).map((value) => ({
+                value,
+                label: value,
+              }))}
               onChange={setWindow}
             />
           </Field>

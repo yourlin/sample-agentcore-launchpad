@@ -267,7 +267,6 @@ def _rule(**kwargs) -> AlertRule:
 def test_error_rate_fires_and_clears(monkeypatch, ctx):
     _clear_rules()
     rule_id = _rule(kind="error_rate", threshold=0.1)
-    dash = {"traces": 100, "errors": 25, "p95_ms": 900.0}
     monkeypatch.setattr(
         alert_service, "read_value", lambda rule, db, ws: (0.25, "25/100 traces failed")
     )
@@ -284,7 +283,6 @@ def test_error_rate_fires_and_clears(monkeypatch, ctx):
         assert db.get(AlertRule, rule_id).last_fired_at is not None  # history kept
     finally:
         db.close()
-    assert dash  # the shape the reader expects, kept next to the test for clarity
 
 
 def test_an_unreadable_value_is_unknown_not_ok(monkeypatch, ctx):
@@ -423,3 +421,68 @@ def test_month_to_date_uses_the_elapsed_month(monkeypatch, ctx):
     elapsed = int((now - now.replace(day=1, hour=0, minute=0, second=0, microsecond=0))
                   .total_seconds() // 3600)
     assert seen["hours"] == max(1, min(720, elapsed or 1))
+
+
+def _dashboard(traces: int, errors: int, p95: float) -> dict:
+    """The real `observability.get_dashboard` shape: numbers nested under `tiles`."""
+    return {
+        "tiles": {
+            "traces": {"total": traces, "ok": traces - errors, "error": errors},
+            "latency": {"p50_ms": p95 / 2, "p95_ms": p95},
+        }
+    }
+
+
+def test_dashboard_kinds_read_the_nested_tiles(monkeypatch, ctx):
+    from app.services import observability
+
+    monkeypatch.setattr(
+        observability, "get_dashboard", lambda window, ws: _dashboard(100, 25, 900.0)
+    )
+    rate = AlertRule(kind="error_rate", window="24h")
+    latency = AlertRule(kind="latency_p95_ms", window="1h")
+    assert alert_service.read_value(rate, None, ctx) == (0.25, "25/100 traces failed")
+    value, detail = alert_service.read_value(latency, None, ctx)
+    assert value == 900.0 and "100 traces" in detail
+
+
+def test_a_30_day_window_is_refused_for_dashboard_kinds():
+    with pytest.raises(AppError) as exc:
+        alert_service.validate("latency_p95_ms", "above", "30d", 500)
+    assert exc.value.code == "alert.bad_window"
+    alert_service.validate("cost_mtd_usd", "above", "30d", 10)  # cost ignores the window
+
+
+def test_a_runtime_service_name_is_attributed_to_its_agent(monkeypatch, ctx):
+    """Spans name the runtime (`<runtime_id>.DEFAULT`), not the ledger name (F2)."""
+    db = SessionLocal()
+    try:
+        agent = Agent(
+            workspace_id=DEFAULT_WORKSPACE_ID,
+            name="zip-billing",
+            method="zip_runtime",
+            status="active",
+            resource_id="zip_billing_rt-AbC123xyz",
+            spec={"name": "zip-billing", "display_name": "账单"},
+        )
+        db.add(agent)
+        db.commit()
+        agent_id = agent.id
+    finally:
+        db.close()
+    _stub_insights(
+        monkeypatch,
+        by_service=[
+            {"service": "zip_billing_rt.DEFAULT", "tokens_in": "1000000", "tokens_out": "0",
+             "cache_read": "0", "cache_write": "0", "llm_calls": "1",
+             "model": "claude-sonnet"},
+        ],
+        by_session=[],
+    )
+    db = SessionLocal()
+    try:
+        report = cost_service.cost_report(db, ctx, range_key="24h")
+    finally:
+        db.close()
+    [row] = report["by_agent"]
+    assert row["known"] is True and row["agent_id"] == agent_id

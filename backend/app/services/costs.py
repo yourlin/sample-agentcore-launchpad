@@ -118,12 +118,18 @@ def cost_report(
             logs=logs,
         )
 
+        from app.services.observability import build_agent_resolver
+
         agents_by_name = {
             row.name: row
             for row in db.scalars(
                 select(Agent).where(Agent.workspace_id == workspace.id)
             ).all()
         }
+        # service.name carries the endpoint suffix (`<runtime>.DEFAULT`) and the runtime
+        # id, not the ledger name — resolve it the way the observability views do, and
+        # keep the exact-name match for log sources registered under their own name.
+        resolve = build_agent_resolver(db, workspace.id)
         by_agent: list[dict[str, Any]] = []
         unpriced: set[str] = set()
         for row in results.get("by_service") or []:
@@ -131,7 +137,7 @@ def cost_report(
             tokens, usd = _priced(row, prices)
             if usd is None and row.get("model"):
                 unpriced.add(str(row["model"]))
-            agent = agents_by_name.get(service)
+            agent = agents_by_name.get(service) or resolve(service)
             by_agent.append(
                 {
                     "service": service,

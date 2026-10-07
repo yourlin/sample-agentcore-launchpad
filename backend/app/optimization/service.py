@@ -1729,6 +1729,36 @@ def _refuse_system_agent(agent_id: str | None, action: str) -> None:
     refuse_system_agent_id(agent_id, action)
 
 
+def assert_experiment_promotable(exp: Experiment, *, allow_non_significant: bool) -> None:
+    """Promote redeploys the agent in place, so the verdict must back it (F6).
+
+    Mirrors the canary's `assert_verdict_allows`: control-wins and insufficient data
+    never promote; a treatment win that is not significant, or a tie, promotes only
+    with an explicit override the caller recorded.
+    """
+    verdict = exp.artifacts.get("verdict") or {}
+    label = str(verdict.get("verdict") or "")
+    if label == "control-wins":
+        raise AppError(
+            "experiment.verdict_blocked",
+            "the control arm won — promoting the treatment would ship a worse version",
+            status_code=409,
+        )
+    if not label or label.startswith("insufficient"):
+        raise AppError(
+            "experiment.verdict_blocked",
+            "the A/B test has not produced a usable verdict yet",
+            status_code=409,
+        )
+    strong = label == "treatment-wins" and verdict.get("significant") is True
+    if not strong and not allow_non_significant:
+        raise AppError(
+            "experiment.verdict_not_significant",
+            "the treatment did not win significantly — confirm the override to promote anyway",
+            status_code=409,
+        )
+
+
 def act_promote(exp_id: str, progress: Progress) -> dict[str, Any]:
     """Stop the A/B test, apply treatment defaults, and deploy in place."""
     # Before the status write and before the A/B test is touched.

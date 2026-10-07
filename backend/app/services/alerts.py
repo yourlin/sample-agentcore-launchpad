@@ -57,6 +57,9 @@ NATURAL_COMPARISON: dict[str, str] = {
 # A rule's window, in the observability range keys. `cost_mtd_usd` ignores it — the month
 # is its window by definition.
 WINDOWS = ("1h", "6h", "24h", "7d", "30d")
+# Error rate and latency come from the observability dashboard, which has no 30-day range.
+DASHBOARD_KINDS = ("error_rate", "latency_p95_ms")
+DASHBOARD_WINDOWS = ("1h", "6h", "24h", "7d")
 
 
 def validate(kind: str, comparison: str, window: str, threshold: float) -> None:
@@ -72,6 +75,12 @@ def validate(kind: str, comparison: str, window: str, threshold: float) -> None:
         )
     if window not in WINDOWS:
         raise AppError("alert.bad_window", f"window must be one of {', '.join(WINDOWS)}")
+    if kind in DASHBOARD_KINDS and window not in DASHBOARD_WINDOWS:
+        raise AppError(
+            "alert.bad_window",
+            f"a '{kind}' rule reads the observability dashboard, whose windows are "
+            f"{', '.join(DASHBOARD_WINDOWS)}",
+        )
     if kind == "online_quality" and not 0.0 <= threshold <= 1.0:
         raise AppError("alert.bad_threshold", "online_quality is a 0–1 score")
     if threshold < 0:
@@ -87,17 +96,22 @@ def _dashboard_value(
     """Error rate (0–1) or p95 latency (ms) from the observability dashboard."""
     from app.services import observability
 
+    if window not in observability.RANGE_HOURS:
+        return None, f"window '{window}' is not an observability range"
     try:
         data = observability.get_dashboard(window, workspace)
     except Exception as exc:  # noqa: BLE001 - any read failure is `unknown`, never `ok`
         return None, f"could not read telemetry: {type(exc).__name__}"
-    traces = int(data.get("traces") or 0)
+    # the dashboard nests its numbers under `tiles` (observability.get_dashboard)
+    tiles = data.get("tiles") or {}
+    trace_tile = tiles.get("traces") or {}
+    traces = int(trace_tile.get("total") or 0)
     if traces == 0:
         return None, "no traffic in this window"
     if kind == "error_rate":
-        errors = int(data.get("errors") or 0)
+        errors = int(trace_tile.get("error") or 0)
         return errors / traces, f"{errors}/{traces} traces failed"
-    value = data.get("p95_ms")
+    value = (tiles.get("latency") or {}).get("p95_ms")
     if value is None:
         return None, "no latency percentile in this window"
     return float(value), f"p95 over {traces} traces"

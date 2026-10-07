@@ -454,6 +454,7 @@ def _stage_provision(run: Run) -> pipeline.StageResult:
                 detail=f"'{existing.name}' stays live; the canary mints the candidate version"
             )
         run.log(f"canary not applicable: {reason}")
+        previous_spec: dict[str, Any] | None = None
         if existing is None:
             agent = Agent(
                 workspace_id=run.target_id,
@@ -469,6 +470,9 @@ def _stage_provision(run: Run) -> pipeline.StageResult:
             mode = "create"
         else:
             agent = existing
+            # what the target served before this run, so a failure after the publish can
+            # put it back (a direct release is live the moment it deploys)
+            previous_spec = copy.deepcopy(agent.spec or {})
             agent.spec = spec
             agent.status = "deploying"
             agent.error = None
@@ -501,6 +505,7 @@ def _stage_provision(run: Run) -> pipeline.StageResult:
             "deploy_job_id": deploy_job.id,
             "deploy_mode": mode,
             "target_touched": True,
+            "previous_spec": previous_spec if existing is not None and mode == "update" else None,
         }
         db.commit()
         return pipeline.StageResult(
@@ -795,6 +800,72 @@ def _abort_canary(run: Run) -> None:
         )
 
 
+# Stages after which a direct (non-canary) release is already serving traffic.
+_LIVE_AFTER = ("deploy", "smoke", "canary", "observe", "complete")
+
+
+def _revert_direct(run: Run, failed_stage: str) -> None:
+    """Put a direct release's previous spec back after a failure past the publish.
+
+    A non-canary update is live as soon as its deploy job finishes, so a smoke or
+    observe failure used to leave the failing version serving. Re-publishing the spec
+    the target ran before restores it. Never raises: the run is already failing, and a
+    revert that cannot complete is logged for the operator rather than masking the
+    original error.
+    """
+    execution = _execution(run.promotion_id)
+    previous = execution.get("previous_spec")
+    if (
+        run.action != ACTION_EXECUTE
+        or execution.get("use_canary")
+        or execution.get("deploy_mode") != "update"
+        or not previous
+        or failed_stage not in _LIVE_AFTER
+        or execution.get("reverted")
+    ):
+        return
+    db = SessionLocal()
+    try:
+        agent = db.get(Agent, execution["target_agent_id"])
+        if agent is None:
+            return
+        if agent.status == "deploying":
+            # the failed stage was the deploy itself and it never went active: nothing
+            # new is serving, so there is nothing to put back
+            return
+        agent.spec = copy.deepcopy(previous)
+        agent.status = "deploying"
+        agent.error = None
+        db.flush()
+        _, job = pipeline.create_deployment(
+            db,
+            agent,
+            mode="update",
+            skip_register=bool(agent.registry_record_id),
+            actor="promotion-executor",
+            note=f"revert after failed promotion {run.promotion_id}",
+            commit=False,
+        )
+        db.commit()
+        job_id = job.id
+    except Exception as exc:  # noqa: BLE001
+        db.rollback()
+        run.log(f"revert could not start: {type(exc).__name__}: {exc}", level="warn")
+        return
+    finally:
+        db.close()
+    _patch_execution(run.promotion_id, reverted=True, revert_job_id=job_id)
+    run.log(f"reverting the target to the spec it ran before (deploy job {job_id})")
+    try:
+        _wait_for_job(run, job_id)
+        run.log("reverted: the previous spec is serving again")
+    except Exception as exc:  # noqa: BLE001
+        run.log(
+            f"revert did not finish: {exc} — re-publish the previous snapshot manually",
+            level="warn",
+        )
+
+
 def _finish(run: Run, error: str | None, failed_stage: str | None = None) -> None:
     ok = error is None
 
@@ -880,6 +951,7 @@ def execute_job(job_id: str, *, resume: bool = True) -> None:
             run.log(detail, level="error")
             run.log(traceback.format_exc(limit=3), level="debug")
             _abort_canary(run)
+            _revert_direct(run, name)
             _finish(run, detail, failed_stage=name)
             return
         status = "skipped" if result.skipped else "succeeded"

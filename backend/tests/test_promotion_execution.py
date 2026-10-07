@@ -1001,3 +1001,39 @@ def test_a_probe_that_keeps_stalling_fails_the_release_instead_of_hanging(
     assert row.status == "failed"
     assert row.error.startswith("smoke:") and "timed out" in row.error
     assert stage_status(promotion_id)["smoke"] == "failed"
+
+
+def test_a_direct_release_that_fails_smoke_puts_the_previous_spec_back(admin, world):
+    """A non-canary update is live once deployed; a smoke failure must not leave it (F4)."""
+    seed_running_target("harness")
+    db = SessionLocal()
+    try:
+        target = db.query(Agent).filter(Agent.workspace_id == TARGET["id"]).one()
+        target.arn = "arn:aws:bedrock-agentcore:us-west-1:4:harness/h-old"
+        db.commit()
+        target_id = target.id
+    finally:
+        db.close()
+    world["answer"] = ""  # every smoke prompt comes back empty
+    promotion_id = seed_promotion(seed_bundle("v2", method="harness"))
+    assert execute(admin, promotion_id).status_code == 202
+    row = promotion_row(promotion_id)
+    assert row.status == "failed" and row.error.startswith("smoke:")
+    assert world["deploy"] == 2  # the release, then the revert
+    db = SessionLocal()
+    try:
+        agent = db.get(Agent, target_id)
+        assert agent.spec["system_prompt"] == "old"
+        assert agent.status == "active"
+    finally:
+        db.close()
+    log = admin.get(f"/api/promotions/{promotion_id}/execution").json()["log"]
+    assert any("reverted" in line["msg"] for line in log)
+
+
+def test_a_failed_first_release_has_nothing_to_revert(admin, world):
+    world["answer"] = ""
+    promotion_id = seed_promotion(seed_bundle())
+    execute(admin, promotion_id)
+    assert promotion_row(promotion_id).status == "failed"
+    assert world["deploy"] == 1  # a create has no previous spec to restore
