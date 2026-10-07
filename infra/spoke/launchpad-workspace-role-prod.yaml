@@ -450,12 +450,16 @@ Resources:
               # existed. Batch results land under
               # /aws/bedrock-agentcore/evaluations/batch-evaluations/results/ and
               # online results under /aws/bedrock-agentcore/evaluations/results/, so
-              # one prefix covers both.
+              # one prefix covers both. GetLogEvents is how the hub reads those
+              # results back, per session (`agentcore_eval.results_stream` and its reader: the
+              # run results route and the Agent-DLC criterion snapshot) — call-site
+              # derivable, but it was missing, and only admin credentials hid that.
               - Sid: EvaluationResultLogGroups
                 Effect: Allow
                 Action:
                   - logs:CreateLogGroup
                   - logs:CreateLogStream
+                  - logs:GetLogEvents
                   - logs:PutLogEvents
                   - logs:PutRetentionPolicy
                 Resource:

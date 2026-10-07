@@ -237,5 +237,7 @@ def test_a_fresh_region_can_run_its_first_batch_evaluation(statements: list[dict
     by_sid = {statement["Sid"]: statement for statement in statements}
     statement = by_sid["EvaluationResultLogGroups"]
     assert {"logs:CreateLogGroup", "logs:CreateLogStream"} <= set(statement["Action"])
+    # and reads the per-session results back (run results route, Agent-DLC snapshot)
+    assert "logs:GetLogEvents" in statement["Action"]
     (resource,) = statement["Resource"]
     assert resource["Fn::Sub"].endswith(":log-group:/aws/bedrock-agentcore/evaluations/*")
