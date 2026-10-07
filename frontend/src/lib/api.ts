@@ -2953,7 +2953,15 @@ export type AgentPermission =
   | "promotion.approve"
   | "identity.manage"
   | "identity.grant"
-  | "memory.manage";
+  | "memory.manage"
+  // Agent-DLC: `criteria.manage` edits the ruler; the rest decide what "good" means and
+  // are granted to named people (business owner, risk owner, signer), never by role.
+  | "criteria.manage"
+  | "criteria.sign"
+  | "golden.admit"
+  | "judge.calibrate"
+  | "waiver.approve"
+  | "release.sign";
 
 export const AGENT_PERMISSIONS: AgentPermission[] = [
   "agents.deploy",
@@ -2966,6 +2974,12 @@ export const AGENT_PERMISSIONS: AgentPermission[] = [
   "identity.manage",
   "identity.grant",
   "memory.manage",
+  "criteria.manage",
+  "criteria.sign",
+  "golden.admit",
+  "judge.calibrate",
+  "waiver.approve",
+  "release.sign",
 ];
 
 export interface AuthStatus {

@@ -43,6 +43,15 @@ AGENT_PERMISSIONS = (
     "identity.manage",
     "identity.grant",
     "memory.manage",
+    # Agent-DLC (docs/agent-dlc-design.md §8). The three that decide what "good" means
+    # — signing criteria, admitting golden samples, declaring a judge calibrated — are
+    # granted to named people, never by role: they are the standard's ownership.
+    "criteria.manage",
+    "criteria.sign",
+    "golden.admit",
+    "judge.calibrate",
+    "waiver.approve",
+    "release.sign",
 )
 
 ROLE_ADMIN = "admin"
@@ -64,11 +73,13 @@ ROLES = (ROLE_ADMIN, ROLE_OPERATOR, ROLE_MEMBER)
 # an as_user tool) is also an operator's, who invokes agents while running releases.
 DEFAULT_BY_ROLE: dict[str, frozenset[str]] = {
     ROLE_OPERATOR: frozenset(
-        {"eval.run", "promotion.request", "promotion.approve", "identity.grant"}
+        {"eval.run", "promotion.request", "promotion.approve", "identity.grant",
+         "criteria.manage", "waiver.approve", "release.sign"}
     ),
     ROLE_MEMBER: frozenset(
         {"agents.deploy", "agents.import", "agents.delete", "agents.convert", "eval.run",
-         "promotion.request", "identity.manage", "identity.grant", "memory.manage"}
+         "promotion.request", "identity.manage", "identity.grant", "memory.manage",
+         "criteria.manage"}
     ),
 }
 

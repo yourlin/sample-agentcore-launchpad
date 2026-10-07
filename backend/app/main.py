@@ -43,6 +43,7 @@ from app.routers.channels import router as channels_router
 from app.routers.chat import router as chat_router
 from app.routers.codegen import router as codegen_router
 from app.routers.conversations import router as conversations_router
+from app.routers.dlc import router as dlc_router
 from app.routers.environments import router as environments_router
 from app.routers.execution import router as execution_router
 from app.routers.feedback import router as feedback_router
@@ -229,6 +230,7 @@ def create_app(resume_jobs: bool = False) -> FastAPI:
     app.include_router(review_links_router)  # review-link CRUD (T34)
     app.include_router(answer_rules_router)  # curated answers (T35)
     app.include_router(issues_router)  # intent view + issue box (T33/T36)
+    app.include_router(dlc_router)  # Agent-DLC: criteria, gates, calibration, watch
     if resume_jobs:
         clear_stale_turn_claims()  # only a live request of THIS process can hold one
         resumed = resume_pending_jobs()

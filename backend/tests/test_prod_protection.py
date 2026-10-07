@@ -199,7 +199,17 @@ class TestTierAdministration:
 
 # ── the prod guard ──────────────────────────────────────────────────────────
 
-MEMBER_REACHABLE_PROTECTED = sorted(k for k in PROD_PROTECTED if ROUTE_POLICY[k] != ADMIN)
+from app.services.users import default_permissions  # noqa: E402
+
+_MEMBER_PERMISSIONS = {f"perm:{key}" for key in default_permissions("member")}
+# Routes a plain member can actually reach: the prod guard runs after the permission
+# check, so a route gated on a permission a member lacks answers with that refusal
+# instead — the guard itself is then exercised by the admin break-glass test.
+MEMBER_REACHABLE_PROTECTED = sorted(
+    k for k in PROD_PROTECTED
+    if ROUTE_POLICY[k] != ADMIN
+    and (not ROUTE_POLICY[k].startswith("perm:") or ROUTE_POLICY[k] in _MEMBER_PERMISSIONS)
+)
 
 
 class TestProdGuard:
@@ -304,4 +314,7 @@ class TestProdProtectionCoverage:
                 ))
             )
         }
-        assert mutations - open_by_design <= PROD_PROTECTED
+        # a route is decided when it is protected, listed open-by-design here, or carries
+        # a written reason in PROD_UNPROTECTED_AGENT_ROUTES
+        decided = PROD_PROTECTED | set(PROD_UNPROTECTED_AGENT_ROUTES)
+        assert mutations - open_by_design <= decided

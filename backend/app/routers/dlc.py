@@ -1,0 +1,1305 @@
+"""Agent-DLC console API: criteria, golden sets, calibration, releases, admission, watch.
+
+Routes do auth, workspace scoping and AWS clients; every decision lives in `app/dlc/*`
+so it can be tested without a request. Permissions are declared in
+`core/route_policy.py` — the three that decide what "good" means (`criteria.sign`,
+`golden.admit`, `judge.calibrate`) are granted to named people, not roles.
+"""
+
+from datetime import datetime
+from typing import Any, Literal
+
+from fastapi import APIRouter, Depends, Query, Request
+from pydantic import BaseModel, Field
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from app.core.db import get_db
+from app.core.errors import AppError, NotFoundError
+from app.dlc import admission as admission_svc
+from app.dlc import calibration as cal_svc
+from app.dlc import compare as compare_svc
+from app.dlc import cost as cost_svc
+from app.dlc import criteria as criteria_svc
+from app.dlc import engine as engine_svc
+from app.dlc import golden as golden_svc
+from app.dlc import releases as release_svc
+from app.dlc import watch as watch_svc
+from app.evaluation.models import EvalDataset, EvalRun
+from app.models.dlc import CriteriaSet, Waiver
+from app.models.ledger import Agent, AuditEvent
+from app.routers.auth import require_identity
+from app.routers.workspaces import WorkspaceScope, require_workspace
+from app.services.agentcore.client import control_client
+
+router = APIRouter(prefix="/api", tags=["agent-dlc"])
+ADMIN = "admin"
+
+
+# ── helpers ────────────────────────────────────────────────────────────────────
+
+
+def _actor(request: Request) -> str:
+    return require_identity(request).username
+
+
+def _is_admin(request: Request) -> bool:
+    return require_identity(request).role == ADMIN
+
+
+def _agent(db: Session, ws: WorkspaceScope, agent_id: str) -> Agent:
+    agent = db.get(Agent, agent_id)
+    if agent is None or agent.workspace_id != ws.id or agent.status == "deleted":
+        raise NotFoundError("agent.not_found", "agent not found")
+    return agent
+
+
+def _evaluator_kind_resolver(ws: WorkspaceScope):
+    """evaluator id → code | trajectory | judge, one GetEvaluator per unknown id."""
+    cache: dict[str, str] = {}
+
+    def resolve(evaluator_id: str) -> str:
+        static = criteria_svc.static_evaluator_kind(evaluator_id)
+        if static:
+            return static
+        if evaluator_id in cache:
+            return cache[evaluator_id]
+        kind = "judge"
+        try:
+            from app.evaluation import agentcore_eval as ac
+
+            detail = ac.get_evaluator(control_client(ws.context), evaluator_id=evaluator_id)
+            config = (detail.get("evaluator") or detail).get("evaluatorConfig") or {}
+            if config.get("codeBased"):
+                kind = "code"
+            elif config.get("derived"):
+                kind = "judge"
+        except Exception:  # noqa: BLE001 - an unreadable evaluator is treated as a judge,
+            kind = "judge"  # the safer assumption (a judge cannot gate until calibrated)
+        cache[evaluator_id] = kind
+        return kind
+
+    return resolve
+
+
+def _calibration(db: Session, ws: WorkspaceScope, agent_id: str | None, rows: list):
+    policy = cal_svc.policy_of(ws.row.release_policy)
+    return cal_svc.calibrated_keys(db, ws.id, agent_id, rows, policy), policy
+
+
+def _set_payload(db: Session, ws: WorkspaceScope, row: CriteriaSet) -> dict[str, Any]:
+    rows = criteria_svc.criteria_of(db, row.id)
+    calibration, policy = _calibration(db, ws, row.agent_id, rows)
+    dicts = [{"key": r.key, "tier": r.tier, "threshold": r.threshold, "executor": r.executor,
+              "dimension": r.dimension} for r in rows]
+    return {
+        "set": criteria_svc.set_out(row),
+        "criteria": [
+            criterion_out
+            for criterion_out in (
+                {**criteria_svc.criterion_out(
+                    r, calibrated=bool((calibration.get(r.key) or {}).get("calibrated"))),
+                 "calibration": calibration.get(r.key)}
+                for r in rows
+            )
+        ],
+        "summary": criteria_svc.summary(
+            dicts, {k for k, v in calibration.items() if v.get("calibrated")}
+        ),
+        "findings": criteria_svc.validate(
+            [{"key": r.key, **{f: getattr(r, f) for f in (
+                "text", "dimension", "tier", "threshold", "metric_rule", "level", "executor",
+                "denominator", "expected_type", "pass_k", "notes", "examples")}}
+             for r in rows],
+            removals=row.removals or [],
+            for_publish=row.kind == "agent",
+        ),
+        "calibration_policy": policy,
+        "newer_template_version": criteria_svc.newer_template_version(db, row),
+        "versions": [
+            {"version": v.version, "status": v.status, "signed_by": v.signed_by,
+             "published_at": v.published_at.isoformat() if v.published_at else None}
+            for v in criteria_svc.versions_of(db, ws.id, row.lineage_id)
+        ],
+    }
+
+
+# ── criteria sets ──────────────────────────────────────────────────────────────
+
+
+class CriterionIn(BaseModel):
+    key: str = Field(min_length=1, max_length=32)
+    text: str = Field(min_length=1, max_length=2000)
+    dimension: Literal["cognition", "quality", "responsibility", "cost", "performance"]
+    tier: Literal["redline", "gate", "observe"]
+    threshold: float | None = Field(default=None, ge=0, le=1)
+    metric_rule: dict[str, Any] | None = None
+    level: Literal["session", "trace", "tool_call"] = "session"
+    executor: dict[str, Any] = Field(default_factory=dict)
+    denominator: Literal["sessions", "turns", "fields"] = "sessions"
+    expected_type: Literal[
+        "deterministic", "redline", "trajectory", "compliance", "soft", "efficiency"
+    ] = "deterministic"
+    pass_k: dict[str, Any] | None = None
+    attribution_layer: str | None = Field(default=None, max_length=4)
+    owner: str = Field(default="", max_length=64)
+    examples: list[dict[str, Any]] = Field(default_factory=list, max_length=40)
+    notes: str = Field(default="", max_length=4000)
+
+
+class CriteriaSetCreate(BaseModel):
+    kind: Literal["template", "agent"] = "agent"
+    name: str = Field(min_length=1, max_length=96)
+    agent_id: str | None = Field(default=None, max_length=32)
+    description: str = Field(default="", max_length=4000)
+    scenario: str = Field(default="", max_length=96)
+    template_lineage_id: str | None = Field(default=None, max_length=32)
+    template_version: int | None = Field(default=None, ge=1)
+    from_evaluation_plan: str | None = Field(default=None, max_length=32)
+
+
+class CriteriaSetSave(BaseModel):
+    criteria: list[CriterionIn] = Field(max_length=200)
+    removals: list[dict[str, Any]] | None = None
+    name: str | None = Field(default=None, max_length=96)
+    description: str | None = Field(default=None, max_length=4000)
+    scenario: str | None = Field(default=None, max_length=96)
+
+
+class SignIn(BaseModel):
+    note: str = Field(default="", max_length=2000)
+
+
+@router.get("/criteria-sets")
+def list_criteria_sets(
+    kind: Literal["template", "agent"] | None = None,
+    agent_id: str | None = Query(default=None, max_length=32),
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    rows = criteria_svc.list_lineages(db, ws.id, kind=kind, agent_id=agent_id)
+    return {"sets": [criteria_svc.set_out(r) for r in rows]}
+
+
+@router.post("/criteria-sets", status_code=201)
+def create_criteria_set(
+    req: CriteriaSetCreate,
+    request: Request,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    actor = _actor(request)
+    if req.agent_id:
+        _agent(db, ws, req.agent_id)
+    rows = None
+    source = "manual"
+    if req.from_evaluation_plan:
+        from app.models.assistant import AssistantEvaluationPlan
+
+        plan = db.get(AssistantEvaluationPlan, req.from_evaluation_plan)
+        if plan is None or plan.workspace_id != ws.id:
+            raise NotFoundError("criteria.plan_not_found", "evaluation plan not found")
+        rows = criteria_svc.rows_from_evaluation_plan(plan.content or {})
+        source = "assistant_plan"
+    row = criteria_svc.create_set(
+        db, ws.id, kind=req.kind, name=req.name, actor=actor, agent_id=req.agent_id,
+        description=req.description, scenario=req.scenario,
+        template_id=req.template_lineage_id, template_version=req.template_version,
+        source=source,
+        rows=[criteria_svc.normalize_criterion(r, _evaluator_kind_resolver(ws)) for r in rows]
+        if rows else None,
+    )
+    db.commit()
+    return _set_payload(db, ws, row)
+
+
+@router.get("/criteria-sets/{lineage_id}")
+def get_criteria_set(
+    lineage_id: str,
+    version: int | None = Query(default=None, ge=1),
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    return _set_payload(db, ws, criteria_svc.get_version(db, ws.id, lineage_id, version))
+
+
+@router.put("/criteria-sets/{lineage_id}")
+def save_criteria_set(
+    lineage_id: str,
+    req: CriteriaSetSave,
+    request: Request,
+    version: int | None = Query(default=None, ge=1),
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    row = criteria_svc.get_version(db, ws.id, lineage_id, version)
+    criteria_svc.save_draft(
+        db, row, [r.model_dump() for r in req.criteria], actor=_actor(request),
+        kind_of=_evaluator_kind_resolver(ws), removals=req.removals, name=req.name,
+        description=req.description, scenario=req.scenario,
+    )
+    db.commit()
+    return _set_payload(db, ws, row)
+
+
+@router.post("/criteria-sets/{lineage_id}/versions", status_code=201)
+def new_criteria_version(
+    lineage_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    row = criteria_svc.new_version(db, ws.id, lineage_id, actor=_actor(request))
+    db.commit()
+    return _set_payload(db, ws, row)
+
+
+@router.post("/criteria-sets/{lineage_id}/publish")
+def publish_criteria_set(
+    lineage_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    row = criteria_svc.get_version(db, ws.id, lineage_id)
+    criteria_svc.publish(db, row, actor=_actor(request))
+    db.commit()
+    return _set_payload(db, ws, row)
+
+
+@router.post("/criteria-sets/{lineage_id}/sign")
+def sign_criteria_set(
+    lineage_id: str,
+    req: SignIn,
+    request: Request,
+    version: int | None = Query(default=None, ge=1),
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    row = criteria_svc.get_version(db, ws.id, lineage_id, version)
+    criteria_svc.sign(db, row, actor=_actor(request), note=req.note,
+                      is_admin=_is_admin(request))
+    from app.services.audit import record_audit_event
+
+    record_audit_event(workspace_id=ws.id, actor=_actor(request), action="criteria.sign",
+                       target=f"{lineage_id}:v{row.version}", db=db)
+    db.commit()
+    return _set_payload(db, ws, row)
+
+
+@router.post("/criteria-sets/{lineage_id}/adopt-template", status_code=201)
+def adopt_template(
+    lineage_id: str,
+    request: Request,
+    template_version: int = Query(ge=1),
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    row = criteria_svc.adopt_template(db, ws.id, lineage_id,
+                                      template_version=template_version,
+                                      actor=_actor(request))
+    db.commit()
+    return _set_payload(db, ws, row)
+
+
+@router.delete("/criteria-sets/{lineage_id}")
+def discard_criteria_draft(
+    lineage_id: str,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    row = criteria_svc.get_version(db, ws.id, lineage_id)
+    version = row.version
+    criteria_svc.discard_draft(db, row)
+    db.commit()
+    return {"discarded": version}
+
+
+@router.get("/criteria-sets/{lineage_id}/diff")
+def diff_criteria_versions(
+    lineage_id: str,
+    a: int = Query(ge=1),
+    b: int = Query(ge=1),
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    left = criteria_svc.get_version(db, ws.id, lineage_id, a)
+    right = criteria_svc.get_version(db, ws.id, lineage_id, b)
+    return {
+        "from": criteria_svc.set_out(left),
+        "to": criteria_svc.set_out(right),
+        "changes": criteria_svc.diff(criteria_svc.criteria_of(db, left.id),
+                                     criteria_svc.criteria_of(db, right.id)),
+    }
+
+
+# ── golden sets ────────────────────────────────────────────────────────────────
+
+
+class GoldenCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=64)
+    criteria_lineage_id: str | None = Field(default=None, max_length=32)
+    description: str = Field(default="", max_length=4000)
+
+
+class GoldenItemsIn(BaseModel):
+    split: Literal["dev", "regression"] = "dev"
+    items: list[dict[str, Any]] = Field(min_length=1, max_length=200)
+
+
+class GoldenMoveIn(BaseModel):
+    scenario_id: str = Field(min_length=1, max_length=128)
+    to: Literal["dev", "regression"]
+
+
+class GoldenRetireIn(BaseModel):
+    split: Literal["dev", "regression", "holdout"]
+    scenario_id: str = Field(min_length=1, max_length=128)
+    reason: str = Field(min_length=1, max_length=500)
+
+
+def _golden_payload(db: Session, ws: WorkspaceScope, parent: EvalDataset) -> dict[str, Any]:
+    out = golden_svc.parent_out(db, parent)
+    keys: list[str] = []
+    if parent.criteria_set_id:
+        published = criteria_svc.latest_published(db, ws.id, parent.criteria_set_id)
+        if published:
+            keys = [r.key for r in criteria_svc.criteria_of(db, published.id)]
+    out["coverage"] = golden_svc.coverage(keys, golden_svc.splits_of(db, parent))
+    return out
+
+
+@router.get("/golden-sets")
+def list_golden_sets(
+    db: Session = Depends(get_db), ws: WorkspaceScope = Depends(require_workspace)
+) -> dict[str, Any]:
+    return {"golden_sets": [golden_svc.parent_out(db, p)
+                            for p in golden_svc.list_parents(db, ws.id)]}
+
+
+@router.post("/golden-sets", status_code=201)
+def create_golden_set(
+    req: GoldenCreate,
+    request: Request,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    parent = golden_svc.create(db, ws.id, name=req.name,
+                               criteria_lineage_id=req.criteria_lineage_id,
+                               actor=_actor(request), description=req.description)
+    db.commit()
+    return _golden_payload(db, ws, parent)
+
+
+@router.get("/golden-sets/{dataset_id}")
+def get_golden_set(
+    dataset_id: str,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    return _golden_payload(db, ws, golden_svc.get_parent(db, ws.id, dataset_id))
+
+
+@router.post("/golden-sets/{dataset_id}/items", status_code=201)
+def add_golden_items(
+    dataset_id: str,
+    req: GoldenItemsIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    parent = golden_svc.get_parent(db, ws.id, dataset_id)
+    split = golden_svc.splits_of(db, parent).get(req.split)
+    if split is None:
+        raise NotFoundError("golden.split_not_found", "split not found")
+    added = golden_svc.add_items(db, split, req.items, actor=_actor(request))
+    db.commit()
+    return {"added": len(added), "golden_set": _golden_payload(db, ws, parent)}
+
+
+@router.post("/golden-sets/{dataset_id}/move")
+def move_golden_item(
+    dataset_id: str,
+    req: GoldenMoveIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    parent = golden_svc.get_parent(db, ws.id, dataset_id)
+    golden_svc.move_item(db, parent, req.scenario_id, to=req.to, actor=_actor(request))
+    db.commit()
+    return _golden_payload(db, ws, parent)
+
+
+@router.post("/golden-sets/{dataset_id}/retire")
+def retire_golden_item(
+    dataset_id: str,
+    req: GoldenRetireIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    parent = golden_svc.get_parent(db, ws.id, dataset_id)
+    split = golden_svc.splits_of(db, parent).get(req.split)
+    if split is None:
+        raise NotFoundError("golden.split_not_found", "split not found")
+    golden_svc.retire_item(db, split, req.scenario_id, actor=_actor(request),
+                           reason=req.reason)
+    db.commit()
+    return _golden_payload(db, ws, parent)
+
+
+# ── annotation + calibration ───────────────────────────────────────────────────
+
+
+class TaskCreate(BaseModel):
+    agent_id: str | None = Field(default=None, max_length=32)
+    criteria_lineage_id: str | None = Field(default=None, max_length=32)
+    criterion_key: str = Field(min_length=1, max_length=32)
+    purpose: Literal["judge_calibration", "golden_answer", "admission"] = "judge_calibration"
+    annotators: list[str] = Field(min_length=2, max_length=10)
+    adjudicator: str | None = Field(default=None, max_length=64)
+    run_id: str | None = Field(default=None, max_length=32)
+    dataset_id: str | None = Field(default=None, max_length=32)
+    items: list[dict[str, Any]] | None = Field(default=None, max_length=200)
+
+
+class LabelIn(BaseModel):
+    item_ref: str = Field(min_length=1, max_length=160)
+    label: str = Field(default="", max_length=32)
+    answer: str = Field(default="", max_length=16000)
+    rationale: str = Field(default="", max_length=4000)
+
+
+class CalibrationDecision(BaseModel):
+    verdict: Literal["aligned", "not_aligned"]
+    note: str = Field(default="", max_length=2000)
+
+
+def _items_from_run(db: Session, run: EvalRun, criterion_key: str) -> list[dict[str, Any]]:
+    """Calibration items: the run's own sessions with the judge's verdict attached."""
+    rows = engine_svc.results_for(db, run.id, criterion_key)
+    out = []
+    for row in rows:
+        out.append({
+            "ref": f"{row.scenario_id}#{row.attempt}",
+            "session_id": row.session_id,
+            "input": row.scenario_id,
+            "answer": row.explanation[:2000],
+            "judge_label": row.verdict if row.verdict in ("pass", "fail") else "inconclusive",
+            "judge_explanation": row.explanation[:2000],
+        })
+    return out
+
+
+@router.get("/annotation-tasks")
+def list_annotation_tasks(
+    agent_id: str | None = Query(default=None, max_length=32),
+    status: str | None = None,
+    request: Request = None,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    from app.models.dlc import AnnotationTask
+
+    query = select(AnnotationTask).where(AnnotationTask.workspace_id == ws.id)
+    if agent_id:
+        query = query.where(AnnotationTask.agent_id == agent_id)
+    if status:
+        query = query.where(AnnotationTask.status == status)
+    rows = db.scalars(query.order_by(AnnotationTask.created_at.desc()).limit(100)).all()
+    viewer = _actor(request) if request else ""
+    return {"tasks": [cal_svc.task_view(db, t, viewer=viewer, privileged=True) for t in rows]}
+
+
+@router.post("/annotation-tasks", status_code=201)
+def create_annotation_task(
+    req: TaskCreate,
+    request: Request,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    items = req.items
+    if items is None:
+        if not req.run_id:
+            raise AppError("annotation.no_items",
+                           "supply items, or a run_id to take them from")
+        run = db.get(EvalRun, req.run_id)
+        if run is None or run.workspace_id != ws.id:
+            raise NotFoundError("run.not_found", "run not found")
+        items = _items_from_run(db, run, req.criterion_key)
+        if not items:
+            raise AppError("annotation.no_items",
+                           "that run has no verdicts for this criterion")
+    cset = (
+        criteria_svc.latest_published(db, ws.id, req.criteria_lineage_id)
+        if req.criteria_lineage_id else None
+    )
+    task = cal_svc.create_task(
+        db, workspace_id=ws.id, agent_id=req.agent_id,
+        criteria_set_id=cset.id if cset else None, criterion_key=req.criterion_key,
+        purpose=req.purpose, items=items, annotators=req.annotators,
+        adjudicator=req.adjudicator, actor=_actor(request), run_id=req.run_id,
+        dataset_id=req.dataset_id,
+    )
+    db.commit()
+    return cal_svc.task_view(db, task, viewer=_actor(request), privileged=True)
+
+
+@router.get("/annotation-tasks/{task_id}")
+def get_annotation_task(
+    task_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    task = cal_svc.get_task(db, ws.id, task_id)
+    identity = require_identity(request)
+    privileged = identity.role == ADMIN or "judge.calibrate" in identity.permissions
+    return cal_svc.task_view(db, task, viewer=identity.username, privileged=privileged)
+
+
+@router.post("/annotation-tasks/{task_id}/labels", status_code=201)
+def record_annotation(
+    task_id: str,
+    req: LabelIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    task = cal_svc.get_task(db, ws.id, task_id)
+    cal_svc.record_label(db, task, annotator=_actor(request), item_ref=req.item_ref,
+                         label=req.label, rationale=req.rationale, answer=req.answer)
+    db.commit()
+    return cal_svc.task_view(db, task, viewer=_actor(request), privileged=False)
+
+
+@router.post("/annotation-tasks/{task_id}/adjudicate")
+def start_adjudication(
+    task_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    task = cal_svc.get_task(db, ws.id, task_id)
+    cal_svc.start_adjudication(db, task)
+    db.commit()
+    return cal_svc.task_view(db, task, viewer=_actor(request), privileged=True)
+
+
+@router.get("/annotation-tasks/{task_id}/agreement")
+def task_agreement(
+    task_id: str,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    task = cal_svc.get_task(db, ws.id, task_id)
+    measured = cal_svc.agreement(db, task)
+    policy = cal_svc.policy_of(ws.row.release_policy)
+    return {
+        "task_id": task.id,
+        "criterion_key": task.criterion_key,
+        **measured,
+        "policy": policy,
+        "suggested_verdict": cal_svc.suggested_verdict(measured, policy),
+    }
+
+
+@router.post("/annotation-tasks/{task_id}/decide")
+def decide_calibration(
+    task_id: str,
+    req: CalibrationDecision,
+    request: Request,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    task = cal_svc.get_task(db, ws.id, task_id)
+    evaluator_id = ""
+    lineage_id, version = None, None
+    if task.criteria_set_id:
+        cset = db.get(CriteriaSet, task.criteria_set_id)
+        if cset is not None:
+            lineage_id, version = cset.lineage_id, cset.version
+            row = next((c for c in criteria_svc.criteria_of(db, cset.id)
+                        if c.key == task.criterion_key), None)
+            evaluator_id = ((row.executor or {}) if row else {}).get("evaluator_id") or ""
+    record = cal_svc.decide(
+        db, task, verdict=req.verdict, actor=_actor(request),
+        policy=cal_svc.policy_of(ws.row.release_policy), evaluator_id=evaluator_id,
+        evaluator_updated_at=None, criteria_lineage_id=lineage_id,
+        criteria_set_version=version, note=req.note,
+    )
+    from app.services.audit import record_audit_event
+
+    record_audit_event(workspace_id=ws.id, actor=_actor(request),
+                       action=f"calibration.{record.verdict}", target=task.id, db=db)
+    db.commit()
+    return cal_svc.record_out(record)
+
+
+@router.get("/calibration/{criterion_key}")
+def calibration_history(
+    criterion_key: str,
+    agent_id: str | None = Query(default=None, max_length=32),
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    rows = cal_svc.history(db, ws.id, agent_id, criterion_key)
+    policy = cal_svc.policy_of(ws.row.release_policy)
+    return {
+        "criterion_key": criterion_key,
+        "records": [cal_svc.record_out(r) for r in rows],
+        "status": cal_svc.status_of(rows[0] if rows else None, policy),
+        "policy": policy,
+    }
+
+
+# ── releases ───────────────────────────────────────────────────────────────────
+
+
+class ReleaseEvaluateIn(BaseModel):
+    repeats: int = Field(default=1, ge=1, le=10)
+    confirm_cost: bool = False
+
+
+class ReleaseDecisionIn(BaseModel):
+    note: str = Field(default="", max_length=2000)
+
+
+class WaiverIn(BaseModel):
+    criterion_key: str = Field(min_length=1, max_length=32)
+    actual: float | None = None
+    threshold: float | None = None
+    reason: str = Field(min_length=1, max_length=2000)
+    risk_owner: str = Field(min_length=1, max_length=64)
+    compensating_control: str = Field(default="", max_length=2000)
+    expires_on: datetime
+
+
+class WaiverDecisionIn(BaseModel):
+    note: str = Field(default="", max_length=2000)
+
+
+def _release_payload(db: Session, ws: WorkspaceScope, agent: Agent) -> dict[str, Any]:
+    control = None
+    if agent.endpoint_mode == "live":
+        try:
+            control = control_client(ws.context)
+        except Exception:  # noqa: BLE001 - the state view degrades, it never 500s
+            control = None
+    pending = release_svc.pending_for(db, ws.id, agent.id)
+    waivers = db.scalars(
+        select(Waiver).where(Waiver.workspace_id == ws.id, Waiver.agent_id == agent.id)
+        .order_by(Waiver.created_at.desc())
+    ).all()
+    counts: dict[str, int] = {}
+    for w in waivers:
+        counts[w.criterion_key] = counts.get(w.criterion_key, 0) + 1
+    cset = criteria_svc.agent_set(db, ws.id, agent.id)
+    return {
+        "agent_id": agent.id,
+        "release_mode": release_svc.release_mode(ws.row),
+        "state": release_svc.live_state(control, agent),
+        "criteria_set": criteria_svc.set_out(cset) if cset else None,
+        "pending": release_svc.record_out(pending) if pending else None,
+        "records": [release_svc.record_out(r)
+                    for r in release_svc.records_for(db, ws.id, agent.id)],
+        "waivers": [release_svc.waiver_out(w, history=counts.get(w.criterion_key))
+                    for w in waivers],
+    }
+
+
+@router.get("/agents/{agent_id}/release")
+def get_release(
+    agent_id: str,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    return _release_payload(db, ws, _agent(db, ws, agent_id))
+
+
+@router.post("/agents/{agent_id}/release/migrate")
+def migrate_to_live(
+    agent_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    agent = _agent(db, ws, agent_id)
+    release_svc.migrate_agent(db, agent, control_client(ws.context), actor=_actor(request))
+    db.commit()
+    return _release_payload(db, ws, agent)
+
+
+@router.post("/agents/{agent_id}/release/evaluate", status_code=202)
+def evaluate_release(
+    agent_id: str,
+    req: ReleaseEvaluateIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    agent = _agent(db, ws, agent_id)
+    record = release_svc.pending_for(db, ws.id, agent.id)
+    if record is None:
+        raise AppError("release.nothing_pending",
+                       "no candidate version is waiting for a gate decision",
+                       status_code=409)
+    release_svc.start_evaluation(db, record, agent, ws.context, actor=_actor(request),
+                                 repeats=req.repeats)
+    db.commit()
+    return _release_payload(db, ws, agent)
+
+
+@router.get("/agents/{agent_id}/release/gate")
+def release_gate(
+    agent_id: str,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    agent = _agent(db, ws, agent_id)
+    record = release_svc.pending_for(db, ws.id, agent.id)
+    if record is None:
+        raise NotFoundError("release.nothing_pending", "no release is open for this agent")
+    out = release_svc.evaluate(db, record)
+    db.commit()
+    return {**out, "record": release_svc.record_out(record)}
+
+
+@router.post("/agents/{agent_id}/release/sign")
+def sign_release(
+    agent_id: str,
+    req: ReleaseDecisionIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    agent = _agent(db, ws, agent_id)
+    record = release_svc.pending_for(db, ws.id, agent.id)
+    if record is None:
+        raise NotFoundError("release.nothing_pending", "no release is open for this agent")
+    release_svc.sign(db, record, agent, control_client(ws.context), actor=_actor(request),
+                     note=req.note)
+    db.commit()
+    return _release_payload(db, ws, agent)
+
+
+@router.post("/agents/{agent_id}/release/block")
+def block_release(
+    agent_id: str,
+    req: ReleaseDecisionIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    agent = _agent(db, ws, agent_id)
+    record = release_svc.pending_for(db, ws.id, agent.id)
+    if record is None:
+        raise NotFoundError("release.nothing_pending", "no release is open for this agent")
+    release_svc.block(db, record, actor=_actor(request), note=req.note)
+    db.commit()
+    return _release_payload(db, ws, agent)
+
+
+@router.post("/agents/{agent_id}/release/rollback")
+def rollback_release(
+    agent_id: str,
+    req: ReleaseDecisionIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    agent = _agent(db, ws, agent_id)
+    out = release_svc.rollback(db, agent, control_client(ws.context), actor=_actor(request),
+                               note=req.note)
+    db.commit()
+    return {**out, **_release_payload(db, ws, agent)}
+
+
+@router.get("/release-records")
+def list_release_records(
+    agent_id: str = Query(max_length=32),
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    return {"records": [release_svc.record_out(r)
+                        for r in release_svc.records_for(db, ws.id, agent_id)]}
+
+
+@router.get("/release-records/{record_id}")
+def get_release_record(
+    record_id: str,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    return release_svc.record_out(release_svc.get_record(db, ws.id, record_id))
+
+
+@router.post("/agents/{agent_id}/waivers", status_code=201)
+def request_waiver(
+    agent_id: str,
+    req: WaiverIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    _agent(db, ws, agent_id)
+    waiver = release_svc.request_waiver(
+        db, workspace_id=ws.id, agent_id=agent_id, criterion_key=req.criterion_key,
+        actual=req.actual, threshold=req.threshold, reason=req.reason,
+        risk_owner=req.risk_owner, compensating_control=req.compensating_control,
+        expires_on=req.expires_on, actor=_actor(request),
+    )
+    db.commit()
+    return release_svc.waiver_out(waiver)
+
+
+def _waiver(db: Session, ws: WorkspaceScope, waiver_id: str) -> Waiver:
+    row = db.get(Waiver, waiver_id)
+    if row is None or row.workspace_id != ws.id:
+        raise NotFoundError("waiver.not_found", "waiver not found")
+    return row
+
+
+@router.post("/waivers/{waiver_id}/approve")
+def approve_waiver(
+    waiver_id: str,
+    req: WaiverDecisionIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    waiver = release_svc.decide_waiver(db, _waiver(db, ws, waiver_id), actor=_actor(request),
+                                       approve=True, note=req.note)
+    db.commit()
+    return release_svc.waiver_out(waiver)
+
+
+@router.post("/waivers/{waiver_id}/reject")
+def reject_waiver(
+    waiver_id: str,
+    req: WaiverDecisionIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    waiver = release_svc.decide_waiver(db, _waiver(db, ws, waiver_id), actor=_actor(request),
+                                       approve=False, note=req.note)
+    db.commit()
+    return release_svc.waiver_out(waiver)
+
+
+@router.delete("/waivers/{waiver_id}")
+def revoke_waiver(
+    waiver_id: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    waiver = release_svc.revoke_waiver(db, _waiver(db, ws, waiver_id), actor=_actor(request))
+    db.commit()
+    return release_svc.waiver_out(waiver)
+
+
+# ── admission ──────────────────────────────────────────────────────────────────
+
+
+class AdmitIn(BaseModel):
+    split: Literal["dev", "regression"] = "dev"
+    dataset_id: str | None = Field(default=None, max_length=32)
+    expected_response: str = Field(min_length=1, max_length=16000)
+    expected_source: Literal["annotator", "consensus", "adjudicated"] = "annotator"
+    criteria_ids: list[str] = Field(default_factory=list, max_length=40)
+    case_tier: Literal["known_good", "known_bad", "ambiguous", "adversarial"] = "known_bad"
+    scenario_id: str | None = Field(default=None, max_length=128)
+
+
+class RejectIn(BaseModel):
+    note: str = Field(min_length=1, max_length=2000)
+
+
+class DuplicateIn(BaseModel):
+    duplicate_of: str = Field(min_length=1, max_length=160)
+
+
+@router.get("/admission")
+def admission_queue(
+    agent_id: str | None = Query(default=None, max_length=32),
+    status: str | None = "new",
+    refresh: bool = False,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    if refresh and agent_id:
+        admission_svc.collect(db, ws.id, agent_id=agent_id)
+        db.commit()
+    return admission_svc.queue(db, ws.id, agent_id=agent_id, status=status)
+
+
+@router.get("/admission/{candidate_id}")
+def admission_candidate(
+    candidate_id: str,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    candidate = admission_svc.get_candidate(db, ws.id, candidate_id)
+    agent = db.get(Agent, candidate.agent_id)
+    if not candidate.redaction:
+        candidate.redaction = admission_svc.redaction_preview(
+            candidate.question, candidate.answer, agent, ws.context
+        )
+        db.commit()
+    return {
+        **admission_svc.candidate_out(candidate),
+        "nearest": admission_svc.nearest_items(db, ws.id, candidate.question,
+                                               agent_id=candidate.agent_id),
+    }
+
+
+@router.post("/admission/{candidate_id}/admit", status_code=201)
+def admit_candidate(
+    candidate_id: str,
+    req: AdmitIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    candidate = admission_svc.get_candidate(db, ws.id, candidate_id)
+    if req.dataset_id:
+        parent = golden_svc.get_parent(db, ws.id, req.dataset_id)
+    else:
+        cset = criteria_svc.agent_set(db, ws.id, candidate.agent_id)
+        parent = golden_svc.for_criteria(db, ws.id, cset.lineage_id) if cset else None
+    if parent is None:
+        raise AppError("admission.no_golden_set",
+                       "create the golden set for this agent's criteria first",
+                       status_code=409)
+    split = golden_svc.splits_of(db, parent).get(req.split)
+    if split is None:
+        raise NotFoundError("golden.split_not_found", "split not found")
+    item = admission_svc.admit(
+        db, candidate, split_dataset=split, expected_response=req.expected_response,
+        expected_source=req.expected_source, criteria_ids=req.criteria_ids,
+        case_tier=req.case_tier, actor=_actor(request), scenario_id=req.scenario_id,
+    )
+    db.commit()
+    return {"item": item, "candidate": admission_svc.candidate_out(candidate)}
+
+
+@router.post("/admission/{candidate_id}/reject")
+def reject_candidate(
+    candidate_id: str,
+    req: RejectIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    candidate = admission_svc.get_candidate(db, ws.id, candidate_id)
+    admission_svc.reject(db, candidate, actor=_actor(request), note=req.note)
+    db.commit()
+    return admission_svc.candidate_out(candidate)
+
+
+@router.post("/admission/{candidate_id}/duplicate")
+def mark_candidate_duplicate(
+    candidate_id: str,
+    req: DuplicateIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    candidate = admission_svc.get_candidate(db, ws.id, candidate_id)
+    admission_svc.mark_duplicate(db, candidate, of=req.duplicate_of, actor=_actor(request))
+    db.commit()
+    return admission_svc.candidate_out(candidate)
+
+
+# ── watch ──────────────────────────────────────────────────────────────────────
+
+
+class WatchIn(BaseModel):
+    criteria_lineage_id: str | None = Field(default=None, max_length=32)
+    dataset_id: str | None = Field(default=None, max_length=32)
+    every: Literal["daily", "weekly"] = "daily"
+    at_hour: int = Field(default=3, ge=0, le=23)
+    tz: str = Field(default="UTC", max_length=48)
+    repeats: int = Field(default=1, ge=1, le=10)
+    max_cost_usd: float | None = Field(default=None, ge=0)
+    enabled: bool = True
+
+
+@router.get("/agents/{agent_id}/watch")
+def get_watch(
+    agent_id: str,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    _agent(db, ws, agent_id)
+    return watch_svc.view(db, ws.id, agent_id)
+
+
+@router.put("/agents/{agent_id}/watch")
+def put_watch(
+    agent_id: str,
+    req: WatchIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    _agent(db, ws, agent_id)
+    cset = (
+        criteria_svc.latest_published(db, ws.id, req.criteria_lineage_id)
+        if req.criteria_lineage_id else criteria_svc.agent_set(db, ws.id, agent_id)
+    )
+    watch_svc.upsert(
+        db, workspace_id=ws.id, agent_id=agent_id,
+        criteria_set_id=cset.id if cset else None, dataset_id=req.dataset_id,
+        every=req.every, at_hour=req.at_hour, tz=req.tz, repeats=req.repeats,
+        enabled=req.enabled, actor=_actor(request), max_cost_usd=req.max_cost_usd,
+    )
+    db.commit()
+    return watch_svc.view(db, ws.id, agent_id)
+
+
+@router.post("/agents/{agent_id}/watch/run", status_code=202)
+def run_watch_now(
+    agent_id: str,
+    request: Request,
+    split: Literal["regression", "holdout"] = "regression",
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    _agent(db, ws, agent_id)
+    config = watch_svc.get_for_agent(db, ws.id, agent_id)
+    if config is None:
+        raise NotFoundError("watch.not_configured", "configure the watch first")
+    run_id = watch_svc.run_now(db, config, workspace_ctx=ws.context, actor=_actor(request),
+                               split=split)
+    db.commit()
+    return {"run_id": run_id, "watch": watch_svc.config_out(config)}
+
+
+# ── runs: criteria results, comparison, cost ───────────────────────────────────
+
+
+@router.get("/eval/runs/{run_id}/criteria")
+def run_criteria(
+    run_id: str,
+    criterion_key: str | None = Query(default=None, max_length=32),
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    run = db.get(EvalRun, run_id)
+    if run is None or run.workspace_id != ws.id:
+        raise NotFoundError("run.not_found", "run not found")
+    rows = engine_svc.results_for(db, run_id, criterion_key)
+    return {
+        "run_id": run.id,
+        "criteria_set_id": run.criteria_set_id,
+        "criteria_set_version": run.criteria_set_version,
+        "split": run.split,
+        "repeats": run.repeats,
+        "agent_version": run.agent_version,
+        "endpoint_qualifier": run.endpoint_qualifier,
+        "summary": (run.criteria_summary or {}).get("criteria") or {},
+        "denominator": run.denominator or {},
+        "cost_estimate": run.cost_estimate or {},
+        "cost_actual": run.cost_actual or {},
+        "results": [engine_svc.result_out(r) for r in rows[:2000]],
+        "truncated": len(rows) > 2000,
+    }
+
+
+@router.post("/eval/runs/{run_id}/criteria/snapshot", status_code=202)
+def snapshot_run_criteria(
+    run_id: str,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    """Re-read the results stream for a completed run (a retry after a transient read)."""
+    run = db.get(EvalRun, run_id)
+    if run is None or run.workspace_id != ws.id:
+        raise NotFoundError("run.not_found", "run not found")
+    if run.status != "completed" or not run.criteria_set_id:
+        raise AppError("run.not_snapshotable",
+                       "only a completed run tied to a criteria set can be snapshotted",
+                       status_code=409)
+    out = engine_svc.finalize_run(run_id, ws.context)
+    return {"snapshotted": bool(out), "summary": (out or {}).get("criteria") or {}}
+
+
+@router.get("/eval/runs/compare")
+def compare_runs(
+    runs: str = Query(description="comma-separated run ids, oldest first"),
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    ids = [r.strip() for r in runs.split(",") if r.strip()]
+    specs: dict[str, dict] = {}
+    for run_id in ids:
+        run = db.get(EvalRun, run_id)
+        if run is None or run.workspace_id != ws.id:
+            raise NotFoundError("run.not_found", f"run {run_id} not found")
+        from app.models.ledger import SpecSnapshot
+
+        snapshot = db.scalars(
+            select(SpecSnapshot).where(
+                SpecSnapshot.agent_id == run.agent_id,
+                SpecSnapshot.aws_version == run.agent_version,
+            ).order_by(SpecSnapshot.seq.desc())
+        ).first()
+        if snapshot is not None:
+            specs[run_id] = snapshot.spec or {}
+    return compare_svc.compare(db, ws.id, ids, specs=specs)
+
+
+@router.get("/agents/{agent_id}/ladder")
+def fix_ladder(
+    agent_id: str,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    _agent(db, ws, agent_id)
+    ids = compare_svc.ladder(db, ws.id, agent_id)
+    if len(ids) < 2:
+        return {"runs": ids, "comparable": False,
+                "incomparable_reason": "fewer than two completed criteria runs"}
+    return compare_runs(runs=",".join(ids), db=db, ws=ws)
+
+
+class EstimateIn(BaseModel):
+    agent_id: str | None = Field(default=None, max_length=32)
+    dataset_id: str | None = Field(default=None, max_length=32)
+    items: int | None = Field(default=None, ge=0, le=1000)
+    evaluators: list[str] = Field(default_factory=list, max_length=10)
+    repeats: int = Field(default=1, ge=1, le=10)
+
+
+@router.post("/eval/runs/estimate")
+def estimate_run(
+    req: EstimateIn,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    agent = _agent(db, ws, req.agent_id) if req.agent_id else None
+    items: list[dict[str, Any]] = []
+    if req.dataset_id:
+        dataset = db.get(EvalDataset, req.dataset_id)
+        if dataset is None or dataset.workspace_id != ws.id:
+            raise NotFoundError("dataset.not_found", "dataset not found")
+        items = golden_svc.active_items(dataset) if dataset.role == "golden" else (
+            dataset.items or []
+        )
+    elif req.items:
+        items = [{"scenario_id": f"n{n}", "turns": [{"input": ""}]} for n in range(req.items)]
+    rows = []
+    if agent is not None:
+        cset = criteria_svc.agent_set(db, ws.id, agent.id)
+        rows = criteria_svc.criteria_of(db, cset.id) if cset else []
+    return cost_svc.estimate(
+        db, agent=agent, workspace=ws.row, workspace_ctx=ws.context, items=items,
+        evaluators=req.evaluators, repeats=req.repeats, criteria_rows=rows,
+    )
+
+
+# ── audit ──────────────────────────────────────────────────────────────────────
+
+
+@router.get("/audit")
+def audit_trail(
+    target: str | None = Query(default=None, max_length=256),
+    action: str | None = Query(default=None, max_length=160),
+    limit: int = Query(default=100, ge=1, le=500),
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    """The decision history every workbench shows (append-only `audit_events`)."""
+    query = select(AuditEvent).where(AuditEvent.workspace_id == ws.id)
+    if target:
+        query = query.where(AuditEvent.target == target)
+    if action:
+        query = query.where(AuditEvent.action.like(f"{action}%"))
+    rows = db.scalars(query.order_by(AuditEvent.created_at.desc()).limit(limit)).all()
+    return {
+        "events": [
+            {"id": r.id, "actor": r.actor, "action": r.action, "target": r.target,
+             "at": r.created_at.isoformat() if r.created_at else None}
+            for r in rows
+        ]
+    }
+
+
+# ── scorecard ──────────────────────────────────────────────────────────────────
+
+
+@router.get("/agents/{agent_id}/scorecard")
+def scorecard(
+    agent_id: str,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    """Five dimensions, standard vs current, for one agent (§7.9)."""
+    agent = _agent(db, ws, agent_id)
+    cset = criteria_svc.agent_set(db, ws.id, agent.id)
+    rows = criteria_svc.criteria_of(db, cset.id) if cset else []
+    calibration, policy = _calibration(db, ws, agent.id, rows)
+    runs = watch_svc.history(db, ws.id, agent.id, limit=10)
+    latest = runs[-1] if runs else None
+    summary = (latest.criteria_summary or {}).get("criteria") or {} if latest else {}
+    series = watch_svc.dimension_series(runs)
+    dimensions = []
+    from app.models.dlc import DIMENSIONS
+
+    for dimension in DIMENSIONS:
+        members = [r for r in rows if r.dimension == dimension]
+        entries = [summary.get(r.key) or {} for r in members]
+        rates = [e.get("rate") for e in entries if e.get("rate") is not None]
+        gates = [
+            r for r in members
+            if criteria_svc.effective_tier(
+                r, calibrated=bool((calibration.get(r.key) or {}).get("calibrated"))
+            ) == "gate"
+        ]
+        redlines = [r for r in members if r.tier == "redline"]
+        violations = sum((summary.get(r.key) or {}).get("fail") or 0 for r in redlines)
+        dimensions.append({
+            "dimension": dimension,
+            "criteria": len(members),
+            "effective_gates": len(gates),
+            "declared_gates": len([r for r in members if r.tier == "gate"]),
+            "redlines": len(redlines),
+            "redline_violations": violations,
+            "current": (sum(rates) / len(rates)) if rates else None,
+            "standard": min((r.threshold for r in gates if r.threshold is not None),
+                            default=None),
+            "series": series.get(dimension, []),
+            "not_applicable": not members,
+        })
+    pending = release_svc.pending_for(db, ws.id, agent.id)
+    open_waivers = db.scalars(
+        select(Waiver).where(Waiver.workspace_id == ws.id, Waiver.agent_id == agent.id,
+                             Waiver.status == "approved")
+    ).all()
+    coverage = None
+    if cset:
+        parent = golden_svc.for_criteria(db, ws.id, cset.lineage_id)
+        if parent is not None:
+            coverage = golden_svc.coverage([r.key for r in rows],
+                                           golden_svc.splits_of(db, parent))
+    return {
+        "agent_id": agent.id,
+        "agent_name": agent.name,
+        "criteria_set": criteria_svc.set_out(cset) if cset else None,
+        "dimensions": dimensions,
+        "last_run": {"id": latest.id, "at": latest.created_at.isoformat()} if latest else None,
+        "last_gate": (pending.gate_report or {}).get("verdict") if pending else None,
+        "release": release_svc.live_state(None, agent),
+        "open_waivers": [release_svc.waiver_out(w) for w in open_waivers],
+        "calibration_debt": [
+            {"criterion_key": key, "reason": status.get("reason")}
+            for key, status in calibration.items() if not status.get("calibrated")
+        ],
+        "calibration_policy": policy,
+        "coverage": coverage,
+        "alerts": watch_svc.alerts(runs),
+    }

@@ -98,6 +98,14 @@ PERM_PROMOTION_APPROVE = "perm:promotion.approve"
 PERM_IDENTITY_MANAGE = "perm:identity.manage"
 PERM_IDENTITY_GRANT = "perm:identity.grant"
 PERM_MEMORY_MANAGE = "perm:memory.manage"
+# Agent-DLC: who may edit the ruler, sign it, admit samples, calibrate a judge, approve
+# a waiver and sign a release (docs/agent-dlc-design.md §8).
+PERM_CRITERIA_MANAGE = "perm:criteria.manage"
+PERM_CRITERIA_SIGN = "perm:criteria.sign"
+PERM_GOLDEN_ADMIT = "perm:golden.admit"
+PERM_JUDGE_CALIBRATE = "perm:judge.calibrate"
+PERM_WAIVER_APPROVE = "perm:waiver.approve"
+PERM_RELEASE_SIGN = "perm:release.sign"
 _PERM_PREFIX = "perm:"
 
 API_PREFIX = "/api"
@@ -514,6 +522,64 @@ ROUTE_POLICY: dict[tuple[str, str], str] = {
     # ---- business self-service: intent view, curated answers, issue box (T33/T35/T36) ----
     # Deliberately NOT in PROD_PROTECTED: the point of a curated answer is that a business
     # owner fixes production without a redeploy. Rule writes are journaled in audit_events.
+    # ── Agent-DLC (docs/agent-dlc-design.md) ────────────────────────────────
+    # Reads are MEMBER: the standard and its evidence are the team's shared picture.
+    # Writes split by whose decision they are: editing the ruler is engineering
+    # (`criteria.manage`), signing it / admitting samples / declaring a judge
+    # calibrated / approving a waiver / signing a release are named people's.
+    ("GET", "/api/criteria-sets"): MEMBER,
+    ("POST", "/api/criteria-sets"): PERM_CRITERIA_MANAGE,
+    ("GET", "/api/criteria-sets/{lineage_id}"): MEMBER,
+    ("PUT", "/api/criteria-sets/{lineage_id}"): PERM_CRITERIA_MANAGE,
+    ("DELETE", "/api/criteria-sets/{lineage_id}"): PERM_CRITERIA_MANAGE,
+    ("POST", "/api/criteria-sets/{lineage_id}/versions"): PERM_CRITERIA_MANAGE,
+    ("POST", "/api/criteria-sets/{lineage_id}/publish"): PERM_CRITERIA_MANAGE,
+    ("POST", "/api/criteria-sets/{lineage_id}/sign"): PERM_CRITERIA_SIGN,
+    ("POST", "/api/criteria-sets/{lineage_id}/adopt-template"): PERM_CRITERIA_MANAGE,
+    ("GET", "/api/criteria-sets/{lineage_id}/diff"): MEMBER,
+    ("GET", "/api/golden-sets"): MEMBER,
+    ("POST", "/api/golden-sets"): PERM_CRITERIA_MANAGE,
+    ("GET", "/api/golden-sets/{dataset_id}"): MEMBER,
+    ("POST", "/api/golden-sets/{dataset_id}/items"): PERM_CRITERIA_MANAGE,
+    ("POST", "/api/golden-sets/{dataset_id}/move"): PERM_CRITERIA_MANAGE,
+    ("POST", "/api/golden-sets/{dataset_id}/retire"): PERM_CRITERIA_MANAGE,
+    ("GET", "/api/annotation-tasks"): MEMBER,
+    ("POST", "/api/annotation-tasks"): PERM_CRITERIA_MANAGE,
+    ("GET", "/api/annotation-tasks/{task_id}"): MEMBER,
+    # labelling is the annotator's own act; the service refuses a non-annotator
+    ("POST", "/api/annotation-tasks/{task_id}/labels"): MEMBER,
+    ("POST", "/api/annotation-tasks/{task_id}/adjudicate"): PERM_JUDGE_CALIBRATE,
+    ("GET", "/api/annotation-tasks/{task_id}/agreement"): MEMBER,
+    ("POST", "/api/annotation-tasks/{task_id}/decide"): PERM_JUDGE_CALIBRATE,
+    ("GET", "/api/calibration/{criterion_key}"): MEMBER,
+    ("GET", "/api/agents/{agent_id}/release"): MEMBER,
+    ("POST", "/api/agents/{agent_id}/release/migrate"): PERM_RELEASE_SIGN,
+    ("POST", "/api/agents/{agent_id}/release/evaluate"): PERM_EVAL_RUN,
+    ("GET", "/api/agents/{agent_id}/release/gate"): MEMBER,
+    ("POST", "/api/agents/{agent_id}/release/sign"): PERM_RELEASE_SIGN,
+    ("POST", "/api/agents/{agent_id}/release/block"): PERM_RELEASE_SIGN,
+    ("POST", "/api/agents/{agent_id}/release/rollback"): PERM_RELEASE_SIGN,
+    ("GET", "/api/release-records"): MEMBER,
+    ("GET", "/api/release-records/{record_id}"): MEMBER,
+    ("POST", "/api/agents/{agent_id}/waivers"): MEMBER,  # asking is not deciding
+    ("POST", "/api/waivers/{waiver_id}/approve"): PERM_WAIVER_APPROVE,
+    ("POST", "/api/waivers/{waiver_id}/reject"): PERM_WAIVER_APPROVE,
+    ("DELETE", "/api/waivers/{waiver_id}"): PERM_WAIVER_APPROVE,
+    ("GET", "/api/admission"): MEMBER,
+    ("GET", "/api/admission/{candidate_id}"): MEMBER,
+    ("POST", "/api/admission/{candidate_id}/admit"): PERM_GOLDEN_ADMIT,
+    ("POST", "/api/admission/{candidate_id}/reject"): PERM_GOLDEN_ADMIT,
+    ("POST", "/api/admission/{candidate_id}/duplicate"): PERM_GOLDEN_ADMIT,
+    ("GET", "/api/agents/{agent_id}/watch"): MEMBER,
+    ("PUT", "/api/agents/{agent_id}/watch"): PERM_CRITERIA_MANAGE,
+    ("POST", "/api/agents/{agent_id}/watch/run"): PERM_EVAL_RUN,
+    ("GET", "/api/eval/runs/{run_id}/criteria"): MEMBER,
+    ("POST", "/api/eval/runs/{run_id}/criteria/snapshot"): PERM_EVAL_RUN,
+    ("GET", "/api/eval/runs/compare"): MEMBER,
+    ("POST", "/api/eval/runs/estimate"): MEMBER,
+    ("GET", "/api/agents/{agent_id}/ladder"): MEMBER,
+    ("GET", "/api/agents/{agent_id}/scorecard"): MEMBER,
+    ("GET", "/api/audit"): ADMIN,
     ("GET", "/api/intents"): MEMBER,
     ("GET", "/api/agents/{agent_id}/rules"): MEMBER,
     ("POST", "/api/agents/{agent_id}/rules"): MEMBER,
@@ -722,6 +788,17 @@ PROD_PROTECTED: frozenset[tuple[str, str]] = frozenset(
         ("POST", "/api/runtime-canaries"),
         ("POST", "/api/runtime-canaries/{canary_id}/action"),
         ("POST", "/api/experiments/{exp_id}/action"),
+        # Agent-DLC: the standard, its samples and what production serves
+        ("POST", "/api/criteria-sets/{lineage_id}/publish"),
+        ("POST", "/api/criteria-sets/{lineage_id}/sign"),
+        ("POST", "/api/golden-sets/{dataset_id}/items"),
+        ("POST", "/api/admission/{candidate_id}/admit"),
+        ("POST", "/api/waivers/{waiver_id}/approve"),
+        ("POST", "/api/agents/{agent_id}/release/migrate"),
+        ("POST", "/api/agents/{agent_id}/release/sign"),
+        ("POST", "/api/agents/{agent_id}/release/rollback"),
+        ("PUT", "/api/agents/{agent_id}/watch"),
+        ("POST", "/api/agents/{agent_id}/release/block"),
         ("POST", "/api/agent-skills/import"),  # deploy-flow skill upload to S3
         # the architect assistant's two deploy-side writes
         ("POST", "/api/assistant/architect/conversations/{conversation_id}/preparation/skills"),
@@ -743,6 +820,18 @@ PROD_UNPROTECTED_AGENT_ROUTES: dict[tuple[str, str], str] = {
     # source and protect nothing about the prod target.
     ("POST", "/api/promotions/{promotion_id}/execute"): "targets another workspace; operator-only",
     ("POST", "/api/promotions/{promotion_id}/rollback"): "targets another workspace; operator-only",
+    # Agent-DLC: these three change no agent. Evaluating a candidate and a scheduled
+    # re-run only read the agent through its candidate endpoint (that is the point of
+    # gating), and asking for a waiver is a request a risk owner still has to approve.
+    ("POST", "/api/agents/{agent_id}/release/evaluate"): (
+        "evaluates the candidate endpoint; it changes nothing the agent serves"
+    ),
+    ("POST", "/api/agents/{agent_id}/watch/run"): (
+        "a read-only re-evaluation of the golden split"
+    ),
+    ("POST", "/api/agents/{agent_id}/waivers"): (
+        "requesting a waiver is not granting one — approval is prod-protected"
+    ),
 }
 
 
