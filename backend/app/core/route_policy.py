@@ -541,6 +541,8 @@ ROUTE_POLICY: dict[tuple[str, str], str] = {
     ("POST", "/api/golden-sets"): PERM_CRITERIA_MANAGE,
     ("GET", "/api/golden-sets/{dataset_id}"): MEMBER,
     ("POST", "/api/golden-sets/{dataset_id}/items"): PERM_CRITERIA_MANAGE,
+    # seeding writes the holdout once: the same right that admits golden samples
+    ("POST", "/api/golden-sets/{dataset_id}/seed"): PERM_GOLDEN_ADMIT,
     ("POST", "/api/golden-sets/{dataset_id}/move"): PERM_CRITERIA_MANAGE,
     ("POST", "/api/golden-sets/{dataset_id}/retire"): PERM_CRITERIA_MANAGE,
     ("GET", "/api/annotation-tasks"): MEMBER,
@@ -792,6 +794,7 @@ PROD_PROTECTED: frozenset[tuple[str, str]] = frozenset(
         ("POST", "/api/criteria-sets/{lineage_id}/publish"),
         ("POST", "/api/criteria-sets/{lineage_id}/sign"),
         ("POST", "/api/golden-sets/{dataset_id}/items"),
+        ("POST", "/api/golden-sets/{dataset_id}/seed"),
         ("POST", "/api/admission/{candidate_id}/admit"),
         ("POST", "/api/waivers/{waiver_id}/approve"),
         ("POST", "/api/agents/{agent_id}/release/migrate"),

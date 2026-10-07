@@ -256,3 +256,51 @@ def test_gateable_rules():
                                    version="1"))[0] is False
     assert releases.gateable(Agent(method="zip_runtime", spec={"protocol": "a2a"},
                                    resource_id="x", version="1"))[0] is False
+
+
+def test_seeding_curates_all_three_splits_and_seals_the_holdout(db):
+    agent = _agent(db)
+    cset = _criteria(db, agent)
+    parent = golden_svc.create(db, WS, name="seeded", criteria_lineage_id=cset.lineage_id,
+                               actor="biz")
+    items = [
+        {"scenario_id": f"s{n}", "turns": [{"input": f"q{n}"}],
+         "metadata": {"dlc": {"case_tier": "known_good" if n % 2 else "adversarial"}}}
+        for n in range(10)
+    ]
+    counts = golden_svc.seed(db, parent, items, actor="biz")
+    db.commit()
+    assert sum(counts.values()) == 10
+    assert counts["dev"] >= counts["regression"] >= counts["holdout"] >= 1
+    splits = golden_svc.splits_of(db, parent)
+    # the mix is stratified: every split sees adversarial cases, not just the first slice
+    for split in splits.values():
+        tiers = {golden_svc.dlc_meta(i).get("case_tier") for i in split.items}
+        assert "adversarial" in tiers
+    # sealed: curation happens once, so nothing can later be tuned against the holdout
+    with pytest.raises(AppError) as exc:
+        golden_svc.seed(db, parent, [{"scenario_id": "late", "turns": [{"input": "q"}]}],
+                        actor="biz")
+    assert exc.value.code == "golden.holdout_sealed"
+
+
+def test_seeding_honours_an_explicit_split_and_refuses_an_unknown_one(db):
+    agent = _agent(db)
+    cset = _criteria(db, agent)
+    parent = golden_svc.create(db, WS, name="named", criteria_lineage_id=cset.lineage_id,
+                               actor="biz")
+    counts = golden_svc.seed(db, parent, [
+        {"split": "holdout", "scenario_id": "h1", "turns": [{"input": "q"}]},
+        {"split": "dev", "scenario_id": "d1", "turns": [{"input": "q"}]},
+    ], actor="biz")
+    db.commit()
+    assert counts == {"dev": 1, "regression": 0, "holdout": 1}
+    other = golden_svc.create(db, WS, name="bad", criteria_lineage_id=cset.lineage_id,
+                              actor="biz")
+    with pytest.raises(AppError) as exc:
+        golden_svc.seed(db, other, [{"split": "nope", "scenario_id": "x",
+                                     "turns": [{"input": "q"}]}], actor="biz")
+    assert exc.value.code == "golden.bad_split"
+    with pytest.raises(AppError) as exc:
+        golden_svc.seed(db, other, [], actor="biz")
+    assert exc.value.code == "golden.seed_empty"

@@ -347,6 +347,13 @@ class GoldenItemsIn(BaseModel):
     items: list[dict[str, Any]] = Field(min_length=1, max_length=200)
 
 
+class GoldenSeedIn(BaseModel):
+    """Initial curation. Each item may carry `split`; the rest are stratified."""
+
+    items: list[dict[str, Any]] = Field(min_length=1, max_length=600)
+    shares: tuple[float, float, float] = (0.5, 0.3, 0.2)
+
+
 class GoldenMoveIn(BaseModel):
     scenario_id: str = Field(min_length=1, max_length=128)
     to: Literal["dev", "regression"]
@@ -415,6 +422,26 @@ def add_golden_items(
     added = golden_svc.add_items(db, split, req.items, actor=_actor(request))
     db.commit()
     return {"added": len(added), "golden_set": _golden_payload(db, ws, parent)}
+
+
+@router.post("/golden-sets/{dataset_id}/seed", status_code=201)
+def seed_golden_set(
+    dataset_id: str,
+    req: GoldenSeedIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    """Curate all three splits once — the only path that writes the holdout."""
+    parent = golden_svc.get_parent(db, ws.id, dataset_id)
+    from app.services.audit import record_audit_event
+
+    counts = golden_svc.seed(db, parent, req.items, actor=_actor(request),
+                             shares=req.shares)
+    record_audit_event(workspace_id=ws.id, actor=_actor(request), action="golden.seed",
+                       target=parent.id, db=db)
+    db.commit()
+    return {"counts": counts, "golden_set": _golden_payload(db, ws, parent)}
 
 
 @router.post("/golden-sets/{dataset_id}/move")

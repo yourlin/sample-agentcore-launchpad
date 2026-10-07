@@ -180,6 +180,67 @@ def add_items(
     return added
 
 
+def seed(
+    db: Session,
+    parent: EvalDataset,
+    items: list[dict[str, Any]],
+    *,
+    actor: str,
+    shares: tuple[float, float, float] = (0.5, 0.3, 0.2),
+) -> dict[str, int]:
+    """Curate the three splits once, holdout included.
+
+    This is the **only** path that writes the holdout, and it is sealed afterwards: the
+    point of a holdout is that nobody tunes against it, which only holds if it is filled
+    before the development loop starts and never touched again. Items may name their own
+    `split`; the rest are stratified by `case_tier` so each split gets the same mix of
+    good / bad / ambiguous / adversarial cases rather than three arbitrary slices.
+    """
+    splits = splits_of(db, parent)
+    holdout = splits.get("holdout")
+    if holdout is None:
+        raise NotFoundError("golden.split_not_found", "this golden set has no holdout split")
+    if holdout.items:
+        raise AppError(
+            "golden.holdout_sealed",
+            "the holdout split is already curated — it is sealed so that no later change "
+            "can be tuned against it",
+            status_code=409,
+        )
+    if not items:
+        raise AppError("golden.seed_empty", "seed the golden set with at least one item")
+    buckets: dict[str, list[dict[str, Any]]] = {s: [] for s in SPLITS}
+    unassigned: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for item in items:
+        named = str(item.get("split") or "")
+        body = {k: v for k, v in item.items() if k != "split"}
+        if named in SPLITS:
+            buckets[named].append(body)
+        elif named:
+            raise AppError("golden.bad_split", f"split must be one of {SPLITS}")
+        else:
+            unassigned[dlc_meta(body).get("case_tier") or "known_good"].append(body)
+    # stratify each case tier separately, so the mix is the same in all three splits
+    order = [s for s, _ in sorted(zip(SPLITS, shares, strict=True), key=lambda p: -p[1])]
+    for tier_items in unassigned.values():
+        for index, body in enumerate(tier_items):
+            cumulative = 0.0
+            position = (index + 0.5) / len(tier_items)
+            for split_name in order:
+                cumulative += shares[SPLITS.index(split_name)]
+                if position < cumulative or split_name == order[-1]:
+                    buckets[split_name].append(body)
+                    break
+    counts = {}
+    for split_name, body in buckets.items():
+        if body:
+            add_items(db, splits[split_name], body, actor=actor,
+                      allow_holdout=split_name == "holdout")
+        counts[split_name] = len(active_items(splits[split_name]))
+    db.flush()
+    return counts
+
+
 def move_item(
     db: Session, parent: EvalDataset, scenario_id: str, *, to: str, actor: str
 ) -> None:
