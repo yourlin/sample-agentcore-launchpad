@@ -1,0 +1,35 @@
+AGENTS.md
+  s_53a2f2bba8d550::t_6e86038c1f97af 3
+CLAUDE.md
+  s_53a2f2bba8d550::t_bb0894a0dab992 7
+README.md
+  s_53a2f2bba8d550::t_b9a6e26edee9d8 3-14,241-243
+README.zh-CN.md
+  s_53a2f2bba8d550::t_c34d97722364e6 3-10,207-208
+docs/agent-dlc-design.zh-CN.md
+  s_53a2f2bba8d550::t_b57b7d8b9b16da 516
+docs/agent-runbook-prod.md
+  s_53a2f2bba8d550::t_dbbeb599f5c919 1,4-9
+docs/architecture.md
+  s_53a2f2bba8d550::t_e7aeedeae6df15 2881
+docs/setup.md
+  s_53a2f2bba8d550::t_8434495d5a1225 134,256-257,373,528,624-630
+docs/setup.zh-CN.md
+  s_53a2f2bba8d550::t_0a7ac4c2bd692f 511-515
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "69c5b897f76b9cb6b7de52e447391af2e47d96b0",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "linyesh <linyesh@amazon.com>"
+    }
+  }
+}
