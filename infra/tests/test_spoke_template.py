@@ -228,3 +228,14 @@ def test_a_fresh_region_can_turn_on_transaction_search(statements: list[dict[str
     groups = by_sid["TransactionSearchLogGroups"]["Resource"]
     assert len(groups) == 2 and all(
         "aws/spans" in g["Fn::Sub"] or "application-signals/data" in g["Fn::Sub"] for g in groups)
+
+
+def test_a_fresh_region_can_run_its_first_batch_evaluation(statements: list[dict[str, Any]]):
+    """Found on real AWS: StartBatchEvaluation creates its results log group with the
+    caller's credentials, so a region that never ran one needs logs:CreateLogGroup on
+    the evaluations prefix — scoped to that prefix, not every group in the account."""
+    by_sid = {statement["Sid"]: statement for statement in statements}
+    statement = by_sid["EvaluationResultLogGroups"]
+    assert {"logs:CreateLogGroup", "logs:CreateLogStream"} <= set(statement["Action"])
+    (resource,) = statement["Resource"]
+    assert resource["Fn::Sub"].endswith(":log-group:/aws/bedrock-agentcore/evaluations/*")

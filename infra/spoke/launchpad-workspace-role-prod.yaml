@@ -440,6 +440,27 @@ Resources:
                 Resource:
                   - Fn::Sub: "arn:${AWS::Partition}:cloudtrail:*:${AWS::AccountId}:channel/aws-service-channel/application-signals/*"
 
+              # ── Evaluation result log groups ───────────────────────────────
+              # LIVE-OBSERVED, not call-site derivable (2026-10-07, first batch
+              # evaluation in a fresh region): StartBatchEvaluation creates its
+              # results log group with the CALLER's credentials (a forward access
+              # session) and fails with "FAS credentials do not have permission to
+              # create CloudWatch log groups. Ensure logs:CreateLogGroup is in the
+              # FAS policy." The hub region only worked because its group already
+              # existed. Batch results land under
+              # /aws/bedrock-agentcore/evaluations/batch-evaluations/results/ and
+              # online results under /aws/bedrock-agentcore/evaluations/results/, so
+              # one prefix covers both.
+              - Sid: EvaluationResultLogGroups
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                  - logs:PutRetentionPolicy
+                Resource:
+                  - Fn::Sub: "arn:${AWS::Partition}:logs:*:${AWS::AccountId}:log-group:/aws/bedrock-agentcore/evaluations/*"
+
               # ── Secrets Manager (AgentCore Identity token vault) ──────────
               # LIVE-OBSERVED, not call-site derivable (2026-08-13, first spoke
               # bootstrap): CreateOauth2CredentialProvider fails with "not
