@@ -1,0 +1,58 @@
+frontend/src/v3/pages/Assistant.tsx
+  s_53a2f2bba8d550::t_1667903be04fab 1-292
+frontend/src/v3/pages/Registry.tsx
+  s_53a2f2bba8d550::t_a660bc95a1d1a6 1-506
+  s_53a2f2bba8d550::t_d6f4d5ceedbec1 507-511
+frontend/src/v3/pages/Create.tsx
+  s_53a2f2bba8d550::t_38266a16f9a024 1-253
+  s_53a2f2bba8d550::t_c209794bb6356d 254-256
+frontend/src/v3/ui.tsx
+  s_53a2f2bba8d550::t_22c7f8923f3046 217-231
+  s_53a2f2bba8d550::t_36c46b08b0268e 232-353
+frontend/src/v3/pages/Knowledge.tsx
+  s_53a2f2bba8d550::t_70cafc606072d8 1-776
+backend/scripts/e2e_v3_console_browser.py
+  s_53a2f2bba8d550::t_d5b809b899d714 109-118,136-139
+docs/architecture.md
+  s_53a2f2bba8d550::t_54226b9c489446 2823-2839
+docs/architecture.zh-CN.md
+  s_53a2f2bba8d550::t_1f9d4cfa959eaf 1483
+frontend/src/App.tsx
+  s_53a2f2bba8d550::t_3e0d49a3e00168 25,97-100,290-291,296-297,327-330
+frontend/src/locales/en/common.json
+  s_53a2f2bba8d550::t_7bef823e668573 9794-9972
+frontend/src/locales/zh-CN/common.json
+  s_53a2f2bba8d550::t_1e94ff360ae025 9794-9972
+frontend/src/v2/pages/agents/AgentWizard.tsx
+  s_53a2f2bba8d550::t_4233acfe8a5634 176-199
+frontend/src/v3/nav.test.ts
+  s_53a2f2bba8d550::t_953c95719f5cc4 4,8-10,13-14,21,45-73
+frontend/src/v3/nav.ts
+  s_53a2f2bba8d550::t_ebaed56ad6167b 8-9,12,32-40,44-78
+frontend/src/v3/pages/Agents.tsx
+  s_53a2f2bba8d550::t_51bd3a87cf933b 2,134-145,272
+frontend/src/v3/pages/Home.tsx
+  s_53a2f2bba8d550::t_18baaabe9c4f91 172
+frontend/src/v3/signals.test.ts
+  s_53a2f2bba8d550::t_e4b2b0667bb6f7 4-14,77-104
+frontend/src/v3/signals.ts
+  s_53a2f2bba8d550::t_a69911d6a1b333 4,6,85-118
+frontend/src/v3/v3.css
+  s_53a2f2bba8d550::t_e7791cae19b3be 729-848
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "9ac56a661a0f7aa5764ca0bdbe2d6666578876bb",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "AI Ape Wisdom <xiehust@163.com>"
+    }
+  }
+}
