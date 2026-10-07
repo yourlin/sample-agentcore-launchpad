@@ -179,6 +179,10 @@ def main() -> int:
 
     users: list[str] = []
     datasets: list[str] = []
+    # a labelling task and its link are a live bearer credential: a test that mints one
+    # must take it back, or every run leaves a usable token pointing at its transcripts
+    links: list[tuple[str, str, str]] = []
+    tasks: list[str] = []
     agent_id: str | None = None
     try:
         eng = account(admin, args.base, "engineer", args.workspace, users)
@@ -348,10 +352,13 @@ def main() -> int:
             "run_id": regression_run})
         if task.status_code == 201:
             task_id = task.json()["id"]
+            tasks.append(task_id)
             step("calibration.task", True, f"{task.json()['total']} items from the gate run")
             link = own.post(f"/api/annotation-tasks/{task_id}/links",
                             json={"label": "e2e SME", "expires_in_days": 1})
             step("calibration.link", link.status_code == 201, f"HTTP {link.status_code}")
+            if link.status_code == 201:
+                links.append((task_id, link.json()["id"], link.json()["token"]))
             token = link.json()["token"]
             anon = httpx.Client(base_url=args.base, timeout=60)  # no session, no header
             queue = anon.get(f"/share/annotate/{token}").json()
@@ -392,6 +399,13 @@ def main() -> int:
             restored = admin.put(f"/api/release-policies/{args.workspace}",
                                  json=policy_before.get("policy", {}))
             print(f"   release policy restored: HTTP {restored.status_code}")
+            for task_id, link_id, raw in links:
+                res = admin.delete(f"/api/annotation-tasks/{task_id}/links/{link_id}")
+                # and prove the token is really dead, not just marked revoked
+                anon = httpx.Client(base_url=args.base, timeout=30)
+                after = anon.get(f"/share/annotate/{raw}").status_code
+                print(f"   revoke annotation link {link_id}: HTTP {res.status_code} "
+                      f"· token now answers {after} (expected 404)")
             if agent_id:
                 res = admin.delete(f"/api/agents/{agent_id}")
                 print(f"   delete agent {agent_id}: HTTP {res.status_code}")
