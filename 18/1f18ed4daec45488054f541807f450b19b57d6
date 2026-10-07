@@ -1,0 +1,27 @@
+CODE_OF_CONDUCT.md
+  s_53a2f2bba8d550::t_0122899d02db38 1-4
+SECURITY.md
+  s_53a2f2bba8d550::t_4333cbb9f7f1cb 1-17
+CONTRIBUTING.md
+  s_53a2f2bba8d550::t_719ed726695f47 1-84
+README.md
+  s_53a2f2bba8d550::t_c1e7017d6ad2cc 313-322
+README.zh-CN.md
+  s_53a2f2bba8d550::t_b4138ee96f1d5e 271-280
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "181f18ed4daec45488054f541807f450b19b57d6",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "linyesh <linyesh@amazon.com>"
+    }
+  }
+}
