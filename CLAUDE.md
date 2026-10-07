@@ -111,6 +111,13 @@ under `.trellis/spec/launchpad/`.
   workspace *manages* it (bootstrap memory or a `managed_memories` row —
   `services/memory_ownership.py`): the AWS account is not the workspace boundary.
 
+- **A gated agent serves production through a named `live` endpoint.** `UpdateAgentRuntime`
+  / `UpdateHarness` auto-roll DEFAULT, so an agent with `endpoint_mode="live"` is invoked
+  with `qualifier="live"` on every path (`services/invoke.production_endpoint`) and a
+  deploy lands on `candidate` until the Agent-DLC gate is signed (`app/dlc/releases.py`).
+  A new invoke path must go through `production_endpoint`, or it bypasses the gate. The
+  criteria / golden-set / calibration / gate model is mapped in `docs/architecture.md`.
+
 - **System-managed presets are server-owned.** `Agent.system_key` (never settable via
   `AgentSpec`) marks a platform preset (`backend/app/system_agents/`); the ordinary
   redeploy/delete/convert routes refuse such rows before any AWS call, and admins

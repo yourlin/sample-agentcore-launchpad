@@ -1845,6 +1845,18 @@ Users 页面按账号编辑（审批时会分配授权，`PATCH /api/users/{id}`
 且不是 `default`。一次失败的运行已经开通出来的东西会留在目标账号里——响应中的
 `resource_keys` 会说明那是哪些资源种类。
 
+## Agent-DLC —— 判据、黄金集、校准与放行门
+
+完整设计见 [agent-dlc-design.zh-CN.md](agent-dlc-design.zh-CN.md)，英文版本节列出了逐个模块的实现细节。要点：
+
+- **模块**：服务在 `app/dlc/`，统计函数在 `app/evaluation/stats.py`，模型在 `app/models/dlc.py`，路由在 `app/routers/dlc.py`（控制台）与 `app/routers/share_annotate.py`（公开）。控制台页面为 `/v2/eval/standards`，以 `?view=` 切换九个子页。
+- **判据表**：按 `lineage_id` 版本化，发布即冻结，须由编辑人以外的人签署（`criteria.sign`）。红线不能交给大模型裁判；成本与性能必须是指标；裁判类判据在校准通过前实际档位为“观察”。
+- **黄金集**：开发集 / 回归集 / 保留集三个切分。`POST /api/golden-sets/{id}/seed` 是唯一写入保留集的路径，写入后即封存。
+- **放行门**：按固定顺序判定——红线 → 分母 → 各维度门限 → 观察项。证据不足判为 INVALID（无法判定），而不是不达标。
+- **流量前置门控**：门控智能体通过具名 `live` 端点对外服务，新版本部署到 `candidate`；签署后才把 `live` 指过去，回滚即重新指回，不删除任何资源。
+- **校准与标注链接**：标注期间对标注人隐藏裁判判定；数据不支持时拒绝判定为“一致”。标注链接（`/r/annotate/<token>`）让无账号的专家参与标注，prod 级工作区拒绝生成。
+- **权限**：新增 `criteria.manage`、`criteria.sign`、`golden.admit`、`judge.calibrate`、`waiver.approve`、`release.sign` 六项，关键写操作均在 `PROD_PROTECTED` 之列。
+
 ## Skill Lab —— 技能评估与训练（SkillOpt 集成）
 
 Skill Lab 闭合了一个其他控制台界面都不提供的环路:一条 Registry 技能记录在真实的 AgentCore

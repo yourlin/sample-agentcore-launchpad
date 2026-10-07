@@ -4002,6 +4002,105 @@ agent's own session memory does not contain it; a `rule` event is not forwarded 
 visitors; and rule matching runs on the whole prompt, so it is unsuited to multi-turn
 context.
 
+## Agent-DLC — criteria, golden sets, calibration and the release gate
+
+The design is [docs/agent-dlc-design.md](agent-dlc-design.md); this section is the map
+of what was built. The methodology's claim is *the release is decided by evaluation, not
+by a meeting*, so the platform owns four things it previously left to people: the
+standard (a criteria table), the evidence (a golden set), whether an LLM judge may stand
+in for a person (calibration), and the decision itself (a gate in front of traffic).
+
+**Modules.** `app/dlc/` holds the services — `criteria.py` (versions, templates,
+validation, sign-off, diff), `engine.py` (per-criterion verdicts from evaluation records,
+Wilson intervals, pass^k), `gate.py` (the four gates), `calibration.py` (blind labelling,
+Cohen's κ with bootstrap CI), `golden.py` (three splits), `releases.py` (named endpoints,
+sign/block/rollback, waivers), `cost.py`, `compare.py` (the fix ladder), `admission.py`,
+`watch.py` and `scheduler.py`. Pure statistics are in `app/evaluation/stats.py`. Models
+are `app/models/dlc.py` (11 workspace-scoped tables) plus additive columns on
+`eval_datasets`, `eval_runs` and `agents.endpoint_mode`. Routes are `app/routers/dlc.py`
+(console) and `app/routers/share_annotate.py` (public). The console is
+`/v2/eval/standards` with `?view=scorecard|criteria|golden|admission|calibration|release|watch|compare|audit`.
+
+**Criteria.** A criteria set is versioned under a `lineage_id`; publishing freezes a
+version, editing opens the next one, and a published agent set must be signed by someone
+other than its editor (`criteria.sign`). Validation is enforced, not advisory: a red line
+cannot be decided by an LLM judge; cost and performance criteria must be metrics; every
+dimension needs a criterion or an explicit `n/a:<dimension>` note; at least one red line.
+A judge criterion's *effective* tier is `observe` until a calibration record says it is
+aligned and unexpired — the editor, the gate and the scorecard all read the effective
+tier. Templates (`kind="template"`) are adopted explicitly into a new agent version; a
+newer template version is reported, never applied under the agent.
+
+**Golden sets.** A parent `EvalDataset` (`role="golden"`) groups three split datasets,
+each synced to its own AWS Dataset. Item provenance lives in `metadata.dlc` (case tier,
+criteria ids, origin, `expected_source`). `POST /api/golden-sets/{id}/seed`
+(`golden.admit`) is the **only** path that writes the holdout: it stratifies by case tier
+and then seals the holdout (`golden.holdout_sealed`). Item adds, moves and admission
+refuse the holdout. Coverage is criteria × case tier with `thin` (< 3 items) flagged.
+
+**Runs and pass^k.** AgentCore has no per-scenario repetition parameter, so
+`execute_run(repeats=k)` invokes each scenario k times in distinct sessions and records
+`attempts`; `GetBatchEvaluation` returns aggregates only, so `engine.finalize_run` reads
+per-session records from the evaluation output log stream and writes
+`criterion_results`. A run pinned to a release carries `endpoint_qualifier`, so the
+gate can prove which endpoint it invoked. Before a run, `POST /api/eval/runs/estimate`
+returns items × k × (agent per-session + judge per-item) with its basis named, and the
+workspace policy's `eval_cost_confirm_usd` / `eval_cost_max_usd` require confirmation or
+refuse.
+
+**The gate.** Applied in fixed order: red lines (any violation → BLOCKED, never
+waivable) → denominator (missing verdicts or > 5% undetermined → INVALID) →
+per-dimension thresholds at integer-percent precision (miss → BLOCKED unless an active
+waiver covers it) → observed criteria (recorded only). Provenance issues — an unsigned
+criteria version, a run against another version or endpoint, no holdout evaluated —
+also make the verdict INVALID. INVALID is not a failure: the evidence cannot decide.
+
+**Gate before traffic.** `UpdateAgentRuntime` / `UpdateHarness` auto-roll the DEFAULT
+endpoint, so a gated agent (`agents.endpoint_mode="live"`) serves production through a
+named `live` endpoint and every invoke path passes `qualifier="live"`
+(`services/invoke.production_endpoint`). With the workspace policy
+`release_mode="gated"`, `pipeline._finish` calls `releases.after_deploy`, which points
+`candidate` at the new version and opens a `ReleaseRecord`; `live` is untouched. Signing
+(`release.sign`, signer ≠ requester) re-points `live`; rollback re-points it to the
+previous version. Nothing is deleted. `POST /api/agents/{id}/release/migrate` moves an
+agent onto named endpoints. Waivers need a reason, a named risk owner, an expiry
+≤ 30 days and a second person (`waiver.approve`); the gate report counts how often a
+criterion has been waived.
+
+**Calibration and annotation links.** A labelling task hides the judge's verdict from
+annotators until it closes. `agreement` reports human–human κ, judge–human κ with a
+bootstrap CI, the confusion cells and the disagreements; `decide` refuses `aligned`
+when the numbers (κ floor, n ≥ minimum, not worse than human–human − 0.05) do not
+support it. A record expires after the workspace's `calibration.period_days`.
+Annotation links (`ShareLink.kind="annotate"`, page `/r/annotate/<token>`) let an expert
+label without an account: each link is appended to the task's annotators as
+`link_<id>`, the public route serves only the items and that annotator's own labels,
+and a **prod-tier workspace refuses to mint one** — a link issued while the workspace
+was dev stops resolving once it is prod.
+
+**Admission, watch, scheduler.** Admission candidates are collected from thumbs-down,
+SME corrections, the issue box and Insights clusters; a candidate the evaluators scored
+as a pass is ranked first. Admitting needs a human expected answer (`agent_observed` is
+refused), a redaction that did not block, and writes dev or regression only. A watch
+config re-runs the regression split daily/weekly with an optional cost ceiling; alerts
+are separated into count (page), score (against an 8-point rolling median, silent until
+the baseline exists) and distribution (TVD, naming the component that moved), and
+`quiet: true` is returned explicitly. `scheduler.py` runs on a daemon thread started
+next to `start_auto_refresh()`; each task is claimed through a conditional UPDATE on
+`scheduler_claims` so two processes never run the same tick.
+
+**Permissions.** Six keys join `AGENT_PERMISSIONS`: `criteria.manage` (member,
+operator), `criteria.sign`, `golden.admit`, `judge.calibrate` (granted to named people,
+never by role), `waiver.approve`, `release.sign` (operator). Every route is classified
+in `route_policy.py`; publish, sign, seed, item adds, admit, waiver approval, migrate,
+evaluate, release sign/block/rollback are `PROD_PROTECTED`. Decisions are written to
+`audit_events` and read back at `GET /api/audit`.
+
+**Known limits.** pass^k multiplies cost by k and is opt-in with the estimate shown;
+load and stress testing are out of scope; A/B experiments remain gateway-only with two
+variants; ground-truth evaluators cannot run online, so watch runs replay golden splits
+rather than scoring live traffic against expected answers.
+
 ## Skill Lab — skill evaluation & training (SkillOpt integration)
 
 Skill Lab closes a loop no other console surface offers: a Registry skill record
