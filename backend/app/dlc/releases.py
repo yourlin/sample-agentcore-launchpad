@@ -19,6 +19,7 @@ the target) and keep `live` in lock-step with the deploy.
 from __future__ import annotations
 
 import logging
+import time as _time
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -40,6 +41,14 @@ logger = logging.getLogger(__name__)
 LIVE = "live"
 CANDIDATE = "candidate"
 GATEABLE_METHODS = ("harness", "zip_runtime", "studio", "container", "byoc")
+# endpoint deletion is asynchronous; the resource delete that follows needs it finished
+ENDPOINT_DELETE_TIMEOUT_S = 180.0
+ENDPOINT_DELETE_POLL_S = 5.0
+
+
+def _sleep(seconds: float) -> None:
+    """Seam: the tests replace this instead of really waiting."""
+    _time.sleep(seconds)
 MAX_WAIVER_DAYS = 30
 OPEN_DECISIONS = ("pending", "evaluating", "blocked", "invalid")
 
@@ -197,6 +206,23 @@ def pending_for(db: Session, workspace_id: str, agent_id: str) -> ReleaseRecord 
             ReleaseRecord.decision.in_(OPEN_DECISIONS),
         ).order_by(ReleaseRecord.created_at.desc())
     ).first()
+
+
+def latest_decided(db: Session, workspace_id: str, agent_id: str) -> ReleaseRecord | None:
+    """The newest release record that carries a gate report, open or already decided.
+
+    The scorecard asks "what did the gate last say", which outlives the open release:
+    reading only the pending record made a freshly released agent show no verdict at all.
+    """
+    for row in db.scalars(
+        select(ReleaseRecord).where(
+            ReleaseRecord.workspace_id == workspace_id,
+            ReleaseRecord.agent_id == agent_id,
+        ).order_by(ReleaseRecord.created_at.desc()).limit(20)
+    ).all():
+        if (row.gate_report or {}).get("verdict"):
+            return row
+    return None
 
 
 def record_out(row: ReleaseRecord) -> dict[str, Any]:
@@ -595,38 +621,80 @@ def waiver_out(w: Waiver, *, history: int | None = None) -> dict[str, Any]:
     }
 
 
-def delete_endpoints(agent: Agent, control: Any, *, log: Any = None) -> list[dict[str, Any]]:
-    """Delete the named endpoints a gated agent serves through, before its resource.
+def _endpoint_gone(agent: Agent, control: Any, name: str) -> bool:
+    """True once AWS no longer knows this endpoint."""
+    try:
+        endpoint_version(control, agent, name)
+    except Exception as exc:  # noqa: BLE001 - any read failure is treated as "unknown"
+        if type(exc).__name__ in ("ResourceNotFoundException", "NotFoundException"):
+            return True
+        raise
+    return False
 
-    AgentCore will not delete a runtime/harness that still has endpoints, and an
-    orphaned `live` endpoint keeps serving a version nobody can see in the console. So
-    every delete path calls this first; each failure is reported rather than raised —
-    the agent delete itself must still proceed.
+
+def delete_endpoints(
+    agent: Agent, control: Any, *, log: Any = None, timeout_s: float = ENDPOINT_DELETE_TIMEOUT_S,
+) -> list[dict[str, Any]]:
+    """Delete the named endpoints a gated agent serves through, and WAIT for them.
+
+    AgentCore will not delete a runtime/harness that still has endpoints, and
+    `DeleteHarnessEndpoint` / `DeleteAgentRuntimeEndpoint` are asynchronous — the
+    endpoint sits in DELETING for a while. Returning as soon as the calls are issued
+    made the agent delete fail with "has endpoints that must be deleted first", which
+    is exactly the trap this function exists to avoid. So both deletes are issued
+    first (AWS removes them in parallel) and then each is waited out.
+
+    Every failure is reported rather than raised: a stuck endpoint must not make an
+    agent undeletable, and the caller's own delete will say so if it still cannot run.
     """
     out: list[dict[str, Any]] = []
     if not agent.resource_id or getattr(agent, "endpoint_mode", None) != "live":
         return out
+    issued: list[str] = []
     for name in (CANDIDATE, LIVE):
+        status = "deleted"
         try:
             if agent.method == "harness":
                 from app.services.agentcore import harness as hc
 
-                deleted = hc.delete_harness_endpoint(control, agent.resource_id, name)
-                status = "deleted" if deleted else "absent"
+                if not hc.delete_harness_endpoint(control, agent.resource_id, name):
+                    status = "absent"
             else:
                 from app.services.agentcore import runtime as rt
 
                 rt.delete_runtime_endpoint(control, runtime_id=agent.resource_id,
                                            endpoint_name=name)
-                status = "deleted"
         except Exception as exc:  # noqa: BLE001 — never block the agent's deletion
-            name_of = type(exc).__name__
-            status = "absent" if name_of in ("ResourceNotFoundException",
-                                             "NotFoundException") else f"skipped:{name_of}"
-            if not status.startswith("absent"):
-                logger.warning("agent %s: could not delete endpoint %s: %s: %s",
-                               agent.id, name, name_of, exc)
+            kind = type(exc).__name__
+            if kind in ("ResourceNotFoundException", "NotFoundException"):
+                status = "absent"
+            else:
+                # already DELETING from an earlier attempt still has to be waited out
+                status = "deleting" if kind == "ConflictException" else f"skipped:{kind}"
+                if status.startswith("skipped"):
+                    logger.warning("agent %s: could not delete endpoint %s: %s: %s",
+                                   agent.id, name, kind, exc)
+        if status in ("deleted", "deleting"):
+            issued.append(name)
         out.append({"endpoint": name, "status": status})
         if log:
             log(f"endpoint {name}: {status}")
+    deadline = _time.monotonic() + timeout_s
+    for name in issued:
+        row = next(r for r in out if r["endpoint"] == name)
+        while _time.monotonic() < deadline:
+            try:
+                if _endpoint_gone(agent, control, name):
+                    row["status"] = "deleted"
+                    break
+            except Exception as exc:  # noqa: BLE001
+                row["status"] = f"unknown:{type(exc).__name__}"
+                break
+            _sleep(ENDPOINT_DELETE_POLL_S)
+        else:
+            row["status"] = "timeout"
+            logger.warning("agent %s: endpoint %s still present after %ss",
+                           agent.id, name, timeout_s)
+        if log:
+            log(f"endpoint {name}: {row['status']}")
     return out

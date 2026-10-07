@@ -94,6 +94,7 @@
 .v2 .v2-dlc-dims .big { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .v2 .v2-dlc-dims .big.short { color: var(--v2-danger); }
 .v2 .v2-dlc-dims .sub { color: var(--v2-ink-3); font-size: 12px; margin-bottom: 4px; }
+.v2 .v2-dlc-dims .metric + .metric { margin-top: 8px; border-top: 1px solid var(--v2-line-2); padding-top: 8px; }
 
 /* criteria row editor */
 .v2 .v2-dlc-row { border: 1px solid var(--v2-line); border-radius: var(--v2-radius); padding: 14px; margin-bottom: 12px; }

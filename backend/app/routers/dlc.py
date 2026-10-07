@@ -1282,6 +1282,17 @@ def scorecard(
         members = [r for r in rows if r.dimension == dimension]
         entries = [summary.get(r.key) or {} for r in members]
         rates = [e.get("rate") for e in entries if e.get("rate") is not None]
+        # cost / performance criteria report a measured value against a rule, not a
+        # pass rate; a blank tile would read as "unmeasured" when it was measured
+        metrics = [
+            {"key": row.key, "metric": (row.metric_rule or {}).get("metric"),
+             "op": (row.metric_rule or {}).get("op", "<="),
+             "bound": (row.metric_rule or {}).get("value"),
+             "value": entry.get("value"), "verdict": entry.get("verdict"),
+             "n": entry.get("n")}
+            for row, entry in zip(members, entries, strict=True)
+            if (row.executor or {}).get("kind") == "metric"
+        ]
         gates = [
             r for r in members
             if criteria_svc.effective_tier(
@@ -1301,9 +1312,11 @@ def scorecard(
             "standard": min((r.threshold for r in gates if r.threshold is not None),
                             default=None),
             "series": series.get(dimension, []),
+            "metrics": metrics,
             "not_applicable": not members,
         })
-    pending = release_svc.pending_for(db, ws.id, agent.id)
+    # the last thing the gate said, which outlives the open release
+    last_gate = release_svc.latest_decided(db, ws.id, agent.id)
     open_waivers = db.scalars(
         select(Waiver).where(Waiver.workspace_id == ws.id, Waiver.agent_id == agent.id,
                              Waiver.status == "approved")
@@ -1320,7 +1333,9 @@ def scorecard(
         "criteria_set": criteria_svc.set_out(cset) if cset else None,
         "dimensions": dimensions,
         "last_run": {"id": latest.id, "at": latest.created_at.isoformat()} if latest else None,
-        "last_gate": (pending.gate_report or {}).get("verdict") if pending else None,
+        "last_gate": (last_gate.gate_report or {}).get("verdict") if last_gate else None,
+        "last_gate_decision": last_gate.decision if last_gate else None,
+        "last_gate_at": (last_gate.gate_report or {}).get("decided_at") if last_gate else None,
         "release": release_svc.live_state(None, agent),
         "open_waivers": [release_svc.waiver_out(w) for w in open_waivers],
         "calibration_debt": [

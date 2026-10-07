@@ -468,9 +468,12 @@ export function ReleaseGate({ agentId }: { agentId: string }) {
   const [note, setNote] = useState("");
   const state = useLoad<ReleaseState>(() => dlcApi.release(agentId), `release:${agentId}:${nonce}`);
   const pending = state.data?.pending ?? null;
+  // only ask for the report once runs exist: before that the server answers 409
+  // `release.not_evaluated`, which is an expected state, not something to report
+  const gated = Boolean(pending && (pending.run_ids ?? []).length > 0);
   const gate = useLoad(
-    () => (pending ? dlcApi.gate(agentId) : Promise.resolve(null)),
-    `gate:${agentId}:${pending?.id ?? "none"}:${nonce}`,
+    () => (gated ? dlcApi.gate(agentId) : Promise.resolve(null)),
+    `gate:${agentId}:${pending?.id ?? "none"}:${gated}:${nonce}`,
   );
   const estimate = useLoad(
     () => dlcApi.estimate({ agent_id: agentId, repeats }),

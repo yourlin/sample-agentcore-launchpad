@@ -317,10 +317,78 @@ def test_named_endpoints_are_deleted_before_the_resource(db, monkeypatch):
     deleted = []
     monkeypatch.setattr("app.services.agentcore.harness.delete_harness_endpoint",
                         lambda control, rid, name: deleted.append((rid, name)) or True)
+    monkeypatch.setattr(release_svc, "endpoint_version", _raises("ResourceNotFoundException"))
     out = release_svc.delete_endpoints(agent, object())
     # candidate first, then live: the one serving traffic goes last
     assert [name for _, name in deleted] == ["candidate", "live"]
     assert [row["status"] for row in out] == ["deleted", "deleted"]
+
+
+def _raises(kind, after=0):
+    """An `endpoint_version` that raises `kind` (optionally after N successful reads)."""
+    calls = {"n": 0}
+
+    def fn(control, agent, name):
+        calls["n"] += 1
+        if calls["n"] > after:
+            exc = type(kind, (Exception,), {})
+            raise exc("gone")
+        return "1"
+
+    return fn
+
+
+def test_endpoint_deletion_waits_for_aws_to_finish(db, monkeypatch):
+    """DeleteHarnessEndpoint is asynchronous; returning before the endpoint is really
+    gone made the agent delete fail with "has endpoints that must be deleted first"."""
+    from app.dlc import releases as release_svc
+
+    agent = _agent(db)
+    agent.method = "harness"
+    db.commit()
+    waits: list[float] = []
+    monkeypatch.setattr(release_svc, "_sleep", waits.append)
+    monkeypatch.setattr("app.services.agentcore.harness.delete_harness_endpoint",
+                        lambda control, rid, name: True)
+    # each endpoint is still there for two reads, then gone
+    monkeypatch.setattr(release_svc, "endpoint_version",
+                        _raises("ResourceNotFoundException", after=2))
+    out = release_svc.delete_endpoints(agent, object())
+    assert [row["status"] for row in out] == ["deleted", "deleted"]
+    assert waits, "it must actually wait, not just issue the delete"
+
+
+def test_an_endpoint_already_deleting_is_still_waited_out(db, monkeypatch):
+    from app.dlc import releases as release_svc
+
+    agent = _agent(db)
+    agent.method = "harness"
+    db.commit()
+    monkeypatch.setattr(release_svc, "_sleep", lambda s: None)
+
+    def conflict(control, rid, name):
+        raise type("ConflictException", (Exception,), {})("already DELETING")
+
+    monkeypatch.setattr("app.services.agentcore.harness.delete_harness_endpoint", conflict)
+    monkeypatch.setattr(release_svc, "endpoint_version",
+                        _raises("ResourceNotFoundException", after=1))
+    out = release_svc.delete_endpoints(agent, object())
+    assert [row["status"] for row in out] == ["deleted", "deleted"]
+
+
+def test_a_stuck_endpoint_times_out_rather_than_hanging(db, monkeypatch):
+    from app.dlc import releases as release_svc
+
+    agent = _agent(db)
+    agent.method = "harness"
+    db.commit()
+    monkeypatch.setattr(release_svc, "_sleep", lambda s: None)
+    monkeypatch.setattr("app.services.agentcore.harness.delete_harness_endpoint",
+                        lambda control, rid, name: True)
+    monkeypatch.setattr(release_svc, "endpoint_version", lambda control, agent, name: "1")
+    out = release_svc.delete_endpoints(agent, object(), timeout_s=0.01)
+    # reported, not raised: a stuck endpoint must not make an agent undeletable
+    assert [row["status"] for row in out] == ["timeout", "timeout"]
 
 
 def test_a_missing_endpoint_is_absent_not_an_error(db, monkeypatch):
@@ -337,6 +405,7 @@ def test_a_missing_endpoint_is_absent_not_an_error(db, monkeypatch):
         raise _Gone("gone")
 
     monkeypatch.setattr("app.services.agentcore.runtime.delete_runtime_endpoint", boom)
+    monkeypatch.setattr(release_svc, "_sleep", lambda s: None)
     out = release_svc.delete_endpoints(agent, object())
     assert [row["status"] for row in out] == ["absent", "absent"]
 

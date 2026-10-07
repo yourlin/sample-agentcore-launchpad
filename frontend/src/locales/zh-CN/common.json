@@ -7178,7 +7178,9 @@
         "openWaivers": "生效中的豁免",
         "thinCriteria": "样本过少的判据",
         "thinSub": "少于三条样本：通过率是噪声。",
-        "reason": "原因"
+        "reason": "原因",
+        "lastGate": "最近一次放行判定",
+        "neverGated": "从未经过放行门"
       },
       "audit": {
         "title": "决策记录",

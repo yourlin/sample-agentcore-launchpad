@@ -367,6 +367,22 @@ export function DimensionTiles({ dimensions }: { dimensions: ScorecardDimension[
             </div>
             {d.not_applicable ? (
               <p className="v2-dlc-empty">{t("v2.dlc.scorecard.notApplicable")}</p>
+            ) : d.current === null && d.metrics.length > 0 ? (
+              // a measured metric, not a pass rate: show the value against its bound
+              <>
+                {d.metrics.map((m) => (
+                  <div key={m.key} className="metric">
+                    <div className={`big${m.verdict === "fail" ? " short" : ""}`}>
+                      {m.value === null ? "—" : Math.round(m.value).toLocaleString()}
+                    </div>
+                    <div className="sub">
+                      {t(`v2.dlc.metric.${m.metric}`, { defaultValue: m.metric ?? m.key })}{" "}
+                      {m.op} {m.bound === null ? "—" : m.bound.toLocaleString()}
+                      {typeof m.n === "number" ? ` · ${t("v2.dlc.nOf", { n: m.n })}` : ""}
+                    </div>
+                  </div>
+                ))}
+              </>
             ) : (
               <>
                 <div className={`big${short ? " short" : ""}`}>{pct(d.current)}</div>

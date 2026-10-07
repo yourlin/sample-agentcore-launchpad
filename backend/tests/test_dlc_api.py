@@ -614,3 +614,41 @@ def test_a_task_run_over_a_golden_split_is_scored_against_its_criteria(engineer,
     assert kw["repeats"] == 3 and kw["split"] == "regression"
     assert kw["criteria_set_version"] == 1 and kw["criteria_set_id"]
     assert kw["cost_estimate"]["sessions"] == 6
+
+
+def test_a_metric_dimension_reports_its_measurement_not_a_blank(engineer, owner,
+                                                                monkeypatch):
+    """Cost and performance criteria measure a value against a rule, so the five-dimension
+    scorecard must show that value — a dash reads as "never measured"."""
+    agent_id = _agent()
+    lineage = _create_set(engineer, agent_id)
+    saved = engineer.put(f"/api/criteria-sets/{lineage}", json={"criteria": [
+        {**CRITERIA[0], "notes": "n/a:cognition n/a:cost"},
+        CRITERIA[1],
+        {"key": "L1", "text": "answers inside 3s at P95", "dimension": "performance",
+         "tier": "gate", "executor": {"kind": "metric"},
+         "metric_rule": {"metric": "latency_p95_ms", "op": "<=", "value": 3000}},
+    ]})
+    assert saved.status_code == 200, saved.text
+    engineer.post(f"/api/criteria-sets/{lineage}/publish", json={})
+    _golden(engineer, lineage, seeder=owner)
+    db = SessionLocal()
+    try:
+        run = EvalRun(workspace_id=WS, agent_id=agent_id, agent_name="a", status="completed",
+                      criteria_set_id=engineer.get(f"/api/criteria-sets/{lineage}").json()
+                      ["set"]["id"],
+                      criteria_set_version=1, split="regression", agent_version="2")
+        run.criteria_summary = {"criteria": {
+            "L1": {"key": "L1", "kind": "metric", "tier": "gate", "dimension": "performance",
+                   "value": 1146.9, "n": 3, "verdict": "pass",
+                   "rule": {"metric": "latency_p95_ms", "op": "<=", "value": 3000}},
+        }}
+        db.add(run)
+        db.commit()
+    finally:
+        db.close()
+    card = engineer.get(f"/api/agents/{agent_id}/scorecard").json()
+    perf = next(d for d in card["dimensions"] if d["dimension"] == "performance")
+    assert perf["not_applicable"] is False
+    assert perf["metrics"] == [{"key": "L1", "metric": "latency_p95_ms", "op": "<=",
+                               "bound": 3000, "value": 1146.9, "verdict": "pass", "n": 3}]

@@ -806,6 +806,16 @@ export interface ScorecardDimension {
   current: number | null;
   standard: number | null;
   series: DimensionPoint[];
+  /** cost / performance criteria measure a value against a rule, not a pass rate */
+  metrics: {
+    key: string;
+    metric: string | null;
+    op: string;
+    bound: number | null;
+    value: number | null;
+    verdict: string | null;
+    n: number | null;
+  }[];
   not_applicable: boolean;
 }
 
@@ -816,6 +826,9 @@ export interface Scorecard {
   dimensions: ScorecardDimension[];
   last_run: { id: string; at: string } | null;
   last_gate: GateVerdict | null;
+  /** What became of that gate's release — `released`, `blocked`, still waiting… */
+  last_gate_decision: ReleaseRecord["decision"] | null;
+  last_gate_at: string | null;
   release: LiveState;
   open_waivers: Waiver[];
   calibration_debt: { criterion_key: string; reason?: string }[];

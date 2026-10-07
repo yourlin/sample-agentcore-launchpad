@@ -43,6 +43,14 @@ export function Scorecard({ agentId }: { agentId: string }) {
             { label: t("v2.dlc.release.endpointModeLabel"), value: t(`v2.dlc.release.endpointMode.${data.release.endpoint_mode}`) },
             { label: t("v2.dlc.scorecard.lastRun"), value: data.last_run?.at?.slice(0, 16).replace("T", " ") ?? "—" },
             {
+              label: t("v2.dlc.scorecard.lastGate"),
+              value: data.last_gate
+                ? `${data.last_gate} · ${t(`v2.dlc.release.decision.${data.last_gate_decision ?? "open"}`)}${
+                    data.last_gate_at ? ` · ${data.last_gate_at.slice(0, 16).replace("T", " ")}` : ""
+                  }`
+                : t("v2.dlc.scorecard.neverGated"),
+            },
+            {
               label: t("v2.dlc.scorecard.alerts"),
               value: data.alerts.quiet ? t("v2.dlc.watch.noneFiring") : String(data.alerts.firing),
             },

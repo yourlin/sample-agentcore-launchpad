@@ -7178,7 +7178,9 @@
         "openWaivers": "Live waivers",
         "thinCriteria": "Criteria with too few items",
         "thinSub": "Fewer than three items: the rate is noise.",
-        "reason": "Why"
+        "reason": "Why",
+        "lastGate": "Last gate",
+        "neverGated": "Never gated"
       },
       "audit": {
         "title": "Decision history",
