@@ -310,7 +310,7 @@ def snapshot_rows(db: Session, run: EvalRun, results: list[dict[str, Any]]) -> N
 
 
 def read_records(run: EvalRun, workspace: Any) -> list[dict[str, Any]]:
-    from app.services.aws_clients import data_client
+    from app.services.agentcore.client import data_client
 
     detail = ac.get_batch_evaluation(data_client(workspace), batch_id=run.batch_eval_id)
     location = ac.results_stream(detail)

@@ -452,6 +452,18 @@ def _bearer_auth_error(exc: rt.RuntimeBearerAuthError, agent: Agent) -> AppError
     )
 
 
+LIVE_ENDPOINT = "live"
+
+
+def production_endpoint(agent: Agent) -> dict[str, str]:
+    """The `qualifier` production traffic uses: the named `live` endpoint once the
+    agent is migrated (it only moves when a release is decided), else DEFAULT —
+    the historical behaviour (docs/agent-dlc-design.md §6)."""
+    if getattr(agent, "endpoint_mode", None) == "live":
+        return {"qualifier": LIVE_ENDPOINT}
+    return {}
+
+
 def invoke_agent_text(
     agent: Agent,
     prompt: str,
@@ -553,6 +565,7 @@ def _dispatch_invoke(
                 session_id=session_id,
                 actor_id=actor_id,
                 **kwargs,
+                **production_endpoint(agent),
             )
         except rt.RuntimeBearerAuthError as exc:
             raise _bearer_auth_error(exc, agent) from exc
@@ -584,6 +597,7 @@ def _dispatch_invoke(
             session_id=session_id,
             actor_id=actor_id,
             **harness_kwargs,
+            **production_endpoint(agent),
         )
     if agent.method in ("zip_runtime", "studio", "container", "byoc", DISCOVERED_METHOD):
         # A2A-protocol runtimes speak JSON-RPC; the A2A server owns
@@ -627,7 +641,7 @@ def _dispatch_invoke(
         if force_reauth:
             kwargs["force_reauth_providers"] = force_reauth
         result = rt.invoke_runtime_text(
-            data_client(workspace), agent.arn, prompt, **kwargs
+            data_client(workspace), agent.arn, prompt, **kwargs, **production_endpoint(agent)
         )
         if result.get("auth_required"):
             result["auth_required"] = _record_auth_sessions(
@@ -725,6 +739,7 @@ def invoke_agent_events(
                 session_id=session_id,
                 actor_id=actor_id,
                 **kwargs,
+                **production_endpoint(agent),
             ):
                 if event.get("event") == "auth_required":
                     event = {
@@ -759,7 +774,7 @@ def invoke_agent_events(
         if force_reauth:
             kwargs["force_reauth_providers"] = force_reauth
         for event in rt.stream_runtime_events(
-            data_client(workspace), agent.arn, prompt, **kwargs
+            data_client(workspace), agent.arn, prompt, **kwargs, **production_endpoint(agent)
         ):
             if event.get("event") == "auth_required":
                 event = {

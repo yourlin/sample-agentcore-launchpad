@@ -1,0 +1,258 @@
+"""Gate before traffic: live / candidate endpoints, release records, rollback, waivers."""
+
+from datetime import UTC, datetime, timedelta
+from types import SimpleNamespace
+
+import pytest
+
+from app.core.db import DEFAULT_WORKSPACE_ID, SessionLocal
+from app.core.errors import AppError
+from app.dlc import criteria as criteria_svc
+from app.dlc import golden as golden_svc
+from app.dlc import releases
+from app.evaluation.models import EvalDataset, EvalRun
+from app.models.dlc import CriteriaSet, Criterion, ReleaseRecord, Waiver
+from app.models.ledger import Agent, Workspace
+
+WS = DEFAULT_WORKSPACE_ID
+
+
+class FakeEndpoints:
+    """Stands in for the control client: named endpoints → versions."""
+
+    def __init__(self, live=None):
+        self.endpoints = {} if live is None else {"live": live}
+        self.calls = []
+
+
+@pytest.fixture
+def ep(monkeypatch):
+    fake = FakeEndpoints()
+
+    def point(control, agent, name, version):
+        fake.calls.append((name, str(version)))
+        fake.endpoints[name] = str(version)
+        return {"liveVersion": str(version)}
+
+    monkeypatch.setattr(releases, "point_endpoint", point)
+    monkeypatch.setattr(releases, "endpoint_version",
+                        lambda control, agent, name: fake.endpoints.get(name))
+    monkeypatch.setattr("app.services.agentcore.client.control_client", lambda ctx: fake)
+    return fake
+
+
+@pytest.fixture
+def db():
+    session = SessionLocal()
+    try:
+        for model in (ReleaseRecord, Waiver, Criterion, CriteriaSet, EvalRun):
+            session.query(model).delete()
+        session.query(EvalDataset).filter(EvalDataset.role == "golden").delete()
+        session.query(Agent).filter(Agent.name.like("rel-%")).delete()
+        ws = session.get(Workspace, WS)
+        ws.release_policy = {}
+        session.commit()
+        yield session
+    finally:
+        session.rollback()
+        ws = session.get(Workspace, WS)
+        ws.release_policy = {}
+        session.commit()
+        session.close()
+
+
+def _agent(db, mode="live", version="3"):
+    agent = Agent(workspace_id=WS, name=f"rel-{version}", method="zip_runtime",
+                  status="active", spec={"name": "rel"}, version=version,
+                  resource_id="rt_rel-abc", endpoint_mode=mode, owner="dev1")
+    db.add(agent)
+    db.commit()
+    return agent
+
+
+def _gated(db):
+    ws = db.get(Workspace, WS)
+    ws.release_policy = {"release_mode": "gated"}
+    db.commit()
+
+
+def _criteria(db, agent, signed=True):
+    s = criteria_svc.create_set(db, WS, kind="agent", agent_id=agent.id, name="c", actor="biz")
+    criteria_svc.save_draft(db, s, [
+        {"key": "R1", "text": "agent never leaks", "dimension": "responsibility",
+         "tier": "redline", "executor": {"kind": "evaluator", "evaluator_id": "code-pii"},
+         "notes": "n/a:cognition n/a:cost n/a:performance (test fixture)"},
+        {"key": "G1", "text": "agent quotes stock", "dimension": "quality", "tier": "gate",
+         "threshold": 0.9, "executor": {"kind": "evaluator", "evaluator_id": "code-stock"}},
+    ], actor="biz", kind_of=lambda _e: "code")
+    criteria_svc.publish(db, s, actor="biz")
+    if signed:
+        criteria_svc.sign(db, s, actor="owner", note="", is_admin=False)
+    db.commit()
+    return s
+
+
+def test_direct_mode_keeps_live_in_lock_step(db, ep):
+    agent = _agent(db)
+    releases.after_deploy(db, agent, note=None, actor="dev1")
+    assert ep.endpoints["live"] == "3" and "candidate" not in ep.endpoints
+    assert db.query(ReleaseRecord).count() == 0
+
+
+def test_default_mode_agents_are_untouched(db, ep):
+    agent = _agent(db, mode="default")
+    releases.after_deploy(db, agent, note=None, actor="dev1")
+    assert ep.calls == []
+
+
+def test_gated_mode_opens_a_release_on_candidate(db, ep):
+    _gated(db)
+    ep.endpoints["live"] = "2"
+    agent = _agent(db, version="3")
+    cset = _criteria(db, agent)
+    releases.after_deploy(db, agent, note=None, actor="dev1")
+    assert ep.endpoints == {"live": "2", "candidate": "3"}  # production stays on v2
+    record = db.query(ReleaseRecord).one()
+    assert record.decision == "pending" and record.previous_live_version == "2"
+    assert record.criteria_set_id == cset.id and record.requested_by == "dev1"
+
+
+def test_a_promotion_deploy_stays_in_lock_step_even_when_gated(db, ep):
+    _gated(db)
+    agent = _agent(db)
+    releases.after_deploy(db, agent, note="promotion p1", actor="ops")
+    assert ep.endpoints["live"] == "3"
+
+
+def _golden(db, cset, agent):
+    parent = golden_svc.create(db, WS, name="g", criteria_lineage_id=cset.lineage_id,
+                               actor="biz")
+    splits = golden_svc.splits_of(db, parent)
+    item = {"scenario_id": "s1", "turns": [{"input": "hi"}]}
+    golden_svc.add_items(db, splits["regression"], [item], actor="biz")
+    golden_svc.add_items(db, splits["holdout"], [dict(item, scenario_id="h1")], actor="biz",
+                         allow_holdout=True)
+    db.commit()
+
+
+def _submitted(db):
+    submitted = []
+
+    def submit(**kw):
+        run = EvalRun(workspace_id=WS, agent_id=kw["agent"].id, agent_name="a",
+                      status="queued", endpoint_qualifier=kw["qualifier"],
+                      agent_version=kw["agent_version"], split=kw["split"],
+                      criteria_set_id=kw["criteria_set_id"], repeats=kw["repeats"])
+        db.add(run)
+        db.flush()
+        submitted.append(kw)
+        return run
+
+    return submit, submitted
+
+
+def _complete(db, record, *, r1_fail=0):
+    for rid in record.run_ids:
+        run = db.get(EvalRun, rid)
+        run.status = "completed"
+        run.criteria_summary = {"criteria": {
+            "R1": {"kind": "evaluator", "pass": 10 - r1_fail, "fail": r1_fail, "n": 10,
+                   "expected": 10, "missing": 0, "inconclusive": 0, "error": 0},
+            "G1": {"kind": "evaluator", "pass": 10, "fail": 0, "n": 10, "expected": 10,
+                   "missing": 0, "inconclusive": 0, "error": 0},
+        }}
+    db.commit()
+
+
+def test_gate_evaluate_sign_and_rollback(db, ep):
+    _gated(db)
+    ep.endpoints["live"] = "2"
+    agent = _agent(db, version="3")
+    cset = _criteria(db, agent)
+    _golden(db, cset, agent)
+    releases.after_deploy(db, agent, note=None, actor="dev1")
+    record = db.query(ReleaseRecord).one()
+    submit, submitted = _submitted(db)
+    run_ids = releases.start_evaluation(db, record, agent, SimpleNamespace(), actor="dev1",
+                                        submit=submit)
+    assert len(run_ids) == 2 and {s["split"] for s in submitted} == {"regression", "holdout"}
+    assert all(s["qualifier"] == "candidate" and s["agent_version"] == "3" for s in submitted)
+    assert releases.evaluate(db, record)["status"] == "evaluating"
+    _complete(db, record)
+    out = releases.evaluate(db, record)
+    assert out["report"]["verdict"] == "PASS", out["report"]
+    with pytest.raises(AppError) as exc:
+        releases.sign(db, record, agent, ep, actor="dev1")
+    assert exc.value.code == "release.self_sign"
+    releases.sign(db, record, agent, ep, actor="ops")
+    assert ep.endpoints["live"] == "3" and record.decision == "released"
+    rolled = releases.rollback(db, agent, ep, actor="ops")
+    assert rolled["live_version"] == "2" and ep.endpoints["live"] == "2"
+
+
+def test_a_red_line_violation_blocks_the_release(db, ep):
+    _gated(db)
+    agent = _agent(db)
+    cset = _criteria(db, agent)
+    _golden(db, cset, agent)
+    releases.after_deploy(db, agent, note=None, actor="dev1")
+    record = db.query(ReleaseRecord).one()
+    submit, _ = _submitted(db)
+    releases.start_evaluation(db, record, agent, SimpleNamespace(), actor="dev1", submit=submit)
+    _complete(db, record, r1_fail=1)
+    assert releases.evaluate(db, record)["report"]["verdict"] == "BLOCKED"
+    assert record.decision == "blocked"
+    with pytest.raises(AppError) as exc:
+        releases.sign(db, record, agent, ep, actor="ops")
+    assert exc.value.code == "release.gate_not_passed"
+
+
+def test_unsigned_criteria_make_the_report_invalid(db, ep):
+    _gated(db)
+    agent = _agent(db)
+    cset = _criteria(db, agent, signed=False)
+    _golden(db, cset, agent)
+    releases.after_deploy(db, agent, note=None, actor="dev1")
+    record = db.query(ReleaseRecord).one()
+    submit, _ = _submitted(db)
+    releases.start_evaluation(db, record, agent, SimpleNamespace(), actor="dev1", submit=submit)
+    _complete(db, record)
+    report = releases.evaluate(db, record)["report"]
+    assert report["verdict"] == "INVALID"
+    assert any("not signed" in i for i in report["provenance"]["issues"])
+
+
+def test_waiver_rules(db, ep):
+    agent = _agent(db)
+    _criteria(db, agent)
+    soon = datetime.now(UTC) + timedelta(days=7)
+    with pytest.raises(AppError) as exc:
+        releases.request_waiver(db, workspace_id=WS, agent_id=agent.id, criterion_key="R1",
+                                actual=0.9, threshold=None, reason="x", risk_owner="r",
+                                compensating_control="", expires_on=soon, actor="dev1")
+    assert exc.value.code == "waiver.redline"
+    with pytest.raises(AppError) as exc:
+        releases.request_waiver(db, workspace_id=WS, agent_id=agent.id, criterion_key="G1",
+                                actual=0.8, threshold=0.9, reason="x", risk_owner="r",
+                                compensating_control="", actor="dev1",
+                                expires_on=datetime.now(UTC) + timedelta(days=60))
+    assert exc.value.code == "waiver.too_long"
+    waiver = releases.request_waiver(db, workspace_id=WS, agent_id=agent.id,
+                                     criterion_key="G1", actual=0.8, threshold=0.9,
+                                     reason="vendor outage", risk_owner="risk-lead",
+                                     compensating_control="manual review", expires_on=soon,
+                                     actor="dev1")
+    with pytest.raises(AppError):
+        releases.decide_waiver(db, waiver, actor="dev1", approve=True)
+    releases.decide_waiver(db, waiver, actor="risk-lead", approve=True)
+    assert waiver.status == "approved"
+    assert releases.waiver_out(waiver)["active"] is True
+
+
+def test_gateable_rules():
+    agent = Agent(method="harness", spec={}, resource_id="h", version="1")
+    assert releases.gateable(agent) == (True, None)
+    assert releases.gateable(Agent(method="discovered", spec={}, resource_id="x",
+                                   version="1"))[0] is False
+    assert releases.gateable(Agent(method="zip_runtime", spec={"protocol": "a2a"},
+                                   resource_id="x", version="1"))[0] is False

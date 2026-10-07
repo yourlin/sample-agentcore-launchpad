@@ -148,6 +148,26 @@ def normalize_policy(raw: dict[str, Any]) -> dict[str, Any]:
                 }
             )
         out["freezes"] = cleaned
+    # Agent-DLC (docs/agent-dlc-design.md §6.2, §4.4)
+    if raw.get("release_mode") is not None:
+        if raw["release_mode"] not in ("direct", "gated"):
+            raise AppError(
+                "release_policy.invalid", "release_mode must be 'direct' or 'gated'",
+                status_code=422,
+            )
+        out["release_mode"] = raw["release_mode"]
+    if raw.get("calibration") is not None:
+        from app.dlc.calibration import normalize_policy as normalize_calibration
+
+        out["calibration"] = normalize_calibration(raw["calibration"])
+    if raw.get("eval_cost_confirm_usd") is not None or raw.get("eval_cost_max_usd") is not None:
+        for key in ("eval_cost_confirm_usd", "eval_cost_max_usd"):
+            value = raw.get(key)
+            if value is None:
+                continue
+            if isinstance(value, bool) or not isinstance(value, int | float) or value < 0:
+                raise AppError("release_policy.invalid", f"{key} must be ≥ 0", status_code=422)
+            out[key] = float(value)
     return out
 
 

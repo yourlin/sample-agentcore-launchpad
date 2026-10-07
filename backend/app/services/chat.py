@@ -187,6 +187,9 @@ def _harness_events(
         params["runtimeUserId"] = runtime_user_id
     if gateway_access_token:
         params.update(harness_user_overrides(agent, workspace, gateway_access_token))
+    from app.services.invoke import production_endpoint
+
+    params.update(production_endpoint(agent))
     response = data_client(workspace).invoke_harness(
         **params,
     )
