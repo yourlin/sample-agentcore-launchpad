@@ -844,6 +844,31 @@ def bootstrap_workspace(
     }
 
 
+@router.post("/{workspace_id}/observability/repair")
+def repair_workspace_observability(
+    workspace_id: str,
+    db: Session = Depends(get_db),
+    _: Identity = Depends(require_admin),
+) -> dict[str, Any]:
+    """Turn Transaction Search on for a ready workspace whose bootstrap could not.
+
+    Bootstrap's observability stage degrades instead of failing, so a workspace can
+    be READY with no `aws/spans` group — every trace, observability view and
+    evaluation there then reads nothing. This re-runs just that stage, idempotently.
+    """
+    row = _requested_row(db, workspace_id)
+    if row.bootstrap_status != READY:
+        raise AppError(
+            "workspace.not_ready",
+            "repair a workspace once its bootstrap has finished; until then the "
+            "bootstrap job itself runs this stage",
+            status_code=409,
+        )
+    out = workspace_bootstrap.repair_observability(workspace_context(row),
+                                                   workspace_id=row.id)
+    return {"workspace_id": row.id, **out}
+
+
 @router.get("/{workspace_id}/bootstrap")
 def bootstrap_status(
     workspace_id: str,

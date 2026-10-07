@@ -1084,6 +1084,22 @@ def _stage_observability(ctx: BootstrapContext) -> str:
     return "transaction search active" + ("" if state.get("changed") else " (already)")
 
 
+def repair_observability(workspace: WorkspaceContext, *, workspace_id: str,
+                         log: Callable[[str], None] = lambda _msg: None) -> dict[str, Any]:
+    """Re-run only the observability stage on an already-ready workspace.
+
+    The stage degrades rather than fails (an environment that deploys and invokes is
+    worth having), so a workspace can reach READY with Transaction Search off — e.g.
+    when the role lacked a permission at bootstrap time. A full re-bootstrap is
+    refused on a ready workspace, so without this the only fix was by hand. Returns
+    the same detail string the stage records, plus whether it is active now.
+    """
+    ctx = BootstrapContext(workspace_id=workspace_id, job_id="repair-observability",
+                           workspace=workspace, log=log)
+    detail = _stage_observability(ctx)
+    return {"detail": detail, "active": detail.startswith("transaction search active")}
+
+
 # ── stage: finalize ────────────────────────────────────────────────────────
 
 

@@ -144,6 +144,8 @@ English: [troubleshooting.md](troubleshooting.md)
 | `409 run.cost_over_limit` / `run.cost_confirm_required` | 工作区的成本闸门。detail 带预估值；超过上限的运行只有管理员能发起，`confirm_cost: true` 表示已确认成本 |
 | `422 run.repeats_scope` | pass^k 是对智能体回放数据集用例——它无法重复历史会话或日志源 |
 | `409 watch.over_cost_ceiling` | 排程重评的预估成本超过上限，于是被跳过并上报，而不是先花掉。调高 `max_cost_usd` 或缩小切分 |
+| 新区域的工作区显示 `ready`，但追踪、可观测性和评估都是空的；bootstrap 的 observability 阶段显示 `unavailable · AccessDeniedException` | 该区域的 Transaction Search 没有开启。用当前 `infra/spoke/` 模板更新工作区角色（或 hub 角色）——模板已补齐 `UpdateTraceSegmentDestination` 代表调用方执行操作所需的权限——然后由管理员调用 `POST /api/workspaces/{id}/observability/repair` 只重跑这一阶段，无需重新 bootstrap |
+| 批量评估报 `FAS credentials do not have permission to create CloudWatch log groups` | 角色早于 `EvaluationResultLogGroups` 这条权限：AgentCore 用调用方的凭证创建评估结果日志组。用当前 `infra/spoke/` 模板更新角色 |
 | `409 annotation.links_not_allowed` | prod 级工作区不发放无账号标注链接：那里的标注会接触真实客户会话。请把标注人邀请为成员并授予 `judge.calibrate` |
 | 标注链接返回 `404 share.not_found` | 所有不可用状态刻意返回同一个答案（未知、已撤销、已过期、任务已删，或工作区升为 prod）。重新生成一个链接 |
 | `403 calibration.own_labels` | 你参与产生了这个任务的标注（作为标注人、仲裁人，或发放过它的标注链接），因此不能同时裁定它的裁判。请让另一位持 `judge.calibrate` 的人（或管理员）记录结论 |

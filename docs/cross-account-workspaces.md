@@ -22,6 +22,15 @@ first use, with a one-hour session that refreshes itself, and every client it
 builds for that workspace is keyed on `(account, region, role)` — so a spoke's
 work can never accidentally sign with the hub's own credentials.
 
+> **Updating an existing role.** The permission set grows when a live deployment
+> finds a call AgentCore makes with the caller's credentials. Two such additions came
+> from a three-region deployment test: the Transaction Search statements (without them
+> a fresh region gets no `aws/spans` group and its traces and evaluations are empty)
+> and `EvaluationResultLogGroups` (batch evaluation creates its results log group as
+> the caller). Re-deploy the stack from the current template to pick them up, then run
+> `POST /api/workspaces/{id}/observability/repair` for any workspace already marked
+> `ready` with observability unavailable.
+
 ## Setup
 
 Three steps, in this order, plus an optional access check between the last two.

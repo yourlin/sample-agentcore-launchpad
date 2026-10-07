@@ -677,6 +677,7 @@ ROUTE_POLICY: dict[tuple[str, str], str] = {
     ("DELETE", "/api/workspaces/{workspace_id}"): ADMIN,
     ("POST", "/api/workspaces/{workspace_id}/purge"): ADMIN,
     ("POST", "/api/workspaces/{workspace_id}/bootstrap"): ADMIN,
+    ("POST", "/api/workspaces/{workspace_id}/observability/repair"): ADMIN,
     ("GET", "/api/workspaces/{workspace_id}/bootstrap"): ADMIN,
     ("GET", "/api/workspaces/{workspace_id}/grants"): ADMIN,
     # Bulk grant/revoke from the workspace's side (per-user replacement stays on
@@ -766,6 +767,7 @@ WORKSPACE_EXEMPT: frozenset[tuple[str, str]] = frozenset(
         # Operates ON a workspace that is not usable yet; the target is the path
         # parameter, not the caller's X-Workspace header.
         ("POST", "/api/workspaces/{workspace_id}/bootstrap"),
+        ("POST", "/api/workspaces/{workspace_id}/observability/repair"),
         ("GET", "/api/workspaces/{workspace_id}/bootstrap"),
         ("GET", "/api/workspaces/{workspace_id}/grants"),
         ("PUT", "/api/workspaces/{workspace_id}/grants"),
