@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   Sparkles,
   SquareStack,
+  Scale,
   Target,
   Users,
   Wallet,
@@ -115,6 +116,9 @@ export const V2_NAV: V2NavGroup[] = [
       { to: "/v2/eval/tasks", labelKey: "v2.nav.tasks", icon: ListChecks, v2: true },
       { to: "/v2/eval/online", labelKey: "v2.nav.online", icon: Radar, v2: true, hintKey: "glossary.onlineEvaluation" },
       { to: "/v2/eval/evaluators", labelKey: "v2.nav.evaluators", icon: Target, v2: true, hintKey: "glossary.evaluator" },
+      // Agent-DLC: the criteria table, the golden set, the gate and the drift watch —
+      // the business owner's surface, so it rides in the pared-down sidebar too
+      { to: "/v2/eval/standards", labelKey: "v2.nav.standards", icon: Scale, v2: true, business: true, hintKey: "glossary.criteria" },
       { to: "/v2/eval/experiments", labelKey: "v2.nav.experiments", icon: FlaskConical, v2: true, hintKey: "glossary.experiment" },
       // Skill Lab evaluates and trains Skills against task sets — an evaluation surface
       { to: "/v2/skill-lab", labelKey: "nav.skillLab", icon: BrainCircuit, v2: true, hintKey: "glossary.skill" },

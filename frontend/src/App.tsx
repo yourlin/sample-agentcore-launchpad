@@ -117,6 +117,7 @@ const V2Intents = lazy(() => import("./v2/pages/Intents").then((m) => ({ default
 const V2Issues = lazy(() => import("./v2/pages/Issues").then((m) => ({ default: m.V2Issues })));
 const V2Costs = lazy(() => import("./v2/pages/Costs").then((m) => ({ default: m.V2Costs })));
 const V2Promotions = lazy(() => import("./v2/pages/Promotions").then((m) => ({ default: m.V2Promotions })));
+const V2Standards = lazy(() => import("./v2/pages/Standards").then((m) => ({ default: m.V2Standards })));
 const V2Environments = lazy(() => import("./v2/pages/Environments").then((m) => ({ default: m.V2Environments })));
 const V2Workspaces = lazy(() => import("./v2/pages/Workspaces").then((m) => ({ default: m.V2Workspaces })));
 const V2Connections = lazy(() => import("./v2/pages/Connections").then((m) => ({ default: m.V2Connections })));
@@ -305,6 +306,7 @@ export default function App() {
               <Route path="eval/evaluators" element={<V2Evaluators />} />
               <Route path="eval/online" element={<V2Online />} />
               <Route path="eval/experiments" element={<V2Experiments />} />
+              <Route path="eval/standards" element={<V2Standards />} />
               <Route path="assistant" element={<V2Assistant />} />
               <Route path="registry" element={<V2Registry />} />
               <Route path="knowledge-bases" element={<V2KnowledgeBases />} />

@@ -6452,3 +6452,312 @@ export const v2KnowledgeApi = {
       body: JSON.stringify({ text, number_of_results: numberOfResults }),
     }),
 };
+
+// ---- Agent-DLC: criteria, golden sets, calibration, the gate, watch ----
+/* Wire types live in `./dlc`. One client object per the module convention; the
+ * gate and sign routes are prod-protected server-side, so a 409/403 here is the
+ * answer, not a bug to work around. */
+import type {
+  AdmissionCandidate,
+  AdmissionQueue,
+  Agreement,
+  AnnotationTask,
+  AuditEntry,
+  CalibrationHistory,
+  CalibrationRecord,
+  CaseTier,
+  CostEstimate,
+  CriteriaDiff,
+  CriteriaSet,
+  CriteriaSetPayload,
+  CriterionInput,
+  GateResponse,
+  GoldenItem,
+  GoldenSet,
+  ReleaseRecord,
+  ReleaseState,
+  RunComparison,
+  RunCriteria,
+  Scorecard,
+  Waiver,
+  WatchView,
+  WritableSplit,
+} from "./dlc";
+
+const dlcSet = (lineageId: string, rest = ""): string =>
+  `/api/criteria-sets/${encodeURIComponent(lineageId)}${rest}`;
+const dlcGolden = (datasetId: string, rest = ""): string =>
+  `/api/golden-sets/${encodeURIComponent(datasetId)}${rest}`;
+const dlcTask = (taskId: string, rest = ""): string =>
+  `/api/annotation-tasks/${encodeURIComponent(taskId)}${rest}`;
+const dlcAgent = (agentId: string, rest = ""): string =>
+  `/api/agents/${encodeURIComponent(agentId)}${rest}`;
+
+export const dlcApi = {
+  /* criteria sets */
+  listSets: (params?: { kind?: "template" | "agent"; agentId?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.kind) qs.set("kind", params.kind);
+    if (params?.agentId) qs.set("agent_id", params.agentId);
+    const q = qs.toString();
+    return request<{ sets: CriteriaSet[] }>(`/api/criteria-sets${q ? `?${q}` : ""}`);
+  },
+  createSet: (body: {
+    kind?: "template" | "agent";
+    name: string;
+    agent_id?: string | null;
+    description?: string;
+    scenario?: string;
+    template_lineage_id?: string | null;
+    template_version?: number | null;
+    from_evaluation_plan?: string | null;
+  }) =>
+    request<CriteriaSetPayload>("/api/criteria-sets", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  getSet: (lineageId: string, version?: number) =>
+    request<CriteriaSetPayload>(dlcSet(lineageId, version ? `?version=${version}` : "")),
+  saveSet: (
+    lineageId: string,
+    body: {
+      criteria: CriterionInput[];
+      removals?: { key: string; reason?: string }[] | null;
+      name?: string;
+      description?: string;
+      scenario?: string;
+    },
+  ) => request<CriteriaSetPayload>(dlcSet(lineageId), { method: "PUT", body: JSON.stringify(body) }),
+  newSetVersion: (lineageId: string) =>
+    request<CriteriaSetPayload>(dlcSet(lineageId, "/versions"), { method: "POST" }),
+  publishSet: (lineageId: string) =>
+    request<CriteriaSetPayload>(dlcSet(lineageId, "/publish"), { method: "POST" }),
+  /** The business owner's signature; the server refuses a self-signature. */
+  signSet: (lineageId: string, note: string) =>
+    request<CriteriaSetPayload>(dlcSet(lineageId, "/sign"), {
+      method: "POST",
+      body: JSON.stringify({ note }),
+    }),
+  adoptTemplate: (lineageId: string, templateVersion: number) =>
+    request<CriteriaSetPayload>(
+      dlcSet(lineageId, `/adopt-template?template_version=${templateVersion}`),
+      { method: "POST" },
+    ),
+  discardDraft: (lineageId: string) =>
+    request<{ discarded: number }>(dlcSet(lineageId), { method: "DELETE" }),
+  diffSet: (lineageId: string, a: number, b: number) =>
+    request<CriteriaDiff>(dlcSet(lineageId, `/diff?a=${a}&b=${b}`)),
+
+  /* golden sets */
+  listGolden: () => request<{ golden_sets: GoldenSet[] }>("/api/golden-sets"),
+  createGolden: (body: { name: string; criteria_lineage_id?: string | null; description?: string }) =>
+    request<GoldenSet>("/api/golden-sets", { method: "POST", body: JSON.stringify(body) }),
+  getGolden: (datasetId: string) => request<GoldenSet>(dlcGolden(datasetId)),
+  addGoldenItems: (datasetId: string, split: WritableSplit, items: GoldenItem[]) =>
+    request<{ added: number; golden_set: GoldenSet }>(dlcGolden(datasetId, "/items"), {
+      method: "POST",
+      body: JSON.stringify({ split, items }),
+    }),
+  /** Initial curation — the only path that writes the holdout, and it seals it. */
+  seedGolden: (datasetId: string, items: GoldenItem[], shares?: [number, number, number]) =>
+    request<{ counts: Record<string, number>; golden_set: GoldenSet }>(
+      dlcGolden(datasetId, "/seed"),
+      { method: "POST", body: JSON.stringify(shares ? { items, shares } : { items }) },
+    ),
+  moveGoldenItem: (datasetId: string, scenarioId: string, to: WritableSplit) =>
+    request<GoldenSet>(dlcGolden(datasetId, "/move"), {
+      method: "POST",
+      body: JSON.stringify({ scenario_id: scenarioId, to }),
+    }),
+  retireGoldenItem: (
+    datasetId: string,
+    body: { split: "dev" | "regression" | "holdout"; scenario_id: string; reason: string },
+  ) => request<GoldenSet>(dlcGolden(datasetId, "/retire"), { method: "POST", body: JSON.stringify(body) }),
+
+  /* annotation + calibration */
+  listTasks: (params?: { agentId?: string; status?: string }) => {
+    const qs = new URLSearchParams();
+    if (params?.agentId) qs.set("agent_id", params.agentId);
+    if (params?.status) qs.set("status", params.status);
+    const q = qs.toString();
+    return request<{ tasks: AnnotationTask[] }>(`/api/annotation-tasks${q ? `?${q}` : ""}`);
+  },
+  createTask: (body: {
+    agent_id?: string | null;
+    criteria_lineage_id?: string | null;
+    criterion_key: string;
+    purpose?: "judge_calibration" | "golden_answer" | "admission";
+    annotators: string[];
+    adjudicator?: string | null;
+    run_id?: string | null;
+    dataset_id?: string | null;
+    items?: Record<string, unknown>[] | null;
+  }) => request<AnnotationTask>("/api/annotation-tasks", { method: "POST", body: JSON.stringify(body) }),
+  getTask: (taskId: string) => request<AnnotationTask>(dlcTask(taskId)),
+  label: (taskId: string, body: { item_ref: string; label?: string; answer?: string; rationale?: string }) =>
+    request<AnnotationTask>(dlcTask(taskId, "/labels"), { method: "POST", body: JSON.stringify(body) }),
+  adjudicate: (taskId: string) =>
+    request<AnnotationTask>(dlcTask(taskId, "/adjudicate"), { method: "POST" }),
+  agreement: (taskId: string) => request<Agreement>(dlcTask(taskId, "/agreement")),
+  /** `aligned` is refused when the numbers do not support it (`calibration.not_supported`). */
+  decideCalibration: (taskId: string, verdict: "aligned" | "not_aligned", note: string) =>
+    request<CalibrationRecord>(dlcTask(taskId, "/decide"), {
+      method: "POST",
+      body: JSON.stringify({ verdict, note }),
+    }),
+  calibrationHistory: (criterionKey: string, agentId?: string) =>
+    request<CalibrationHistory>(
+      `/api/calibration/${encodeURIComponent(criterionKey)}${agentId ? `?agent_id=${encodeURIComponent(agentId)}` : ""}`,
+    ),
+
+  /* the release gate */
+  release: (agentId: string) => request<ReleaseState>(dlcAgent(agentId, "/release")),
+  /** Move the agent onto named `live` / `candidate` endpoints so a gate can hold. */
+  migrateRelease: (agentId: string) =>
+    request<ReleaseState>(dlcAgent(agentId, "/release/migrate"), { method: "POST" }),
+  evaluateRelease: (agentId: string, body: { repeats?: number; confirm_cost?: boolean }) =>
+    request<ReleaseState>(dlcAgent(agentId, "/release/evaluate"), {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  gate: (agentId: string) => request<GateResponse>(dlcAgent(agentId, "/release/gate")),
+  signRelease: (agentId: string, note: string) =>
+    request<ReleaseState>(dlcAgent(agentId, "/release/sign"), {
+      method: "POST",
+      body: JSON.stringify({ note }),
+    }),
+  blockRelease: (agentId: string, note: string) =>
+    request<ReleaseState>(dlcAgent(agentId, "/release/block"), {
+      method: "POST",
+      body: JSON.stringify({ note }),
+    }),
+  rollback: (agentId: string, note: string) =>
+    request<ReleaseState & { rolled_back_to?: string | null }>(dlcAgent(agentId, "/release/rollback"), {
+      method: "POST",
+      body: JSON.stringify({ note }),
+    }),
+  releaseRecords: (agentId: string) =>
+    request<{ records: ReleaseRecord[] }>(
+      `/api/release-records?agent_id=${encodeURIComponent(agentId)}`,
+    ),
+  releaseRecord: (recordId: string) =>
+    request<ReleaseRecord>(`/api/release-records/${encodeURIComponent(recordId)}`),
+
+  /* waivers — never for a red line, always with an expiry and a second person */
+  requestWaiver: (
+    agentId: string,
+    body: {
+      criterion_key: string;
+      actual?: number | null;
+      threshold?: number | null;
+      reason: string;
+      risk_owner: string;
+      compensating_control?: string;
+      expires_on: string;
+    },
+  ) => request<Waiver>(dlcAgent(agentId, "/waivers"), { method: "POST", body: JSON.stringify(body) }),
+  approveWaiver: (waiverId: string, note: string) =>
+    request<Waiver>(`/api/waivers/${encodeURIComponent(waiverId)}/approve`, {
+      method: "POST",
+      body: JSON.stringify({ note }),
+    }),
+  rejectWaiver: (waiverId: string, note: string) =>
+    request<Waiver>(`/api/waivers/${encodeURIComponent(waiverId)}/reject`, {
+      method: "POST",
+      body: JSON.stringify({ note }),
+    }),
+  revokeWaiver: (waiverId: string) =>
+    request<Waiver>(`/api/waivers/${encodeURIComponent(waiverId)}`, { method: "DELETE" }),
+
+  /* admission */
+  admissionQueue: (params?: { agentId?: string; status?: string | null; refresh?: boolean }) => {
+    const qs = new URLSearchParams();
+    if (params?.agentId) qs.set("agent_id", params.agentId);
+    if (params?.status !== undefined) qs.set("status", params.status ?? "");
+    if (params?.refresh) qs.set("refresh", "true");
+    const q = qs.toString();
+    return request<AdmissionQueue>(`/api/admission${q ? `?${q}` : ""}`);
+  },
+  candidate: (candidateId: string) =>
+    request<AdmissionCandidate>(`/api/admission/${encodeURIComponent(candidateId)}`),
+  admit: (
+    candidateId: string,
+    body: {
+      split?: WritableSplit;
+      dataset_id?: string | null;
+      expected_response: string;
+      expected_source?: "annotator" | "consensus" | "adjudicated";
+      criteria_ids?: string[];
+      case_tier?: CaseTier;
+      scenario_id?: string | null;
+    },
+  ) =>
+    request<{ item: GoldenItem; candidate: AdmissionCandidate }>(
+      `/api/admission/${encodeURIComponent(candidateId)}/admit`,
+      { method: "POST", body: JSON.stringify(body) },
+    ),
+  rejectCandidate: (candidateId: string, note: string) =>
+    request<AdmissionCandidate>(`/api/admission/${encodeURIComponent(candidateId)}/reject`, {
+      method: "POST",
+      body: JSON.stringify({ note }),
+    }),
+  markDuplicate: (candidateId: string, duplicateOf: string) =>
+    request<AdmissionCandidate>(`/api/admission/${encodeURIComponent(candidateId)}/duplicate`, {
+      method: "POST",
+      body: JSON.stringify({ duplicate_of: duplicateOf }),
+    }),
+
+  /* watch */
+  watch: (agentId: string) => request<WatchView>(dlcAgent(agentId, "/watch")),
+  putWatch: (
+    agentId: string,
+    body: {
+      criteria_lineage_id?: string | null;
+      dataset_id?: string | null;
+      every?: "daily" | "weekly";
+      at_hour?: number;
+      tz?: string;
+      repeats?: number;
+      max_cost_usd?: number | null;
+      enabled?: boolean;
+    },
+  ) => request<WatchView>(dlcAgent(agentId, "/watch"), { method: "PUT", body: JSON.stringify(body) }),
+  runWatch: (agentId: string, split: "regression" | "holdout" = "regression") =>
+    request<{ run_id: string; watch: WatchView["config"] }>(
+      dlcAgent(agentId, `/watch/run?split=${split}`),
+      { method: "POST" },
+    ),
+
+  /* run results, comparison, cost */
+  runCriteria: (runId: string, criterionKey?: string) =>
+    request<RunCriteria>(
+      `/api/eval/runs/${encodeURIComponent(runId)}/criteria${criterionKey ? `?criterion_key=${encodeURIComponent(criterionKey)}` : ""}`,
+    ),
+  snapshotRun: (runId: string) =>
+    request<{ snapshotted: boolean; summary: RunCriteria["summary"] }>(
+      `/api/eval/runs/${encodeURIComponent(runId)}/criteria/snapshot`,
+      { method: "POST" },
+    ),
+  compareRuns: (runIds: string[]) =>
+    request<RunComparison>(`/api/eval/runs/compare?runs=${encodeURIComponent(runIds.join(","))}`),
+  ladder: (agentId: string) => request<RunComparison>(dlcAgent(agentId, "/ladder")),
+  /** Shown before any run is started: pass^k multiplies this by `repeats`. */
+  estimate: (body: {
+    agent_id?: string | null;
+    dataset_id?: string | null;
+    items?: number | null;
+    evaluators?: string[];
+    repeats?: number;
+  }) => request<CostEstimate>("/api/eval/runs/estimate", { method: "POST", body: JSON.stringify(body) }),
+
+  /* the decision history, and one agent's five dimensions */
+  audit: (params?: { target?: string; action?: string; limit?: number }) => {
+    const qs = new URLSearchParams();
+    if (params?.target) qs.set("target", params.target);
+    if (params?.action) qs.set("action", params.action);
+    if (params?.limit) qs.set("limit", String(params.limit));
+    const q = qs.toString();
+    return request<{ events: AuditEntry[] }>(`/api/audit${q ? `?${q}` : ""}`);
+  },
+  scorecard: (agentId: string) => request<Scorecard>(dlcAgent(agentId, "/scorecard")),
+};
