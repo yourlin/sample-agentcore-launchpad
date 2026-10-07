@@ -513,7 +513,7 @@ Agent 详情页 `?tab=dlc`：按固定顺序排列的五个维度卡片，每张
 
 所有决定在同一事务内写 `audit_events`。新增查询接口 `GET /api/audit?target=…&action=…`（admin，以及对自己 agent 持有 `criteria.sign` 的人），为每个工作台提供「决定历史」面板。
 
-生产级保护（`PROD_PROTECTED`）覆盖：判据集发布 / 签字、黄金集版本发布、例外批准、发布签字、`live` 改指 / 回滚、观测配置变更。
+prod 级工作区保护（`PROD_PROTECTED`）覆盖：判据集发布 / 签字、黄金集版本发布、例外批准、发布签字、`live` 改指 / 回滚、观测配置变更。
 
 ## 9. API 与前端
 

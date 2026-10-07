@@ -1,10 +1,17 @@
 # AgentCore Launchpad
 
-A production-grade **agent ops platform** built on Amazon Bedrock
-AgentCore. It is a customer-deliverable sample asset — not a throwaway demo —
-that wires the core AgentCore components to real APIs and real resources in
-your own AWS account, and gives users a single place to **create an agent,
-deploy it to AgentCore Runtime, and consume it** over chat or HTTP.
+A sample **agent ops platform** built on Amazon Bedrock AgentCore. It wires the
+core AgentCore components to real APIs and real resources in your own AWS
+account, and gives users a single place to **create an agent, deploy it to
+AgentCore Runtime, and consume it** over chat or HTTP.
+
+> **Sample code notice.** This is sample code, for non-production usage. Work with
+> your security and legal teams to meet your organizational requirements before
+> deployment. It is provided to show how the AgentCore services fit together; it
+> has not been thoroughly tested, secured or optimized for production use, and you
+> are responsible for the security, testing and hardening of anything you build on
+> it. Running it creates billable AWS resources — see [Cost notes](#cost-notes) and
+> [teardown](docs/teardown.md).
 
 - 中文版: [README.zh-CN.md](README.zh-CN.md)
 
@@ -231,9 +238,9 @@ session cookie, and rotating `LAUNCHPAD_AUTH_PASSWORD` invalidates **all**
 sessions (the cookie signing key derives from it). The public `/v1` surface keeps
 its own `X-Api-Key` auth and is never guarded by the console cookie.
 
-For a real deployment (systemd units, nginx origin-key gate, CloudFront, and the
-update procedure) see
-[docs/setup.md](docs/setup.md#production-deployment--生产部署) and
+For a longer-running hosted setup (systemd units, nginx origin-key gate,
+CloudFront, and the update procedure) see
+[docs/setup.md](docs/setup.md#hosted-deployment--托管部署) and
 [docs/agent-runbook-prod.md](docs/agent-runbook-prod.md#3-shape-b--systemd-reference-the-us-east-1-box).
 
 ### Stop the stack

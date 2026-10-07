@@ -2878,7 +2878,7 @@ registry writes, knowledge bases, governance, evaluation datasets/evaluators,
 experiments, canaries, API keys, tools/demos and the studio local-exec scaffolding
 included. Invoking an agent (`/api/agents/{id}/invoke`, `/api/registry/a2a-demo`)
 was member-reachable from the start — it is the same capability Chat already gives
-every member. The studio local-exec routes remain safe in production through their
+every member. The studio local-exec routes remain safe in prod run mode through their
 own handler guard (refused outright in prod unless an operator opts in), which —
 not the route table — is the real boundary there.
 

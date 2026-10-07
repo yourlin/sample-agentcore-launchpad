@@ -1,9 +1,13 @@
 # AgentCore Launchpad
 
-AgentCore Launchpad 是一套基于 Amazon Bedrock AgentCore 的**企业 Agent Ops平台**。
-它是一套可以交付给客户的样板项目，不是一次性演示。平台直接调用 AgentCore API，
-在你的 AWS 账号中创建和管理真实资源，并用一个控制台串起 Agent 的**创建、部署、
-聊天和 HTTP 调用**。
+AgentCore Launchpad 是一套基于 Amazon Bedrock AgentCore 的 **Agent Ops 平台示例**。
+平台直接调用 AgentCore API，在你的 AWS 账号中创建和管理真实资源，并用一个控制台串起
+Agent 的**创建、部署、聊天和 HTTP 调用**。
+
+> **示例代码声明。** 本项目是示例代码，仅用于非生产用途。部署前请与你所在组织的安全和法务团队
+> 合作，满足组织的各项要求。它用于展示 AgentCore 各项服务如何组合使用，未经过面向生产使用的
+> 充分测试、安全加固与优化；基于它构建的任何内容，其安全、测试与加固均由你自行负责。运行本项目
+> 会创建计费的 AWS 资源——参见[成本说明](#成本说明)与[资源清理](docs/teardown.zh-CN.md)。
 
 - English: [README.md](README.md)
 
@@ -200,8 +204,8 @@ export LAUNCHPAD_AUTH_ALLOWED_EMAIL_DOMAINS='["your-company.com"]'   # 白名单
 修改 `LAUNCHPAD_AUTH_PASSWORD` 会使**所有**会话失效，因为 Cookie 签名密钥由该密码
 派生。公开 `/v1` 接口仍使用独立的 `X-Api-Key` 认证，不受控制台 Cookie 影响。
 
-实际部署所需的 systemd 单元、nginx origin-key 校验、CloudFront 配置与更新流程见
-[docs/setup.zh-CN.md](docs/setup.zh-CN.md#生产部署) 与
+长期运行的托管部署所需的 systemd 单元、nginx origin-key 校验、CloudFront 配置与更新流程见
+[docs/setup.zh-CN.md](docs/setup.zh-CN.md#托管部署) 与
 [docs/agent-runbook-prod.md](docs/agent-runbook-prod.md#3-shape-b--systemd-reference-the-us-east-1-box)。
 
 ### 停止服务

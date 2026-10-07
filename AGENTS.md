@@ -1,6 +1,6 @@
 ## What this is
 
-AgentCore Launchpad is a production-grade sample asset: one React console over one
+AgentCore Launchpad is a sample asset (sample code, for non-production usage): one React console over one
 FastAPI backend that wires the real Amazon Bedrock AgentCore services (Runtime,
 Harness, Memory, Gateway, Identity, Registry, Policy/Cedar, Evaluation, Observability)
 into a unified **create → deploy → invoke → observe** experience. Everything targets a
