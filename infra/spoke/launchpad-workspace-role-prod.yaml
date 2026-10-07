@@ -400,6 +400,46 @@ Resources:
                   - xray:UpdateTraceSegmentDestination
                 Resource: "*"
 
+              # ── Transaction Search (X-Ray → CloudWatch Logs) ───────────────
+              # LIVE-OBSERVED, not call-site derivable (2026-10-07, first bootstrap
+              # of a fresh region from an EC2 hub): UpdateTraceSegmentDestination is
+              # refused with AccessDenied ("An unknown error occurred") unless the
+              # caller ALSO holds the permissions the service exercises on its
+              # behalf — the indexing rule, the aws/spans log group, Application
+              # Signals discovery and its service-linked role / channel. Without
+              # them a new-region workspace has no aws/spans group, so traces,
+              # observability and every evaluation of that workspace read nothing.
+              # Taken verbatim from "Enable Transaction Search" in the CloudWatch
+              # user guide, scoped exactly as it scopes them.
+              - Sid: TransactionSearchIndexing
+                Effect: Allow
+                Action:
+                  - application-signals:StartDiscovery
+                  - xray:GetIndexingRules
+                  - xray:UpdateIndexingRule
+                Resource: "*"
+              - Sid: TransactionSearchLogGroups
+                Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutRetentionPolicy
+                Resource:
+                  - Fn::Sub: "arn:${AWS::Partition}:logs:*:${AWS::AccountId}:log-group:aws/spans:*"
+                  - Fn::Sub: "arn:${AWS::Partition}:logs:*:${AWS::AccountId}:log-group:/aws/application-signals/data:*"
+              - Sid: TransactionSearchServiceLinkedRole
+                Effect: Allow
+                Action:
+                  - iam:GetRole
+                Resource:
+                  - Fn::Sub: "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/application-signals.cloudwatch.amazonaws.com/AWSServiceRoleForCloudWatchApplicationSignals"
+              - Sid: TransactionSearchCloudTrailChannel
+                Effect: Allow
+                Action:
+                  - cloudtrail:CreateServiceLinkedChannel
+                Resource:
+                  - Fn::Sub: "arn:${AWS::Partition}:cloudtrail:*:${AWS::AccountId}:channel/aws-service-channel/application-signals/*"
+
               # ── Secrets Manager (AgentCore Identity token vault) ──────────
               # LIVE-OBSERVED, not call-site derivable (2026-08-13, first spoke
               # bootstrap): CreateOauth2CredentialProvider fails with "not

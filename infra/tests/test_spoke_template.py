@@ -205,3 +205,26 @@ def test_the_hub_can_prove_which_account_it_landed_in(statements: list[dict[str,
 def test_the_role_arn_is_an_output(template: dict[str, Any]):
     """It is what the operator pastes back into the console."""
     assert template["Outputs"]["RoleArn"]["Value"] == {"Fn::GetAtt": ["WorkspaceRole", "Arn"]}
+
+
+def test_a_fresh_region_can_turn_on_transaction_search(statements: list[dict[str, Any]]):
+    """Found on real AWS: with only xray:UpdateTraceSegmentDestination the call is
+    refused in a region that never had Transaction Search, because the service also
+    exercises the indexing rule, the aws/spans log group and Application Signals on
+    the caller's behalf. Without these a new-region workspace has no aws/spans group
+    and every trace, observability view and evaluation there reads nothing."""
+    granted = {action for statement in statements for action in statement["Action"]}
+    required = {
+        "xray:GetTraceSegmentDestination", "xray:UpdateTraceSegmentDestination",
+        "xray:GetIndexingRules", "xray:UpdateIndexingRule",
+        "logs:CreateLogGroup", "logs:CreateLogStream", "logs:PutRetentionPolicy",
+        "logs:PutResourcePolicy", "logs:DescribeResourcePolicies",
+        "application-signals:StartDiscovery", "iam:GetRole",
+        "cloudtrail:CreateServiceLinkedChannel",
+    }
+    assert required <= granted, f"missing {sorted(required - granted)}"
+    by_sid = {statement["Sid"]: statement for statement in statements}
+    # the log-group writes are the documented two groups, not every group
+    groups = by_sid["TransactionSearchLogGroups"]["Resource"]
+    assert len(groups) == 2 and all(
+        "aws/spans" in g["Fn::Sub"] or "application-signals/data" in g["Fn::Sub"] for g in groups)
