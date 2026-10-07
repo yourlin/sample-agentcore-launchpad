@@ -173,6 +173,30 @@ export function AgentWizard({ edit }: { edit?: AgentInfo } = {}) {
     };
   }, [sharedTemplateId]);
 
+  // `?scenario=<key>` picks a T10 scenario template from outside the wizard (the V3
+  // launch page hands over here for what its quick form does not cover). Applied
+  // once, exactly as a click in the gallery would; an unknown key leaves step 0.
+  const scenarioKey = edit ? null : params.get("scenario");
+  useEffect(() => {
+    if (!scenarioKey) return;
+    let cancelled = false;
+    void api
+      .agentTemplates()
+      .then(({ templates }) => {
+        const entry = templates.find((row) => row.key === scenarioKey);
+        if (cancelled || !entry) return;
+        setForm(formFromTemplate(entry));
+        setFullForm(true);
+        setStep(1);
+      })
+      .catch(() => {
+        /* the gallery is a convenience: the wizard still works from scratch */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [scenarioKey]);
+
   const set: SectionProps["set"] = (patch) =>
     setForm((prev) => ({ ...prev, ...(typeof patch === "function" ? patch(prev) : patch) }));
   const method = form.method;

@@ -5,11 +5,11 @@ import type { V2NavItem } from "../v2/nav";
 const REBUILT = new Set(["/v2", "/v2/chat"]);
 
 /**
- * V2's agent list is rebuilt in V3, but creating an agent is not: that entry
- * becomes "New agent", the wizard hosted in V3.
+ * V2's agent entry is the list and the wizard: V3 has its own list (top of the
+ * rail), so the module entry becomes "New agent", V3's launch page.
  */
 const RETARGET: Record<string, Pick<V2NavItem, "to" | "labelKey">> = {
-  "/v2/agents": { to: "/v2/agents?view=new", labelKey: "v3.nav.create" },
+  "/v2/agents": { to: "/v3/create", labelKey: "v3.nav.create" },
 };
 
 export interface V3ModuleGroup {
@@ -29,8 +29,51 @@ export function hostedGroups(isAdmin: boolean): V3ModuleGroup[] {
     labelKey: group.labelKey,
     items: group.items
       .filter((item) => !REBUILT.has(item.to) && (!item.admin || isAdmin))
-      .map((item) => ({ ...item, ...RETARGET[item.to] })),
+      .map((item) => {
+        const [path, query] = item.to.split("?");
+        const twin = v3TwinOf(path, query ? `?${query}` : "");
+        // a rebuilt module opens its V3 page, and stays lit on the V2 sub-pages
+        // it still hosts (a register form, an edit view)
+        return twin
+          ? { ...item, to: twin, also: [...(item.also ?? []), path] }
+          : { ...item, ...RETARGET[item.to] };
+      }),
   })).filter((group) => group.items.length > 0);
+}
+
+/**
+ * The V3 page a V2 URL is rebuilt as, or null when V3 hosts the V2 page itself
+ * (its sub-pages V3 has not redesigned: forms, editors). `full=1` always keeps
+ * the V2 page — V3 links there for what its own page does not do.
+ */
+export function v3TwinOf(pathname: string, search: string): string | null {
+  const params = new URLSearchParams(search);
+  if (params.has("full")) return null;
+  const view = params.get("view");
+  const id = params.get("id");
+  switch (pathname.replace(/\/$/, "") || "/") {
+    case "/v2":
+      return "/v3";
+    case "/v2/chat":
+      return `/v3/chat${search}`;
+    case "/v2/agents":
+      // the bare wizard; a prefilled one (method, scenario, template, gateway,
+      // skill) is the full form the launch page hands over to
+      if (view === "new" && ![...params.keys()].some((k) => k !== "view")) return "/v3/create";
+      return null;
+    case "/v2/assistant":
+      return view ? null : "/v3/assistant";
+    case "/v2/registry":
+      if (!view) return "/v3/registry";
+      if (view === "detail" && id) return `/v3/registry?id=${encodeURIComponent(id)}`;
+      return null;
+    case "/v2/knowledge-bases":
+      if (!view) return "/v3/knowledge";
+      if (view === "detail" && id) return `/v3/knowledge?id=${encodeURIComponent(id)}`;
+      return null;
+    default:
+      return null;
+  }
 }
 
 /** Same rule as V2's sidebar: a `?view=` entry is active only on that sub-page. */

@@ -22,6 +22,7 @@ import { classicChatToV2 } from "./v2/pages/chat/classicUrl";
 import { classicObservabilityToV2 } from "./v2/pages/observability/classicUrl";
 import { classicMemoryToV2 } from "./v2/pages/memory/classicUrl";
 import { classicGovernanceToV2 } from "./v2/pages/governance/classicUrl";
+import { v3TwinOf } from "./v3/nav";
 
 // Every module but the index route and the catch-all is fetched on navigation.
 // The pages carry the console's weight (the Studio canvas alone pulls
@@ -93,6 +94,10 @@ const V3Home = lazy(() => import("./v3/pages/Home").then((m) => ({ default: m.V3
 const V3Agents = lazy(() => import("./v3/pages/Agents").then((m) => ({ default: m.V3Agents })));
 const V3Chat = lazy(() => import("./v3/pages/Chat").then((m) => ({ default: m.V3Chat })));
 const V3Gate = lazy(() => import("./v3/pages/Gate").then((m) => ({ default: m.V3Gate })));
+const V3Registry = lazy(() => import("./v3/pages/Registry").then((m) => ({ default: m.V3Registry })));
+const V3Assistant = lazy(() => import("./v3/pages/Assistant").then((m) => ({ default: m.V3Assistant })));
+const V3Create = lazy(() => import("./v3/pages/Create").then((m) => ({ default: m.V3Create })));
+const V3Knowledge = lazy(() => import("./v3/pages/Knowledge").then((m) => ({ default: m.V3Knowledge })));
 const V2Home = lazy(() => import("./v2/pages/Home").then((m) => ({ default: m.V2Home })));
 const V2DataCenter = lazy(() =>
   import("./v2/pages/DataCenter").then((m) => ({ default: m.V2DataCenter })),
@@ -282,18 +287,14 @@ function ConsoleShell() {
 /**
  * Chrome for the native V2 pages: the V2 shell, or — once the operator chose
  * V3 — the V3 shell hosting the same page on the V3 theme, so every link a V2
- * page makes (`/v2/...`) stays inside V3. The two V2 pages V3 has rebuilt (the
- * overview and chat) hand over to their V3 page instead.
+ * page makes (`/v2/...`) stays inside V3. A page V3 has rebuilt hands over to
+ * its V3 page instead (`v3TwinOf`).
  */
-const V3_TWIN: Record<string, string> = { "/v2": "/v3", "/v2/": "/v3", "/v2/chat": "/v3/chat" };
-
 function V2Frame() {
   const { pathname, search } = useLocation();
   if (useUiVersion() !== "v3") return <V2Shell />;
-  // `full=1`: the full V2 chat (attachments, consent cards), which V3's chat
-  // hands over to for what it does not do yet
-  const twin = pathname === "/v2/chat" && new URLSearchParams(search).has("full") ? undefined : V3_TWIN[pathname];
-  if (twin) return <Navigate to={`${twin}${search}`} replace />;
+  const twin = v3TwinOf(pathname, search);
+  if (twin) return <Navigate to={twin} replace />;
   return <V3Shell hosted="v2" />;
 }
 
@@ -323,6 +324,10 @@ export default function App() {
               <Route path="agents" element={<V3Agents />} />
               <Route path="chat" element={<V3Chat />} />
               <Route path="gate" element={<V3Gate />} />
+              <Route path="registry" element={<V3Registry />} />
+              <Route path="knowledge" element={<V3Knowledge />} />
+              <Route path="create" element={<V3Create />} />
+              <Route path="assistant" element={<V3Assistant />} />
               <Route path="*" element={<Navigate to="/v3" replace />} />
             </Route>
             <Route

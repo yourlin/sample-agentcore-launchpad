@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import { score } from "./score";
-import { agentSignal, attentionFor, gateSignal, releaseSignal, sortAttention } from "./signals";
+import {
+  agentSignal,
+  attentionFor,
+  conversationSignal,
+  gateSignal,
+  kbSignal,
+  registrySignal,
+  releaseSignal,
+  resourceSignal,
+  sortAttention,
+} from "./signals";
 
 describe("signals map every status onto one meaning", () => {
   it("an agent is ok only when active", () => {
@@ -62,5 +72,33 @@ describe("command palette scoring", () => {
 
   it("an empty query matches everything", () => {
     expect(score("", "anything")).toBe(1);
+  });
+});
+
+describe("module signals", () => {
+  it("maps registry states", () => {
+    expect(registrySignal("APPROVED")).toBe("ok");
+    expect(registrySignal("PENDING_APPROVAL")).toBe("wait");
+    expect(registrySignal("REJECTED")).toBe("act");
+    expect(registrySignal("DRAFT")).toBe("off");
+    expect(registrySignal("DEPRECATED")).toBe("off");
+  });
+
+  it("maps knowledge-base and ingestion states", () => {
+    expect(kbSignal("ACTIVE")).toBe("ok");
+    expect(kbSignal("creating")).toBe("wait");
+    expect(kbSignal("FAILED")).toBe("act");
+    expect(resourceSignal("COMPLETE")).toBe("ok");
+    expect(resourceSignal("IN_PROGRESS")).toBe("wait");
+    expect(resourceSignal("FAILED")).toBe("act");
+    expect(resourceSignal("whatever")).toBe("off");
+  });
+
+  it("puts a streaming conversation ahead of its proposal", () => {
+    expect(conversationSignal({ proposal_status: "approved", turn_in_progress: 3 })).toBe("info");
+    expect(conversationSignal({ proposal_status: "draft", turn_in_progress: null })).toBe("wait");
+    expect(conversationSignal({ proposal_status: "approved", turn_in_progress: null })).toBe("ok");
+    expect(conversationSignal({ proposal_status: "invalid", turn_in_progress: null })).toBe("act");
+    expect(conversationSignal({ proposal_status: null, turn_in_progress: null })).toBe("info");
   });
 });

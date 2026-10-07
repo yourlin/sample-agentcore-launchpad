@@ -1,21 +1,24 @@
 import { describe, expect, it } from "vitest";
 
 import { V2_NAV } from "../v2/nav";
-import { hostedGroups, isActive } from "./nav";
+import { hostedGroups, isActive, v3TwinOf } from "./nav";
 
 describe("hostedGroups", () => {
   it("reaches every V2 page V3 has not rebuilt", () => {
-    const listed = new Set(hostedGroups(true).flatMap((g) => g.items.map((i) => i.to.split("?")[0])));
+    const listed = new Set(
+      hostedGroups(true).flatMap((g) => g.items.flatMap((i) => [i.to.split("?")[0], ...(i.also ?? [])])),
+    );
     const missing = V2_NAV.flatMap((g) => g.items)
       .map((i) => i.to)
-      .filter((to) => to !== "/v2" && to !== "/v2/chat" && !listed.has(to));
+      // the overview, chat and the agent list are V3 pages at the top of the rail
+      .filter((to) => !["/v2", "/v2/chat", "/v2/agents"].includes(to) && !listed.has(to));
     expect(missing).toEqual([]);
   });
 
   it("does not list a rebuilt page, and creating an agent opens the V2 wizard", () => {
     const items = hostedGroups(true).flatMap((g) => g.items);
     expect(items.map((i) => i.to)).not.toContain("/v2/chat");
-    expect(items.find((i) => i.to.startsWith("/v2/agents"))?.to).toBe("/v2/agents?view=new");
+    expect(items.find((i) => i.labelKey === "v3.nav.create")?.to).toBe("/v3/create");
   });
 
   it("hides administrator pages from members", () => {
@@ -37,5 +40,34 @@ describe("isActive", () => {
     expect(isActive(registry, "/v2/registry", "")).toBe(true);
     expect(isActive(registry, "/registry", "?view=x")).toBe(true);
     expect(isActive(registry, "/v2/registry-x", "")).toBe(false);
+  });
+});
+
+describe("v3TwinOf", () => {
+  it("sends a rebuilt V2 page to its V3 page", () => {
+    expect(v3TwinOf("/v2", "")).toBe("/v3");
+    expect(v3TwinOf("/v2/chat", "?agent=a")).toBe("/v3/chat?agent=a");
+    expect(v3TwinOf("/v2/registry", "")).toBe("/v3/registry");
+    expect(v3TwinOf("/v2/registry", "?view=detail&id=r1")).toBe("/v3/registry?id=r1");
+    expect(v3TwinOf("/v2/knowledge-bases", "?view=detail&id=kb1&tab=retrieve")).toBe("/v3/knowledge?id=kb1");
+    expect(v3TwinOf("/v2/knowledge-bases", "?view=new")).toBeNull();
+    expect(v3TwinOf("/v2/agents", "?view=new")).toBe("/v3/create");
+    expect(v3TwinOf("/v2/assistant", "")).toBe("/v3/assistant");
+    expect(v3TwinOf("/v2/assistant", "?view=detail&id=c1")).toBeNull();
+    expect(v3TwinOf("/v2/agents", "?view=new&scenario=it")).toBeNull();
+    expect(v3TwinOf("/v2/agents", "?view=detail&id=a")).toBeNull();
+  });
+
+  it("keeps the V2 sub-pages V3 hosts, and anything asked for in full", () => {
+    expect(v3TwinOf("/v2/registry", "?view=register")).toBeNull();
+    expect(v3TwinOf("/v2/registry", "?view=detail&id=r1&full=1")).toBeNull();
+    expect(v3TwinOf("/v2/chat", "?agent=a&full=1")).toBeNull();
+    expect(v3TwinOf("/v2/governance", "")).toBeNull();
+  });
+
+  it("lists a rebuilt module at its V3 page, lit on its hosted sub-pages", () => {
+    const registry = hostedGroups(true).flatMap((g) => g.items).find((i) => i.to === "/v3/registry");
+    expect(registry).toBeDefined();
+    expect(isActive(registry!, "/v2/registry", "?view=register")).toBe(true);
   });
 });

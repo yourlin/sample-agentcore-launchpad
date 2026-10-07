@@ -2820,6 +2820,23 @@ backend surface.
   deploy stages, versions/endpoints, try-it), Chat (`/v3/chat`, the same
   `chat_stream` SSE chain), and Release gate (`/v3/gate`: the four-gate pipeline,
   per-criterion intervals, sign / block / roll back / run the gate).
+- **Rebuilt modules (batch 1, Agent build).** `/v3/create` is the launch page: the
+  scenario templates (`GET /api/agent-templates`) and a blank start fill a quick
+  managed-Harness form (name, instructions, mounted knowledge bases) that posts the
+  same `buildAgentSpec` output as the V2 wizard and lands on the agent, whose detail
+  polls while it deploys; other methods and non-Harness scenarios hand over to the
+  full V2 wizard (`?method=` / the new `?scenario=<key>` prefill). `/v3/registry`
+  lists records with an approval queue (approve / reject in place), a lifecycle track
+  per record and the agent card / MCP endpoint / skill source; register and edit stay
+  hosted. `/v3/knowledge` is a shelf of knowledge bases and a detail with the
+  ingestion track, sync / remove / add source, the retrieve playground and documents —
+  it carries V2's create-flow automation (first sync on its own, the bounded wait for
+  the backend's data source, the repair offer), since a KB created in the hosted form
+  lands here. `/v3/assistant` lists design conversations by where they stand
+  (talking, proposal to review, approved) with share and CLEAR (footprint first); a
+  conversation's working view stays hosted. `v3TwinOf` (`v3/nav.ts`) maps each
+  module's V2 list/detail URL onto its V3 page, so the rail and every V2 link land
+  there.
 - **Every other page is hosted, not handed off.** Once V3 is chosen, the `/v2/*`
   routes render through `V2Frame` (`App.tsx`) inside `<V3Shell hosted="v2" />`, and
   the classic routes through `<V3Shell hosted="classic" />` — same URLs, same page

@@ -106,6 +106,16 @@ def main() -> int:
             text = page.locator(".v3-msg.agent .bubble").last.inner_text()
             check("chat.answered", len(text.strip()) > 0, repr(text.strip()[:60]))
         visit("gate", "/v3/gate", ".v3-title")
+        # rebuilt modules: each opens natively, and its V2 URL hands over to it
+        visit("create", "/v3/create", ".v3-scenarios")
+        visit("registry", "/v3/registry", ".v3-title")
+        visit("knowledge", "/v3/knowledge", ".v3-title")
+        visit("assistant", "/v3/assistant", ".v3-title")
+        for v2, v3 in (("/v2/registry", "/v3/registry"), ("/v2/knowledge-bases", "/v3/knowledge"),
+                       ("/v2/assistant", "/v3/assistant"), ("/v2/agents?view=new", "/v3/create")):
+            page.goto(f"{args.ui}{v2}", wait_until="networkidle")
+            check(f"twin {v2}", page.url.replace(args.ui, "").startswith(v3),
+                  page.url.replace(args.ui, ""))
 
         # Modules: every group unfolds, and every page it lists renders hosted in V3
         page.goto(f"{args.ui}/v3", wait_until="networkidle")
@@ -123,7 +133,10 @@ def main() -> int:
             bad.clear()
             page.goto(f"{args.ui}{href}", wait_until="networkidle")
             page.wait_for_timeout(600)
-            shown = page.locator("[data-testid='v3-shell'] .v3-host").count() > 0
+            # a rebuilt module renders natively; every other one hosted in V3
+            native = href.startswith("/v3")
+            body = ".v3-title" if native else ".v3-host"
+            shown = page.locator(f"[data-testid='v3-shell'] {body}").count() > 0
             shown = shown and page.locator("[data-testid='v2-shell']").count() == 0
             real = [e for e in errors if "404" not in e and "favicon" not in e]
             if not (shown and not real and not bad):

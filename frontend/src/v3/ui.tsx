@@ -214,3 +214,140 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   );
 }
 
+
+/* ── confirm ───────────────────────────────────────────────────────────── */
+
+/**
+ * The one confirmation dialog: says what will happen, names the thing, and puts
+ * the destructive choice on the right. Esc and the mask cancel; nothing confirms
+ * by default.
+ */
+export function Confirm({
+  title,
+  children,
+  confirmLabel,
+  cancelLabel,
+  danger,
+  busy,
+  onConfirm,
+  onCancel,
+}: {
+  title: ReactNode;
+  children: ReactNode;
+  confirmLabel: string;
+  cancelLabel: string;
+  danger?: boolean;
+  busy?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div
+      className="v3-modal-mask"
+      onMouseDown={(e) => e.target === e.currentTarget && !busy && onCancel()}
+      onKeyDown={(e) => e.key === "Escape" && !busy && onCancel()}
+    >
+      <div className="v3-modal" role="alertdialog" aria-modal="true" aria-label={typeof title === "string" ? title : undefined}>
+        <h2>{title}</h2>
+        <div className="body">{children}</div>
+        <div className="foot">
+          <Btn kind="ghost" onClick={onCancel} disabled={busy}>
+            {cancelLabel}
+          </Btn>
+          <Btn kind={danger ? "danger" : "primary"} onClick={onConfirm} disabled={busy}>
+            {confirmLabel}
+          </Btn>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── track ─────────────────────────────────────────────────────────────── */
+
+export interface TrackNode {
+  key: string;
+  label: ReactNode;
+  detail?: ReactNode;
+  s: Signal;
+  /** the node the subject is at now: drawn larger and pulsing when it is fine */
+  here?: boolean;
+}
+
+/**
+ * A lifecycle drawn as one line of lamps. Where the line is lit up to is where
+ * the subject is; the colour of that node says whether that is fine.
+ */
+export function Track({ nodes }: { nodes: TrackNode[] }) {
+  return (
+    <ol className="v3-track" style={{ gridTemplateColumns: `repeat(${nodes.length}, minmax(0, 1fr))` }}>
+      {nodes.map((n, i) => (
+        <li key={n.key} data-s={n.s} data-here={n.here ? "true" : undefined}>
+          {i < nodes.length - 1 && <span className="rail" data-lit={n.s === "ok" ? "true" : undefined} aria-hidden="true" />}
+          <Lamp s={n.s} live={n.here && n.s !== "off"} />
+          <div className="label">{n.label}</div>
+          {n.detail != null && <div className="detail">{n.detail}</div>}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/* ── filter chips ──────────────────────────────────────────────────────── */
+
+export function Filters<T extends string>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T;
+  options: { value: T; label: ReactNode; count?: number; s?: Signal }[];
+  onChange: (next: T) => void;
+}) {
+  return (
+    <div className="v3-filters" role="group">
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          className={`v3-btn sm${value === o.value ? "" : " ghost"}`}
+          aria-pressed={value === o.value}
+          onClick={() => onChange(o.value)}
+        >
+          {o.s && <Lamp s={o.s} />}
+          {o.label}
+          {o.count != null && <span className="mono" style={{ color: "var(--v3-text-3)" }}>{o.count}</span>}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** A form in a dialog (add a source, edit a description). Esc and the mask close. */
+export function Dialog({
+  title,
+  children,
+  foot,
+  wide,
+  onClose,
+}: {
+  title: ReactNode;
+  children: ReactNode;
+  foot: ReactNode;
+  wide?: boolean;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="v3-modal-mask"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+      onKeyDown={(e) => e.key === "Escape" && onClose()}
+    >
+      <div className={wide ? "v3-modal wide" : "v3-modal"} role="dialog" aria-modal="true" aria-label={typeof title === "string" ? title : undefined}>
+        <h2>{title}</h2>
+        <div className="body">{children}</div>
+        <div className="foot">{foot}</div>
+      </div>
+    </div>
+  );
+}

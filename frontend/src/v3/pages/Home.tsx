@@ -169,7 +169,7 @@ export function V3Home() {
           <div style={{ padding: 20 }}><Skeleton rows={5} /></div>
         ) : list.length === 0 ? (
           <Empty title={t("v3.home.noAgents")}>
-            <Link to="/v2/agents?view=new" className="v3-btn primary">{t("v3.nav.create")}</Link>
+            <Link to="/v3/create" className="v3-btn primary">{t("v3.nav.create")}</Link>
           </Empty>
         ) : (
           <table className="v3-table">

@@ -1,5 +1,5 @@
 import { ArrowLeft, MessagesSquare, Play, Scale, Search, Settings2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
@@ -131,6 +131,18 @@ function AgentDetail({ id }: { id: string }) {
   const release = useLoad(() => dlcApi.release(id).catch(() => null), `v3-agent-rel:${id}`);
   const versions = useLoad(() => api.agentVersions(id).catch(() => null), `v3-agent-ver:${id}`);
   const a = agent.data;
+  // a deploy in flight moves on its own: follow it until it lands or fails
+  const deploying = a?.status === "deploying";
+  const reloadAgent = agent.reload;
+  const reloadVersions = versions.reload;
+  useEffect(() => {
+    if (!deploying) return;
+    const timer = window.setInterval(reloadAgent, 4000);
+    return () => {
+      window.clearInterval(timer);
+      reloadVersions();
+    };
+  }, [deploying, reloadAgent, reloadVersions]);
 
   if (agent.loading && !a) return <Skeleton rows={6} />;
   if (!a) return <Notice s="act">{agent.error ?? t("v3.agent.notFound")}</Notice>;
@@ -257,7 +269,7 @@ function AgentList() {
         eyebrow={t("v3.agents.eyebrow")}
         title={t("v3.agents.title")}
         sub={t("v3.agents.sub")}
-        end={<Link to="/v2/agents?view=new" className="v3-btn primary">{t("v3.nav.create")}</Link>}
+        end={<Link to="/v3/create" className="v3-btn primary">{t("v3.nav.create")}</Link>}
       />
       <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
         {(["all", "ok", "wait", "act", "off"] as const).map((f) => (
