@@ -593,7 +593,7 @@ share/annotate/{token}  GET, POST  （公开，与评审链接一样限流）
 Workshop 就绪度：P0 + P1 支撑 1 天判据工作坊（定义、构建、评估、红线拦截、修复、重跑）；P2 + P3 让发布门控的故事在平台本身上成立。
 
 **已于 2026-10-07 交付。** P0–P5 全部实现：控制台在 `/v2/eval/standards`（九个 `?view=` 子页），
-`app/routers/dlc.py` 提供 57 个路由，另有公开的 `/share/annotate/*` 两个；整个循环已由
+`app/routers/dlc.py` 提供 56 个路由，另有公开的 `/share/annotate/*` 两个；整个循环已由
 `backend/scripts/e2e_agent_dlc.py`（38 项检查）与 `e2e_agent_dlc_browser.py`（九个子页 × 两种语言）
 在真实 AWS 上验证。真实运行纠正了设计里的三处假设，均已写入 `docs/architecture.zh-CN.md`：
 遥测**按端点区分**（放行运行必须读 `…-candidate`，门控智能体的看板必须读 `…-live`）、

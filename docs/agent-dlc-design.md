@@ -603,7 +603,7 @@ Each phase follows `docs/roadmap.md` definition of done (hermetic tests, i18n pa
 Workshop readiness: P0 + P1 support the 1-day criteria workshop (define, build, evaluate, block on red line, fix, re-run); P2 + P3 make the release-gate story true on the platform itself.
 
 **Delivered 2026-10-07.** All six phases are implemented, with the console at
-`/v2/eval/standards` (nine `?view=` sub-pages), 57 routes in `app/routers/dlc.py` plus
+`/v2/eval/standards` (nine `?view=` sub-pages), 56 routes in `app/routers/dlc.py` plus
 the public `/share/annotate/*` pair, and the loop verified against real AWS by
 `backend/scripts/e2e_agent_dlc.py` (38 checks) and `e2e_agent_dlc_browser.py`
 (nine views × two languages). Three things the real-AWS run changed in the design's
