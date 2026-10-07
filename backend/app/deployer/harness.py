@@ -722,6 +722,11 @@ def delete_agent_resources(agent: Agent, workspace: WorkspaceContext) -> None:
             )
     if not agent.resource_id:
         return
+    # a gated agent serves through named endpoints; AgentCore refuses to delete a
+    # resource that still has them (Agent-DLC §6)
+    from app.dlc.releases import delete_endpoints
+
+    delete_endpoints(agent, client)
     try:
         hc.delete_harness(client, agent.resource_id)
     except client.exceptions.ResourceNotFoundException:

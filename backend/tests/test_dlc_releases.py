@@ -304,3 +304,45 @@ def test_seeding_honours_an_explicit_split_and_refuses_an_unknown_one(db):
     with pytest.raises(AppError) as exc:
         golden_svc.seed(db, other, [], actor="biz")
     assert exc.value.code == "golden.seed_empty"
+
+
+def test_named_endpoints_are_deleted_before_the_resource(db, monkeypatch):
+    """AgentCore will not delete a runtime that still has endpoints, and an orphaned
+    `live` endpoint keeps serving a version nobody can see."""
+    from app.dlc import releases as release_svc
+
+    agent = _agent(db)
+    agent.method = "harness"
+    db.commit()
+    deleted = []
+    monkeypatch.setattr("app.services.agentcore.harness.delete_harness_endpoint",
+                        lambda control, rid, name: deleted.append((rid, name)) or True)
+    out = release_svc.delete_endpoints(agent, object())
+    # candidate first, then live: the one serving traffic goes last
+    assert [name for _, name in deleted] == ["candidate", "live"]
+    assert [row["status"] for row in out] == ["deleted", "deleted"]
+
+
+def test_a_missing_endpoint_is_absent_not_an_error(db, monkeypatch):
+    from app.dlc import releases as release_svc
+
+    agent = _agent(db)
+
+    class _Gone(Exception):
+        pass
+
+    _Gone.__name__ = "ResourceNotFoundException"
+
+    def boom(control, *, runtime_id, endpoint_name):
+        raise _Gone("gone")
+
+    monkeypatch.setattr("app.services.agentcore.runtime.delete_runtime_endpoint", boom)
+    out = release_svc.delete_endpoints(agent, object())
+    assert [row["status"] for row in out] == ["absent", "absent"]
+
+
+def test_an_ungated_agent_has_no_endpoints_to_delete(db):
+    from app.dlc import releases as release_svc
+
+    # endpoint_mode "default" = a single DEFAULT endpoint AWS owns; nothing to delete
+    assert release_svc.delete_endpoints(_agent(db, mode="default"), object()) == []

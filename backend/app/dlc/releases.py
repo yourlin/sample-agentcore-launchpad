@@ -593,3 +593,40 @@ def waiver_out(w: Waiver, *, history: int | None = None) -> dict[str, Any]:
         "times_waived": history,
         "created_at": w.created_at.isoformat() if w.created_at else None,
     }
+
+
+def delete_endpoints(agent: Agent, control: Any, *, log: Any = None) -> list[dict[str, Any]]:
+    """Delete the named endpoints a gated agent serves through, before its resource.
+
+    AgentCore will not delete a runtime/harness that still has endpoints, and an
+    orphaned `live` endpoint keeps serving a version nobody can see in the console. So
+    every delete path calls this first; each failure is reported rather than raised —
+    the agent delete itself must still proceed.
+    """
+    out: list[dict[str, Any]] = []
+    if not agent.resource_id or getattr(agent, "endpoint_mode", None) != "live":
+        return out
+    for name in (CANDIDATE, LIVE):
+        try:
+            if agent.method == "harness":
+                from app.services.agentcore import harness as hc
+
+                deleted = hc.delete_harness_endpoint(control, agent.resource_id, name)
+                status = "deleted" if deleted else "absent"
+            else:
+                from app.services.agentcore import runtime as rt
+
+                rt.delete_runtime_endpoint(control, runtime_id=agent.resource_id,
+                                           endpoint_name=name)
+                status = "deleted"
+        except Exception as exc:  # noqa: BLE001 — never block the agent's deletion
+            name_of = type(exc).__name__
+            status = "absent" if name_of in ("ResourceNotFoundException",
+                                             "NotFoundException") else f"skipped:{name_of}"
+            if not status.startswith("absent"):
+                logger.warning("agent %s: could not delete endpoint %s: %s: %s",
+                               agent.id, name, name_of, exc)
+        out.append({"endpoint": name, "status": status})
+        if log:
+            log(f"endpoint {name}: {status}")
+    return out
