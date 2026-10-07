@@ -103,15 +103,18 @@ FCD deck、《企业智能体评估方法论》workshop deck、网易 briefing �
 
 ```
 criteria_sets
-  id, workspace_id, agent_id（可空：可作为模板共享）
-  name, description
+  id, workspace_id
+  kind               template | agent
+  agent_id           模板为空
+  template_id, template_version   （仅 agent 判据集：继承的模板版本）
+  name, description, scenario      （scenario：场景标签，用于推荐模板）
   version            整数，单调递增；草稿 = 最高的未发布版本
   status             draft | published | superseded
   signed_by, signed_at, sign_note        # 业务方签字（§7.1）
   parent_version     草稿复制自哪个版本
   source             manual | assistant_plan | import
   created_by, created_at, updated_at
-  unique(agent_id, name, version)
+  unique(workspace_id, kind, agent_id, name, version)
 
 criteria
   id, workspace_id, set_id, set_version
@@ -147,6 +150,12 @@ criteria
 - 编辑器上的汇总：三档分布；裁判型占比（<20% 每次提交全量跑；20–50% 拆快集/全集；≥50% 提示拆判据）；「实际生效的门禁数」（门禁数减去未校准裁判）。
 
 发布即冻结版本；编辑已发布的判据集会生成草稿 vN+1，`parent_version = N`。已发布版本不可修改。
+
+**模板。** `template` 判据集存放同一场景（如「工业品电商客服」）下所有 agent 共用的判据，单独管理版本。`agent` 判据集引用一个模板版本，只保存自己的**覆盖项**（同一 `key`，改了阈值 / 档位 / 执行器 / 原文）与**新增项**（新的 key）；它的有效判据 = `模板 vT ⊕ 覆盖项 ⊕ 新增项`，并物化为自己的已发布版本，所以血缘仍只有一个 `criteria_set_version`。
+
+- 模板出新版本不会悄悄改变 agent 判据集：受影响的判据集显示「模板 v(T+1) 可用」及差异；采用新版本会生成新的 agent 判据集草稿，由该 agent 的业务负责人签字。
+- 覆盖项可以收紧模板里的红线（加条件），不能把红线降为门禁 / 观测；删除模板判据必须在 agent 判据集上写明理由。
+- 模板按工作区隔离；发布包携带物化后的 agent 判据集，目标工作区不需要有这个模板。
 
 ### 4.2 黄金集：建在 EvalDataset 之上
 
@@ -225,7 +234,7 @@ calibration_records
   decided_by, decided_at, note
 ```
 
-一条判据对某个评估器算作**已校准**，需要同时满足：最近一条记录 `verdict = aligned`；`judge_human_kappa ≥ max(0.61, human_human_kappa − 0.05)`；记录未超过重校准周期（默认 90 天）；评估器的 `updatedAt` 此后未变化。任一条件不满足，判据有效档位降为观测，并在收件箱生成「需重新校准」事项。
+一条判据对某个评估器算作**已校准**，需要同时满足：最近一条记录 `verdict = aligned`；`judge_human_kappa ≥ max(0.61, human_human_kappa − 0.05)`；记录未超过重校准周期；评估器的 `updatedAt` 此后未变化。重校准周期（默认 90 天）与 κ 下限（默认 0.61）是**工作区发布策略的配置项**（`release_policy.calibration = {period_days, kappa_floor}`），与 `services/release_gates.py` 现有策略字段一样做归一化。任一条件不满足，判据有效档位降为观测，并在收件箱生成「需重新校准」事项。
 
 ### 4.5 发布记录、例外与血缘
 
@@ -372,6 +381,8 @@ canary 保留自己的 stable / treatment 端点；完成时改指 `live`（目�
 - `direct`：除了调用改走 `live` 之外不变，每次部署成功后 `live` 与 DEFAULT 保持同步。这样调用路径的改动可以先单独、安全地上线。
 - `gated`：按 §6.1 的流程；`prod` 级工作区中有已发布判据集的 agent 必须用，其他情况可选。
 
+默认值分两步：**（1）** P3 上线时，所有工作区（包括新建的 `prod` 工作区）默认 `direct`，按工作区手动开启 `gated`；**（2）** P3 在实际环境跑稳后（退出标准：≥2 个工作区使用 `gated` 满 4 周、没有门控引擎缺陷阻塞发布、改指回滚演练过），新建的 `prod` 级工作区默认 `gated`。第 2 步是有跟踪的后续任务，不是「永远手动」；已有工作区永不被自动切换。
+
 迁移任务（幂等、可恢复，和其他 job 一样）：为每个活跃 agent 创建指向其当前 `version` 的 `live` 端点，等待 READY，然后把 agent 的 `endpoint_mode` 列从 `default` 改为 `live`。迁移前创建的 agent 在切换之前继续走 DEFAULT。导入的已有 agent（discovered）永不修改：保持 DEFAULT，并标记为「不可门控」。
 
 ### 6.3 现有发布流程的变化
@@ -401,7 +412,7 @@ canary 保留自己的 stable / treatment 端点；完成时改指 `live`（目�
 - **阶梯提示**：对每条裁判型判据给出「能不能改成代码断言」的检查清单（结构 / 格式 / 数值 / 延迟 / 成本 → CustomCode；顺序 → TrajectoryInOrderMatch）；
 - 覆盖度：每条判据在各档样本（已知好 / 已知坏 / 模糊 / 对抗）上的数量，少于 3 条标红。
 
-操作：编辑草稿；从架构助手的评估计划导入（`blocking → 门禁`、`threshold → 阈值`、黄金用例 → 样本、鱼骨图维度 → 维度）；发布；**签字**（需要 `criteria.sign`；签字人不能是最后编辑人，管理员除外；记录姓名、时间、备注）；对比两个版本。
+操作：从模板创建（选场景 → 模板版本）或从空白创建；在模板基础上编辑覆盖项 / 新增项（继承的行有标记）；采用新的模板版本（看差异 + 重新签字）；把一个判据集另存为新模板；编辑草稿；从架构助手的评估计划导入（`blocking → 门禁`、`threshold → 阈值`、黄金用例 → 样本、鱼骨图维度 → 维度）；发布；**签字**（需要 `criteria.sign`；签字人不能是最后编辑人，管理员除外；记录姓名、时间、备注）；对比两个版本。
 
 ### 7.2 黄金集管理：工程与业务共建样本
 
@@ -413,7 +424,7 @@ canary 保留自己的 stable / treatment 端点；完成时改指 `live`（目�
 
 ### 7.3 标注与校准工作台：先两人独立标，再比裁判与人
 
-路由 `/v2/eval/calibration?criterion=…`（控制台）与 `/r/annotate/<token>`（免登录，复用分享链接原语 `services/share_links.py:92`，`kind = annotate`）。
+路由 `/v2/eval/calibration?criterion=…`（控制台）与 `/r/annotate/<token>`（免登录，复用分享链接原语 `services/share_links.py:92`，`kind = annotate`）。免登录链接只在 `dev` 与 `staging` 级工作区可用；`prod` 级工作区的标注必须使用控制台账号，创建链接的 API 拒绝 `kind = annotate`，工作区被改为 `prod` 级后已有的标注链接立即失效。
 
 标注人视图：一次一条样本，展示对话、trace 摘要（工具调用、检索到的上下文）、判据原文及其评分口径、正反例；标注通过 / 不通过 / 无法判定 + 理由。任务关闭前，标注人看不到彼此的标注，也看不到裁判结果；样本随机顺序呈现，不按类别分组（避免锚定）。
 
@@ -457,7 +468,7 @@ canary 保留自己的 stable / treatment 端点；完成时改指 `live`（目�
 
 候选来源（合并并去重）：点踩与 SME 评审结论（`chat_feedback`）、问题箱、Insights 的 FailureAnalysis 根因与 UserIntent 聚类（带 `affectedSessionCount`）、在线评估失败。
 
-每个候选展示：带 **PII 脱敏预览**的对话（`guardrail.screen(mode="anonymize")` 识别出的实体高亮；无法脱敏的候选禁止入集）；所属聚类与受影响会话；**现有评估器对它怎么判**（判错的优先，它既是新用例也是校准样本）；最相近的已有黄金样本（目前做精确与归一化文本匹配，后续可加向量相似），用于标记重复；建议关联的判据；来源的偏差标签。
+每个候选展示：带 **PII 脱敏预览**的对话（`guardrail.screen(mode="anonymize")` 识别出的实体高亮；无法脱敏的候选禁止入集）；所属聚类与受影响会话；**现有评估器对它怎么判**（判错的优先，它既是新用例也是校准样本）；最相近的已有黄金样本，用于标记重复：对首条用户输入做精确匹配与归一化文本匹配（统一大小写、空白、标点、全半角），不调用 embedding；审核人看到最相近的几条后自行判断；建议关联的判据；来源的偏差标签。
 
 操作：入集到开发集或回归集（永不进留出集），标准答案必须由人撰写或确认（记录 `expected_source`）；拒绝并写理由；标记为重复（计入所属聚类的数量）；发起标注任务；发起判据变更（「这是新边界，需要加判据」）。入集需要 `golden.admit`；入集样本进入子集的草稿版本；发布版本时显示最近一次运行在新旧两个版本上的通过率。
 
@@ -498,7 +509,7 @@ Agent 详情页 `?tab=dlc`：按固定顺序排列的五个维度卡片，每张
 | `waiver.approve` | operator；admin | 审批例外 |
 | `release.sign` | operator；admin | 签字 gated 模式的原地发布（发布申请仍用 `promotion.approve`） |
 
-免登录标注人使用 `annotate` 分享链接（限定一个任务、会过期、可撤销）。服务端强制职责分离：签字人 ≠ 判据集最后编辑人；发布签字人 ≠ 申请人；例外批准人 ≠ 申请人（管理员也不例外，与 `review_promotion` 一致）。
+免登录标注人使用 `annotate` 分享链接（限定一个任务、会过期、可撤销），仅限 `dev`/`staging` 级工作区；`prod` 级必须使用控制台账号（§7.3）。服务端强制职责分离：签字人 ≠ 判据集最后编辑人；发布签字人 ≠ 申请人；例外批准人 ≠ 申请人（管理员也不例外，与 `review_promotion` 一致）。
 
 所有决定在同一事务内写 `audit_events`。新增查询接口 `GET /api/audit?target=…&action=…`（admin，以及对自己 agent 持有 `criteria.sign` 的人），为每个工作台提供「决定历史」面板。
 
@@ -509,7 +520,8 @@ Agent 详情页 `?tab=dlc`：按固定顺序排列的五个维度卡片，每张
 ### 9.1 API（均在 `/api` 下，在 `route_policy.py` 中分类）
 
 ```
-criteria-sets           GET, POST
+criteria-sets           GET (?kind=template|agent), POST
+criteria-sets/{id}/adopt-template  POST  （agent 判据集 → 基于模板 vT 的新草稿）
 criteria-sets/{id}      GET (?version=), PUT（仅草稿）, DELETE（仅草稿）
 criteria-sets/{id}/publish | /sign | /diff?a=&b= | /import-plan
 criteria/{key}/coverage
@@ -594,10 +606,10 @@ Workshop 就绪度：P0 + P1 支撑 1 天判据工作坊（定义、构建、评
 - 第 06 层（模型与参数）和第 07 层（权限与护栏）的自进化。
 - 替换客户已有的追踪栈（Langfuse、Phoenix 等）：读取兼容 OTel 的数据，不做迁移。
 
-## 15. 待决问题
+## 15. 已定决策（2026-10-06）
 
-1. 判据集只属于单个 agent，还是可以做成模板，供同一场景的多个 agent 复用（并独立管理版本）？
-2. 免登录标注人：在受监管的工作区，标注标准答案是否可接受？还是工作区为 `prod` 级时只允许有控制台账号的人？
-3. 默认重校准周期（建议 90 天）与 κ 下限（建议 0.61）：按工作区策略配置，还是全局统一？
-4. 入集时的向量去重：每个候选调一次 Bedrock embedding 是否值得？还是暂时只做精确 / 归一化匹配？
-5. 新建 `prod` 工作区是否默认 `release_mode = gated`？还是在 P3 实际跑稳之前所有工作区都改为手动开启？
+1. **判据集做成模板。** 场景模板单独管理版本；agent 判据集继承一个模板版本，加上覆盖项与新增项（§4.1、§7.1）。
+2. **免登录标注链接只用于 `dev`/`staging`。** `prod` 级工作区只允许有控制台账号的人标注，每条标注都能追溯到人（§7.3、§8）。
+3. **重校准周期与 κ 下限按工作区发布策略配置**，默认 90 天与 0.61（§4.4）。
+4. **入集去重先做精确 + 归一化文本匹配**，暂不调用 embedding（§7.6）。
+5. **`release_mode` 默认值分两步：** P3 上线时手动开启；P3 达到实际环境的退出标准后，新建 `prod` 级工作区默认 `gated`（§6.2）。

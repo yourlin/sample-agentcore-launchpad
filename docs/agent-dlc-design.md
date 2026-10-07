@@ -113,15 +113,18 @@ All new tables are workspace-scoped (added to `WORKSPACE_SCOPED_TABLES`, `core/d
 
 ```
 criteria_sets
-  id, workspace_id, agent_id (nullable: a set may be shared by template)
-  name, description
+  id, workspace_id
+  kind               template | agent
+  agent_id           null for templates
+  template_id, template_version   (agent sets only: the template version it inherits)
+  name, description, scenario      (scenario: free-text tag used to suggest templates)
   version            int, monotonically increasing; draft = highest unpublished
   status             draft | published | superseded
   signed_by, signed_at, sign_note        # business-owner sign-off (§7.1)
   parent_version     the version this draft was copied from
   source             manual | assistant_plan | import
   created_by, created_at, updated_at
-  unique(agent_id, name, version)
+  unique(workspace_id, kind, agent_id, name, version)
 
 criteria
   id, workspace_id, set_id, set_version
@@ -157,6 +160,12 @@ Validation (server-side, mirrors handbook §1.10.3 `validate`):
 - Summary (shown on the editor): tier distribution, judge share (<20% → every commit runs all; 20–50% → split quick/full; ≥50% → warn "split criteria"), and "effective gates" (gates minus uncalibrated judges).
 
 Publishing freezes the version; editing a published set creates draft vN+1 with `parent_version = N`. A published version is immutable.
+
+**Templates.** A `template` set holds criteria shared by every agent of one scenario (e.g. "industrial e-commerce customer service") and is versioned on its own. An `agent` set references one template version and stores only its **overrides** (same `key`, changed threshold/tier/executor/text) and **additions** (new keys); its effective criteria are `template vT ⊕ overrides ⊕ additions`, materialized into its own published version so lineage stays a single `criteria_set_version`.
+
+- A new template version never changes an agent set silently: affected agent sets show "template v(T+1) available", with the diff; adopting it creates a new agent-set draft that the agent's business owner signs.
+- Overrides may tighten a template red line (add conditions) but may not demote it to gate/observe; removing a template criterion requires a written reason on the agent set.
+- Templates are workspace-scoped; promotion bundles carry the materialized agent set, so the target workspace does not need the template.
 
 ### 4.2 Golden set (黄金集) on top of EvalDataset
 
@@ -235,7 +244,7 @@ calibration_records
   decided_by, decided_at, note
 ```
 
-A criterion is **calibrated** for a given evaluator when its latest record has `verdict = aligned`, `judge_human_kappa ≥ max(0.61, human_human_kappa − 0.05)`, and the record is younger than the recalibration period (default 90 days) and the evaluator's `updatedAt` has not changed since. Any of those failing demotes it to effective `observe` and raises a "recalibrate" inbox item.
+A criterion is **calibrated** for a given evaluator when its latest record has `verdict = aligned`, `judge_human_kappa ≥ max(0.61, human_human_kappa − 0.05)`, and the record is younger than the recalibration period and the evaluator's `updatedAt` has not changed since. The recalibration period (default 90 days) and the κ floor (default 0.61) are **workspace release-policy settings** (`release_policy.calibration = {period_days, kappa_floor}`), normalized like the existing policy fields in `services/release_gates.py`. Any of those failing demotes it to effective `observe` and raises a "recalibrate" inbox item.
 
 ### 4.5 Release record, waivers, lineage
 
@@ -382,6 +391,8 @@ Workspace setting `release_mode`: `direct` (today's behaviour) | `gated`.
 - `direct` — no change except that invokes already use `live`, kept in lock-step with DEFAULT after every successful deploy. This lets the invoke change ship first and safely.
 - `gated` — §6.1 flow; required for agents with a published criteria set in a `prod`-tier workspace, optional elsewhere.
 
+Default, in two steps: **(1)** when P3 ships, every workspace — including new `prod` ones — defaults to `direct` and `gated` is switched on per workspace; **(2)** once P3 has run in the field (exit criteria: ≥ 2 workspaces on `gated` for ≥ 4 weeks, no gate-engine defect blocking a release, rollback-by-repoint drilled), new `prod`-tier workspaces default to `gated`. Step 2 is a tracked follow-up, not an open-ended "manual forever"; existing workspaces are never flipped automatically.
+
 Migration job (idempotent, resumable like other jobs): for each active agent create `live` pinned to its current `version`, wait READY, then flip the agent's `endpoint_mode` column from `default` to `live`. Agents created before migration keep working through DEFAULT until flipped. Discovered (imported) agents are never modified: they stay on DEFAULT and are marked "not gate-able".
 
 ### 6.3 What changes in existing release flows
@@ -411,7 +422,7 @@ Shows:
 - **ladder hint**: for each judge criterion, "could this be a code assertion?" checklist (structure/format/number/latency/cost → CustomCode; order → TrajectoryInOrderMatch);
 - coverage: number of golden items per criterion per tier (known good / bad / ambiguous / adversarial), red where < 3.
 
-Actions: edit draft, import from the architect evaluation plan (maps `blocking → gate`, `threshold → threshold`, golden tests → items, fishbone dimension → dimension), publish, **sign** (requires `criteria.sign`; signer ≠ last editor unless admin; records name, time, note), diff two versions.
+Actions: create from a template (pick scenario → template version) or blank, edit overrides/additions against the template (inherited rows marked), adopt a newer template version (diff + re-sign), save a set as a new template, edit draft, import from the architect evaluation plan (maps `blocking → gate`, `threshold → threshold`, golden tests → items, fishbone dimension → dimension), publish, **sign** (requires `criteria.sign`; signer ≠ last editor unless admin; records name, time, note), diff two versions.
 
 ### 7.2 Golden-set curator — *engineer + business build the examples*
 
@@ -423,7 +434,7 @@ Actions: add / edit items (with `metadata.dlc`), move between dev and regression
 
 ### 7.3 Annotation and calibration bench — *two annotators, then judge vs human*
 
-Routes `/v2/eval/calibration?criterion=…` (console) and `/r/annotate/<token>` (account-free, reusing the share-link primitive `services/share_links.py:92` with `kind = annotate`).
+Routes `/v2/eval/calibration?criterion=…` (console) and `/r/annotate/<token>` (account-free, reusing the share-link primitive `services/share_links.py:92` with `kind = annotate`). Account-free links are allowed only in `dev` and `staging` tier workspaces; in a `prod` tier workspace annotation requires a console account, the link-creation API refuses `kind = annotate`, and existing annotate links stop resolving if the workspace is re-tiered to `prod`.
 
 Annotator view: one item at a time — transcript, trace summary (tool calls, retrieved context), the criterion text and its rubric, positive/negative examples; label pass / fail / inconclusive + rationale. Annotators never see each other's labels or the judge's until the task closes; items are presented in random order, not grouped by category (anchoring).
 
@@ -467,7 +478,7 @@ Route `/v2/issues?view=admission` (next to the existing issue box).
 
 Candidate sources, merged and de-duplicated: thumbs-down and SME review verdicts (`chat_feedback`), issues, Insights FailureAnalysis root causes and UserIntent clusters (with `affectedSessionCount`), and online-eval failures.
 
-Shows per candidate: transcript with **PII redaction preview** (`guardrail.screen(mode="anonymize")` entities highlighted; candidates that cannot be redacted are blocked from admission); the cluster it belongs to and affected sessions; **what the current evaluators say** on it (judged wrong ⇒ prioritized, it is both a new case and a calibration sample); nearest existing golden items (exact + normalized-text match today, embedding similarity later) to flag duplicates; proposed criteria; the source's bias label.
+Shows per candidate: transcript with **PII redaction preview** (`guardrail.screen(mode="anonymize")` entities highlighted; candidates that cannot be redacted are blocked from admission); the cluster it belongs to and affected sessions; **what the current evaluators say** on it (judged wrong ⇒ prioritized, it is both a new case and a calibration sample); nearest existing golden items to flag duplicates — exact and normalized-text match (case, whitespace, punctuation, full/half-width folded) on the first user input, no embedding call; the reviewer sees the closest matches and decides; proposed criteria; the source's bias label.
 
 Actions: admit to dev or regression split (never holdout) with a human-written or human-confirmed expected answer (`expected_source` recorded), reject with reason, mark duplicate (counts toward the cluster), open an annotation task, open a criteria change ("this is a new boundary — add a criterion"). Admission requires `golden.admit`; admitted items enter a draft split version; publishing the version shows the before/after pass rates of the last run on both versions.
 
@@ -508,7 +519,7 @@ New permission keys (added to `AGENT_PERMISSIONS`, `DEFAULT_BY_ROLE`, `route_pol
 | `waiver.approve` | operator; admin | approve waivers |
 | `release.sign` | operator; admin | sign gated in-place releases (promotions keep `promotion.approve`) |
 
-Account-free annotators use `annotate` share links (scoped to one task, expiring, revocable). Separation rules enforced server-side: signer ≠ last editor of the set, release signer ≠ requester, waiver approver ≠ requester (admins included, matching `review_promotion`).
+Account-free annotators use `annotate` share links (scoped to one task, expiring, revocable), allowed in `dev`/`staging` tier workspaces only; `prod` tier requires console accounts (§7.3). Separation rules enforced server-side: signer ≠ last editor of the set, release signer ≠ requester, waiver approver ≠ requester (admins included, matching `review_promotion`).
 
 All decisions write `audit_events` in the same transaction. New read API `GET /api/audit?target=…&action=…` (admin, plus `criteria.sign` holders for their agents) feeds a "decision history" panel on each workbench.
 
@@ -519,7 +530,8 @@ Prod-tier protection (`PROD_PROTECTED`) covers: criteria publish/sign, golden ve
 ### 9.1 API (all under `/api`, classified in `route_policy.py`)
 
 ```
-criteria-sets           GET, POST
+criteria-sets           GET (?kind=template|agent), POST
+criteria-sets/{id}/adopt-template  POST  (agent set → new draft on template vT)
 criteria-sets/{id}      GET (?version=), PUT (draft only), DELETE (draft only)
 criteria-sets/{id}/publish | /sign | /diff?a=&b= | /import-plan
 criteria/{key}/coverage
@@ -604,10 +616,10 @@ Workshop readiness: P0 + P1 support the 1-day criteria workshop (define, build, 
 - Self-evolution of layers 06 (model/parameters) and 07 (permissions/guardrails).
 - Replacing customers' existing tracing stacks (Langfuse, Phoenix, …): OTel-compatible data is read, not migrated.
 
-## 15. Open questions
+## 15. Decisions (resolved 2026-10-06)
 
-1. Should a criteria set be per agent only, or reusable as a template across agents of the same scenario (and versioned independently)?
-2. Account-free annotators: acceptable for golden answers in regulated workspaces, or console accounts only when the workspace tier is `prod`?
-3. Default recalibration period (90 days proposed) and the κ floor (0.61 proposed) — per workspace policy or global?
-4. Embedding-based duplicate detection in admission: worth a Bedrock embedding call per candidate, or exact/normalized matching only for now?
-5. `release_mode = gated` default for new `prod` workspaces, or opt-in everywhere until P3 has run in the field?
+1. **Criteria sets are templated.** Scenario templates are versioned independently; agent sets inherit a template version plus overrides and additions (§4.1, §7.1).
+2. **Account-free annotation links in `dev`/`staging` only.** In `prod`-tier workspaces only console accounts annotate, so every label is attributable (§7.3, §8).
+3. **Calibration period and κ floor are workspace release-policy settings**, defaults 90 days and 0.61 (§4.4).
+4. **Admission dedupe uses exact + normalized-text matching**; no embedding calls for now (§7.6).
+5. **`release_mode` default in two steps:** manual opt-in when P3 ships; after P3 meets its field exit criteria, new `prod`-tier workspaces default to `gated` (§6.2).
