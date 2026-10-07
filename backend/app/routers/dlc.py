@@ -521,9 +521,9 @@ def _items_from_run(db: Session, run: EvalRun, criterion_key: str) -> list[dict[
 
 @router.get("/annotation-tasks")
 def list_annotation_tasks(
+    request: Request,
     agent_id: str | None = Query(default=None, max_length=32),
     status: str | None = None,
-    request: Request = None,
     db: Session = Depends(get_db),
     ws: WorkspaceScope = Depends(require_workspace),
 ) -> dict[str, Any]:
@@ -535,8 +535,15 @@ def list_annotation_tasks(
     if status:
         query = query.where(AnnotationTask.status == status)
     rows = db.scalars(query.order_by(AnnotationTask.created_at.desc()).limit(100)).all()
-    viewer = _actor(request) if request else ""
-    return {"tasks": [cal_svc.task_view(db, t, viewer=viewer, privileged=True) for t in rows]}
+    identity = require_identity(request)
+    # the same test as the detail route: hardcoding `privileged` here handed every
+    # annotator the judge's verdicts in the list, which is exactly what blind labelling
+    # exists to withhold — an annotator who sees them first makes κ meaningless
+    privileged = identity.role == ADMIN or "judge.calibrate" in identity.permissions
+    return {"tasks": [
+        cal_svc.task_view(db, t, viewer=identity.username, privileged=privileged)
+        for t in rows
+    ]}
 
 
 @router.post("/annotation-tasks", status_code=201)
@@ -1008,7 +1015,8 @@ def admit_candidate(
     item = admission_svc.admit(
         db, candidate, split_dataset=split, expected_response=req.expected_response,
         expected_source=req.expected_source, criteria_ids=req.criteria_ids,
-        case_tier=req.case_tier, actor=_actor(request), scenario_id=req.scenario_id,
+        case_tier=req.case_tier, actor=_actor(request), workspace_ctx=ws.context,
+        scenario_id=req.scenario_id,
     )
     db.commit()
     return {"item": item, "candidate": admission_svc.candidate_out(candidate)}
@@ -1079,9 +1087,15 @@ def put_watch(
         criteria_svc.latest_published(db, ws.id, req.criteria_lineage_id)
         if req.criteria_lineage_id else criteria_svc.agent_set(db, ws.id, agent_id)
     )
+    # resolve the dataset in THIS workspace: stored unchecked, another workspace's
+    # golden parent would be replayed here (its sealed holdout against an agent the
+    # caller controls) every time the scheduler fires
+    dataset_id = None
+    if req.dataset_id:
+        dataset_id = golden_svc.get_parent(db, ws.id, req.dataset_id).id
     watch_svc.upsert(
         db, workspace_id=ws.id, agent_id=agent_id,
-        criteria_set_id=cset.id if cset else None, dataset_id=req.dataset_id,
+        criteria_set_id=cset.id if cset else None, dataset_id=dataset_id,
         every=req.every, at_hour=req.at_hour, tz=req.tz, repeats=req.repeats,
         enabled=req.enabled, actor=_actor(request), max_cost_usd=req.max_cost_usd,
     )

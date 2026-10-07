@@ -4121,9 +4121,26 @@ next to `start_auto_refresh()`; each task is claimed through a conditional UPDAT
 **Permissions.** Six keys join `AGENT_PERMISSIONS`: `criteria.manage` (member,
 operator), `criteria.sign`, `golden.admit`, `judge.calibrate` (granted to named people,
 never by role), `waiver.approve`, `release.sign` (operator). Every route is classified
-in `route_policy.py`; publish, sign, seed, item adds, admit, waiver approval, migrate,
-evaluate, release sign/block/rollback are `PROD_PROTECTED`. Decisions are written to
-`audit_events` and read back at `GET /api/audit`.
+in `route_policy.py`; publish, sign, seed, item adds **and removals** (`move` / `retire`
+take a case out of the gate's denominator, which changes the standard just as adding one
+does), admit, calibration `decide` (a `not_aligned` verdict demotes a gating judge),
+waiver approval, migrate, evaluate and release sign/block/rollback are `PROD_PROTECTED`.
+Decisions are written to `audit_events` and read back at `GET /api/audit`.
+
+**Three things a security review found, all now enforced server-side.** They are listed
+because each was a *consistency* failure rather than a missing idea — the rule existed
+and one path did not apply it. (1) `GET /api/annotation-tasks` hardcoded
+`privileged=True`, so the list handed every annotator the judge's verdicts the detail
+route withholds; both now compute it the same way. (2) A watch config's `dataset_id`
+was stored unchecked, so another workspace's sealed holdout could be replayed against an
+agent the caller controls; it is resolved through `golden.get_parent(db, ws.id, …)` on
+write *and* on run. (3) A single annotator's vote counted as a consensus and the
+human-ceiling term was skipped when no second rater existed, so one person could label a
+run to match the judge and certify it; an item now needs two agreeing raters to
+contribute, `aligned` needs a real `human_human_kappa`, and `decide` refuses an
+annotator on the task. Admission also computes the PII screening itself instead of
+relying on the detail route having been opened, and records on the item how the text was
+screened (`unscreened_items` in coverage when the workspace has no guardrail).
 
 **Cost is enforced, not just displayed.** `dlc/cost.estimate` prices items × k ×
 (agent per-session + judge per-item) with its basis named, and `assert_allowed` is

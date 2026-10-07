@@ -415,7 +415,7 @@ def test_waivers_need_a_second_person_and_never_cover_a_red_line(engineer, admin
     assert approved.status_code == 200 and approved.json()["active"] is True
 
 
-def test_calibration_blind_then_decided(engineer, owner):
+def test_calibration_blind_then_decided(engineer, owner, admin):
     agent_id = _agent()
     lineage = _create_set(engineer, agent_id)
     judge = [CRITERIA[0], {"key": "J1", "text": "agent is polite when refusing",
@@ -449,9 +449,17 @@ def test_calibration_blind_then_decided(engineer, owner):
     agreement = owner.get(f"/api/annotation-tasks/{task_id}/agreement").json()
     assert agreement["judge_human_kappa"] == pytest.approx(1.0)
     assert agreement["suggested_verdict"] == "aligned"
-    assert engineer.post(f"/api/annotation-tasks/{task_id}/decide",
-                         json={"verdict": "aligned"}).status_code == 403
-    decided = owner.post(f"/api/annotation-tasks/{task_id}/decide", json={"verdict": "aligned"})
+    no_permission = engineer.post(f"/api/annotation-tasks/{task_id}/decide",
+                                  json={"verdict": "aligned"})
+    assert no_permission.status_code == 403
+    assert no_permission.json()["code"] == "auth.permission_required"
+    # and the owner holds `judge.calibrate` but labelled this task: the labels are the
+    # evidence, so the person who wrote them does not also rule on them
+    own_labels = owner.post(f"/api/annotation-tasks/{task_id}/decide",
+                            json={"verdict": "aligned"})
+    assert own_labels.status_code == 403
+    assert own_labels.json()["code"] == "calibration.own_labels"
+    decided = admin.post(f"/api/annotation-tasks/{task_id}/decide", json={"verdict": "aligned"})
     assert decided.status_code == 200 and decided.json()["verdict"] == "aligned"
     after = engineer.get(f"/api/criteria-sets/{lineage}").json()
     row = next(c for c in after["criteria"] if c["key"] == "J1")
@@ -652,3 +660,113 @@ def test_a_metric_dimension_reports_its_measurement_not_a_blank(engineer, owner,
     assert perf["not_applicable"] is False
     assert perf["metrics"] == [{"key": "L1", "metric": "latency_p95_ms", "op": "<=",
                                "bound": 3000, "value": 1146.9, "verdict": "pass", "n": 3}]
+
+
+def test_the_task_list_withholds_the_judge_from_an_annotator_like_the_detail_route(
+    engineer, owner, admin
+):
+    """Security review finding: the list route hardcoded `privileged=True`, so every
+    annotator could read the judge's verdicts (and everyone else's votes) for all 100
+    recent tasks — exactly what blind labelling exists to withhold."""
+    agent_id = _agent()
+    lineage = _create_set(engineer, agent_id)
+    engineer.put(f"/api/criteria-sets/{lineage}", json={"criteria": [
+        CRITERIA[0],
+        {"key": "J1", "text": "polite", "dimension": "quality", "tier": "gate",
+         "threshold": 0.9,
+         "executor": {"kind": "evaluator", "evaluator_id": "Builtin.Helpfulness"}},
+    ]})
+    engineer.post(f"/api/criteria-sets/{lineage}/publish", json={})
+    task = engineer.post("/api/annotation-tasks", json={
+        "agent_id": agent_id, "criteria_lineage_id": lineage, "criterion_key": "J1",
+        "annotators": [ENG["username"], BIZ["username"]],
+        "items": [{"ref": "i0", "input": "q", "answer": "a", "judge_label": "pass",
+                   "judge_explanation": "because"}]})
+    assert task.status_code == 201, task.text
+    task_id = task.json()["id"]
+    engineer.post(f"/api/annotation-tasks/{task_id}/labels",
+                  json={"item_ref": "i0", "label": "fail"})
+
+    listed = engineer.get("/api/annotation-tasks").json()["tasks"]
+    mine = next(t for t in listed if t["id"] == task_id)
+    item = mine["items"][0]
+    assert "judge_label" not in item and "judge_explanation" not in item
+    assert "labels" not in item  # nor the other annotator's vote
+    assert item["my_label"] == "fail"  # their own is theirs to see
+
+    # the owner holds judge.calibrate, so they read the numbers they have to rule on
+    privileged = owner.get("/api/annotation-tasks").json()["tasks"]
+    assert next(t for t in privileged if t["id"] == task_id)["items"][0]["judge_label"] == "pass"
+    admin_view = admin.get("/api/annotation-tasks").json()["tasks"]
+    assert next(t for t in admin_view if t["id"] == task_id)["items"][0]["judge_label"] == "pass"
+
+
+def test_a_watch_cannot_pin_another_workspaces_golden_set(engineer, owner):
+    """Security review finding: `dataset_id` was stored unchecked, so another
+    workspace's sealed holdout could be replayed against an agent the caller controls."""
+    agent_id = _agent()
+    lineage = _create_set(engineer, agent_id)
+    engineer.put(f"/api/criteria-sets/{lineage}", json={"criteria": CRITERIA})
+    engineer.post(f"/api/criteria-sets/{lineage}/publish", json={})
+    _golden(engineer, lineage, seeder=owner)
+    db = SessionLocal()
+    try:
+        other = Workspace(id="ws-other", name="Other", tier="dev",
+                          account_id="222222222222", region="us-west-2")
+        db.add(other)
+        db.flush()
+        foreign = EvalDataset(workspace_id=other.id, name="theirs", kind="predefined",
+                             role="golden", items=[])
+        db.add(foreign)
+        db.commit()
+        foreign_id = foreign.id
+    finally:
+        db.close()
+    refused = engineer.put(f"/api/agents/{agent_id}/watch", json={
+        "criteria_lineage_id": lineage, "dataset_id": foreign_id})
+    assert refused.status_code == 404 and refused.json()["code"] == "golden.not_found"
+    db = SessionLocal()
+    try:
+        db.query(EvalDataset).filter(EvalDataset.workspace_id == "ws-other").delete()
+        db.query(Workspace).filter(Workspace.id == "ws-other").delete()
+        db.commit()
+    finally:
+        db.close()
+
+
+def test_admission_records_how_the_text_was_screened(engineer, owner):
+    """Security review finding: the redaction preview only ran on the detail route, so
+    admitting straight from the queue stored the raw transcript. It is computed here
+    now, and a workspace with no guardrail is recorded rather than silently trusted."""
+    agent_id = _agent()
+    lineage = _create_set(engineer, agent_id)
+    engineer.put(f"/api/criteria-sets/{lineage}", json={"criteria": CRITERIA})
+    engineer.post(f"/api/criteria-sets/{lineage}/publish", json={})
+    dataset_id = _golden(engineer, lineage, seeder=owner)
+    db = SessionLocal()
+    try:
+        candidate = AdmissionCandidate(workspace_id=WS, agent_id=agent_id, source="feedback",
+                                       source_ref="f-unscreened",
+                                       question="my card is 4111 1111 1111 1111",
+                                       answer="noted", session_id="s9")
+        db.add(candidate)  # note: NO redaction preview on the row
+        db.commit()
+        candidate_id = candidate.id
+    finally:
+        db.close()
+    admitted = owner.post(f"/api/admission/{candidate_id}/admit", json={
+        "split": "regression", "expected_response": "we never read card numbers back",
+        "expected_source": "annotator", "criteria_ids": ["G1"], "case_tier": "known_bad"})
+    assert admitted.status_code == 201, admitted.text
+    meta = admitted.json()["item"]["metadata"]["dlc"]
+    # the test workspace has no guardrail, so the screening could not run — and the item
+    # says so instead of passing for screened
+    assert meta["redaction"] in ("unavailable", "clean", "redacted")
+    coverage = engineer.get(f"/api/golden-sets/{dataset_id}").json()["coverage"]
+    assert coverage["unscreened_items"] == (1 if meta["redaction"] == "unavailable" else 0)
+    db = SessionLocal()
+    try:
+        row = db.get(AdmissionCandidate, candidate_id)
+        assert row.redaction.get("status")  # computed and persisted by admit()
+    finally:
+        db.close()

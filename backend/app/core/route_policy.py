@@ -805,6 +805,13 @@ PROD_PROTECTED: frozenset[tuple[str, str]] = frozenset(
         ("POST", "/api/criteria-sets/{lineage_id}/sign"),
         ("POST", "/api/golden-sets/{dataset_id}/items"),
         ("POST", "/api/golden-sets/{dataset_id}/seed"),
+        # taking a case OUT of the gate is as much a change to the standard as adding
+        # one: a retired item leaves the gate's denominator, and a move shifts it out
+        # of the replayed split
+        ("POST", "/api/golden-sets/{dataset_id}/move"),
+        ("POST", "/api/golden-sets/{dataset_id}/retire"),
+        # a `not_aligned` verdict demotes a gating judge criterion to `observe`
+        ("POST", "/api/annotation-tasks/{task_id}/decide"),
         ("POST", "/api/admission/{candidate_id}/admit"),
         ("POST", "/api/waivers/{waiver_id}/approve"),
         ("POST", "/api/agents/{agent_id}/release/migrate"),

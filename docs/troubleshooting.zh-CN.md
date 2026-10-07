@@ -146,5 +146,8 @@ English: [troubleshooting.md](troubleshooting.md)
 | `409 watch.over_cost_ceiling` | 排程重评的预估成本超过上限，于是被跳过并上报，而不是先花掉。调高 `max_cost_usd` 或缩小切分 |
 | `409 annotation.links_not_allowed` | prod 级工作区不发放无账号标注链接：那里的标注会接触真实客户会话。请把标注人邀请为成员并授予 `judge.calibrate` |
 | 标注链接返回 `404 share.not_found` | 所有不可用状态刻意返回同一个答案（未知、已撤销、已过期、任务已删，或工作区升为 prod）。重新生成一个链接 |
+| `403 calibration.own_labels` | 你标注了这个任务，因此不能同时裁定它的裁判。请让另一位持 `judge.calibrate` 的人（或管理员）记录结论 |
+| `409 calibration.not_supported` 且 `human_human_kappa: null` | 只有一个人做了标注。裁判是对照「彼此一致的人」来认证的，只有单人标注的样本不计入——请让第二位标注人完成 |
+| `409 admission.redaction_blocked` | 个人信息护栏拒绝了这段会话，它不能进入黄金集。准入接口自己会做脱敏检测，所以即使没打开过候选详情，答案也是这个 |
 | 签署 / 准入 / 校准时 `403 auth.permission_required` | `criteria.sign`、`golden.admit`、`judge.calibrate` 只授予具体的人，不按角色给——它们决定“什么叫好”。由管理员按用户授予 |
 | 删除门控智能体返回 `aws_resource_deleted: false` | 这是预期行为，不是失败。harness 端点可能 DELETING 数分钟，而 AgentCore 不允许删除仍带端点的资源，所以控制台的行立即删除，AWS 侧由后台 sweep（`dlc.teardown`，每个 tick 执行）收尾。无需处理；已删除行的 `endpoint_mode` 回到 `default` 就是 sweep 的回执 |

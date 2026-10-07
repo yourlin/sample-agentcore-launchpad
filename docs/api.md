@@ -933,7 +933,7 @@ between the readings the data allows.
 | `POST` | `/api/annotation-tasks/{id}/labels` | `{item_ref, label, rationale?, answer?}` → 201. Only an annotator on the task (`403 annotation.not_annotator`); while adjudicating, only the adjudicator |
 | `POST` | `/api/annotation-tasks/{id}/adjudicate` | Move to adjudication — the adjudicator settles the disputed items |
 | `GET` | `/api/annotation-tasks/{id}/agreement` | `{n, pairs, human_human_kappa, judge_human_kappa, kappa_ci, band, confusion, disagreements, accuracy, policy, suggested_verdict}`. Human–human comes **first**: if people cannot agree, the criterion is unwritable and no judge can fix that |
-| `POST` | `/api/annotation-tasks/{id}/decide` | `judge.calibrate` — `{verdict: aligned\|not_aligned, note}` → the calibration record. `409 calibration.not_supported` with the numbers when `aligned` is not earned |
+| `POST` | `/api/annotation-tasks/{id}/decide` | `judge.calibrate` — `{verdict: aligned\|not_aligned, note}` → the calibration record. `409 calibration.not_supported` with the numbers when `aligned` is not earned, and `403 calibration.own_labels` for an annotator on the task: the labels are the evidence, so whoever wrote them does not also rule on them. `aligned` additionally needs a real human ceiling — items with only one rater contribute nothing, so a single person cannot certify a judge |
 | `GET` | `/api/calibration/{criterion_key}?agent_id` | `{records, status, policy}`. A record expires after the workspace's `calibration.period_days` — after that the judge is observed again |
 
 **Annotation links** let an expert label without a console account. A link *is* an

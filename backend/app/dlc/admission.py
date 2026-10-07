@@ -332,6 +332,7 @@ def admit(
     criteria_ids: list[str],
     case_tier: str,
     actor: str,
+    workspace_ctx: Any = None,
     scenario_id: str | None = None,
     redact: bool = True,
 ) -> dict[str, Any]:
@@ -348,10 +349,25 @@ def admit(
     if not expected_response.strip():
         raise AppError("admission.no_expected", "write the expected answer before admitting")
     redaction = candidate.redaction or {}
+    # The preview used to be computed only by the detail route, so admitting without
+    # opening the candidate first — or on a workspace with no guardrail configured —
+    # put the raw transcript into a dataset every member can read. Compute it here, and
+    # treat anything other than a finished screening as a refusal.
+    if not redaction.get("status"):
+        from app.models.ledger import Agent
+
+        agent = db.get(Agent, candidate.agent_id)
+        redaction = redaction_preview(
+            candidate.question, candidate.answer, agent, workspace_ctx
+        )
+        candidate.redaction = redaction
+        db.flush()
     if redaction.get("status") == "blocked":
-        raise AppError("admission.redaction_blocked",
-                       "this candidate cannot be redacted — it must not enter the golden set",
-                       status_code=409)
+        raise AppError(
+            "admission.redaction_blocked",
+            "this candidate cannot be redacted — it must not enter the golden set",
+            {"redaction": redaction}, status_code=409,
+        )
     question = candidate.question
     if redact and redaction.get("question"):
         question = redaction["question"]
@@ -360,6 +376,10 @@ def admit(
         "turns": [{"input": question, "expected_response": expected_response}],
         "metadata": {"dlc": {
             "case_tier": case_tier,
+            # how this text was screened. `unavailable` = the workspace has no PII
+            # guardrail configured, so nothing masked it — the coverage view says so
+            # rather than the set quietly holding an unscreened transcript.
+            "redaction": redaction.get("status") or "unknown",
             "criteria_ids": criteria_ids,
             "origin": "issue" if candidate.source == "issue" else (
                 "insight" if candidate.source.startswith("insight") else candidate.source

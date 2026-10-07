@@ -287,6 +287,7 @@ def coverage(criteria_keys: list[str], splits: dict[str, EvalDataset]) -> dict[s
     unmapped = 0
     sources: Counter = Counter()
     agent_observed = 0
+    unscreened = 0
     total = 0
     for split in splits.values():
         for item in active_items(split):
@@ -295,6 +296,8 @@ def coverage(criteria_keys: list[str], splits: dict[str, EvalDataset]) -> dict[s
             sources[meta.get("origin") or "manual"] += 1
             if meta.get("expected_source") == "agent_observed":
                 agent_observed += 1
+            if meta.get("redaction") in ("unavailable", "unknown"):
+                unscreened += 1
             ids = meta.get("criteria_ids") or []
             if not ids:
                 unmapped += 1
@@ -314,6 +317,8 @@ def coverage(criteria_keys: list[str], splits: dict[str, EvalDataset]) -> dict[s
         "items": total,
         "unmapped_items": unmapped,
         "agent_observed_items": agent_observed,
+        # admitted while the workspace had no PII guardrail configured
+        "unscreened_items": unscreened,
         "sources": [{"origin": k, "count": v, "bias": SOURCE_BIAS.get(k, "")}
                     for k, v in sources.most_common()],
     }

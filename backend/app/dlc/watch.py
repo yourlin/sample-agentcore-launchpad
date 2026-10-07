@@ -172,16 +172,16 @@ def run_now(
         (r.executor or {}).get("evaluator_id") for r in rows
         if (r.executor or {}).get("kind") == "evaluator" and (r.executor or {}).get("evaluator_id")
     })
-    from app.evaluation.models import EvalDataset
 
+    # `get_parent` is the workspace check: a pinned dataset id is never trusted on
+    # its own, however it got onto the config row
     parent = (
-        db.get(EvalDataset, config.dataset_id) if config.dataset_id
+        golden_svc.get_parent(db, config.workspace_id, config.dataset_id)
+        if config.dataset_id
         else golden_svc.for_criteria(db, config.workspace_id, cset.lineage_id)
     )
     if parent is None:
         raise AppError("watch.no_golden", "no golden set for these criteria", status_code=409)
-    if parent.split_of:
-        parent = golden_svc.get_parent(db, config.workspace_id, parent.id)
     splits = golden_svc.splits_of(db, parent)
     target = splits.get(split)
     items = golden_svc.active_items(target) if target else []

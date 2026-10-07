@@ -210,3 +210,54 @@ def test_policy_bounds():
         "period_days": 30, "kappa_floor": 0.7}
     with pytest.raises(AppError):
         cal.normalize_policy({"period_days": 3})
+
+
+def test_one_rater_is_not_a_consensus_so_a_judge_cannot_be_self_certified(db):
+    """Security review finding: a single annotator's vote counted as consensus and the
+    human ceiling was skipped when there was no second rater, so one person could label
+    a run to match the judge and have it certified."""
+    task = _task(db, ["pass" if n % 2 else "fail" for n in range(14)])
+    for n in range(14):
+        cal.record_label(db, task, annotator="ann1", item_ref=f"i{n}",
+                         label="pass" if n % 2 else "fail")
+    db.commit()
+    measured = cal.agreement(db, task)
+    policy = cal.policy_of(None)
+    # nothing to compare the judge against: no item has two raters
+    assert measured["n"] == 0 and measured["pairs"] == 0
+    assert measured["human_human_kappa"] is None
+    assert cal.suggested_verdict(measured, policy) == "insufficient_n"
+    with pytest.raises(AppError) as exc:
+        cal.decide(db, task, verdict="aligned", actor="ops", policy=policy,
+                   evaluator_id="Builtin.Helpfulness", evaluator_updated_at=None,
+                   criteria_lineage_id=None, criteria_set_version=None)
+    assert exc.value.code == "calibration.not_supported"
+
+    # with the second rater in, the same labels do support it
+    for n in range(14):
+        cal.record_label(db, task, annotator="ann2", item_ref=f"i{n}",
+                         label="pass" if n % 2 else "fail")
+    db.commit()
+    measured = cal.agreement(db, task)
+    assert measured["pairs"] == 14 and measured["human_human_kappa"] == pytest.approx(1.0)
+    assert cal.suggested_verdict(measured, policy) == "aligned"
+
+
+def test_an_annotator_cannot_rule_on_their_own_labels(db):
+    """The labels are the evidence, so the person who wrote them does not rule on them."""
+    task = _task(db, ["pass"] * 12)
+    for who in ("ann1", "ann2"):
+        for n in range(12):
+            cal.record_label(db, task, annotator=who, item_ref=f"i{n}", label="pass")
+    db.commit()
+    policy = cal.policy_of(None)
+    assert cal.suggested_verdict(cal.agreement(db, task), policy) == "aligned"
+    with pytest.raises(AppError) as exc:
+        cal.decide(db, task, verdict="aligned", actor="ann1", policy=policy,
+                   evaluator_id="Builtin.Helpfulness", evaluator_updated_at=None,
+                   criteria_lineage_id=None, criteria_set_version=None)
+    assert exc.value.code == "calibration.own_labels"
+    record = cal.decide(db, task, verdict="aligned", actor="ops", policy=policy,
+                        evaluator_id="Builtin.Helpfulness", evaluator_updated_at=None,
+                        criteria_lineage_id=None, criteria_set_version=None)
+    assert record.verdict == "aligned"

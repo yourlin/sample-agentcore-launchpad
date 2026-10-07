@@ -258,7 +258,9 @@ def agreement(db: Session, task: AnnotationTask) -> dict[str, Any]:
         consensus = None
         if ref in adjudicated:
             consensus = adjudicated[ref]
-        elif values and len(set(values)) == 1:
+        elif len(values) >= 2 and len(set(values)) == 1:
+            # TWO raters agreeing is a consensus; one rater is just that rater. Counting
+            # a single vote let one person label a run to match the judge and certify it
             consensus = values[0]
         judge_label = item.get("judge_label")
         if consensus and judge_label in LABELS:
@@ -298,10 +300,12 @@ def suggested_verdict(stats_out: dict[str, Any], policy: dict[str, Any]) -> str:
     hh = stats_out.get("human_human_kappa")
     if n < MIN_ITEMS or jh is None:
         return "insufficient_n"
-    need = policy["kappa_floor"]
-    if hh is not None:
-        need = max(need, hh - 0.05)
-    return "aligned" if jh >= need else "not_aligned"
+    # A judge may only be certified against *people who agreed with each other*: with a
+    # single rater there is no human ceiling to compare it to, and the question "can a
+    # judge stand in for a person" has no answer yet.
+    if hh is None or (stats_out.get("pairs") or 0) < MIN_ITEMS:
+        return "insufficient_n"
+    return "aligned" if jh >= max(policy["kappa_floor"], hh - 0.05) else "not_aligned"
 
 
 def decide(
@@ -321,6 +325,13 @@ def decide(
     support it — the human decides only between what the data allows."""
     if verdict not in ("aligned", "not_aligned"):
         raise AppError("calibration.bad_verdict", "verdict must be aligned or not_aligned")
+    if actor in (task.annotators or []):
+        raise AppError(
+            "calibration.own_labels",
+            "an annotator on this task cannot certify its judge — the labels are the "
+            "evidence, so the person who wrote them is not the person who rules on them",
+            status_code=403,
+        )
     measured = agreement(db, task)
     allowed = suggested_verdict(measured, policy)
     if verdict == "aligned" and allowed != "aligned":

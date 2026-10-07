@@ -1858,7 +1858,8 @@ Users 页面按账号编辑（审批时会分配授权，`PATCH /api/users/{id}`
 - **端点删除是异步的，而且 harness 端点很慢**：AgentCore 不允许删除仍带端点的 runtime / harness，删除端点只是把它置为 DELETING（实测可达数分钟）。四条删除路径都先调 `releases.delete_endpoints`，先发出两个删除再分别等待一个**短**上限（45 秒，够 runtime 端点用）。若 AWS 仍握着 harness，`delete_agent_resources` 抛 `agent.teardown_pending`，路由照常把台账行标记为已删除并返回 `aws_resource_deleted: false`，由 `dlc.scheduler.sweep_deleted_resources` 持续重试直到 AWS 放手——而不是让一个 HTTP 删除请求挂几分钟，或者让运维对着异步状态机手动重试。该 sweep 在删除前先调 `GetHarness`，因为 **AgentCore 对已经不存在的 harness 执行 `DeleteHarness` 返回的是 `AccessDenied`，而不是 `ResourceNotFound`**：从删除错误去推断“已经没了”，要么会永远重试一个早已消失的资源，要么会把真实的权限问题吞掉。完成标记是 `endpoint_mode` 回到 `default`，这样 `resource_id` 作为历史指针得以保留（其他已删除行同样保留它）。
 - **成本是强制的，不只是展示**：`POST /api/eval/runs` 与放行门的 `start_evaluation` 都会调 `cost.assert_allowed`，`eval_cost_max_usd` / `eval_cost_confirm_usd` 在花掉第一个会话之前就拒绝。
 - **校准与标注链接**：标注期间对标注人隐藏裁判判定；数据不支持时拒绝判定为“一致”。标注链接（`/r/annotate/<token>`）让无账号的专家参与标注，prod 级工作区拒绝生成。
-- **权限**：新增 `criteria.manage`、`criteria.sign`、`golden.admit`、`judge.calibrate`、`waiver.approve`、`release.sign` 六项，关键写操作均在 `PROD_PROTECTED` 之列。
+- **权限**：新增 `criteria.manage`、`criteria.sign`、`golden.admit`、`judge.calibrate`、`waiver.approve`、`release.sign` 六项，关键写操作均在 `PROD_PROTECTED` 之列——包括把样本**移出**门控（`move` / `retire` 会让它离开放行门的分母，这和新增样本一样是在改标准）以及校准 `decide`（`not_aligned` 会把正在拦人的裁判降级为观察）。
+- **安全审查发现并已在服务端修掉的三处一致性缺口**（规则本来就有，只是某条路径没照着做）：（1）`GET /api/annotation-tasks` 把 `privileged` 写死为 `True`，于是列表把详情接口刻意隐藏的裁判判定直接给了每个标注人——现在两处用同一套判断；（2）监测配置的 `dataset_id` 未经校验就落库，别的工作区封存的保留集可能被拿来跑在调用方自己控制的智能体上——写入与执行时都改为经 `golden.get_parent(db, ws.id, …)` 解析；（3）单个标注人的票曾被当成共识，且没有第二位标注人时会跳过人类上限项，于是一个人可以照着裁判标注再自行认证——现在一条样本需要两位标注人一致才计入，`aligned` 需要真实的 `human_human_kappa`，并且 `decide` 拒绝该任务的标注人。样本准入也改为自己计算个人信息脱敏（不再依赖“详情页被打开过”），并把脱敏状态记在样本上（工作区没有护栏时，覆盖视图给出 `unscreened_items`）。
 
 ## Skill Lab —— 技能评估与训练（SkillOpt 集成）
 
