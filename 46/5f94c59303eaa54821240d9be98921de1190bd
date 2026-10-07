@@ -1,0 +1,31 @@
+backend/app/core/route_policy.py
+  s_53a2f2bba8d550::t_d4bea3f6ee8e96 680,770
+backend/app/routers/workspaces.py
+  s_53a2f2bba8d550::t_c4967970f0d976 847-871
+backend/app/services/workspace_bootstrap.py
+  s_53a2f2bba8d550::t_038a8ea9f8649e 1087-1102
+backend/tests/test_workspaces_api.py
+  s_53a2f2bba8d550::t_523a103f74300e 1272-1323
+docs/cross-account-workspaces.md
+  s_53a2f2bba8d550::t_bdf44222abc209 25-33
+docs/troubleshooting.md
+  s_53a2f2bba8d550::t_d2630ab26d0644 194-195
+docs/troubleshooting.zh-CN.md
+  s_53a2f2bba8d550::t_827a0b37394dcf 147-148
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "465f94c59303eaa54821240d9be98921de1190bd",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "AI Ape Wisdom <xiehust@163.com>"
+    }
+  }
+}
