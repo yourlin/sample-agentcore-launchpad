@@ -1,6 +1,6 @@
 # Agent-DLC alignment — design
 
-Status: **draft for review** · Branch: `feat/agent-dlc` · Owner: platform team
+Status: **draft for review** · Branch: `feat/agent-dlc` · Owner: platform team · 中文版: [agent-dlc-design.zh-CN.md](agent-dlc-design.zh-CN.md)
 
 This document designs how Launchpad implements the Agent-DLC methodology
 (Agent Development Lifecycle, "Evaluation-Driven Deployment") end to end on the
