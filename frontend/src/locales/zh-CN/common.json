@@ -6170,7 +6170,12 @@
         "scopeOk": "可评估",
         "scopeUnsupported": "不支持",
         "notEvaluable": "该服务的 span 只来自 AgentCore Evaluation 不会作为 Agent span 读取的插桩 scope（{{scopes}}），每个会话都会以「No evaluable agent spans found」失败。请用受支持的框架插桩库为 Agent 埋点（例如 Strands，或 opentelemetry.instrumentation.* / openinference.instrumentation.* 的 GenAI 插桩库）。"
-      }
+      },
+      "passK": "每条用例重复运行（pass^k）",
+      "passKSub": "默认关闭。同一条用例跑 k 次可以回答智能体是否稳定——同时成本会变成 k 倍。",
+      "repeats": "重复次数（k）",
+      "repeatsHint": "1 表示每条用例只跑一次。",
+      "confirmCost": "我接受预估成本 ${{usd}}"
     },
     "taskStatus": {
       "queued": "排队中",

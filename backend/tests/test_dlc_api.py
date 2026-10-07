@@ -540,3 +540,77 @@ def test_reads_are_member_visible_but_audit_is_admin_only(engineer, admin):
     assert engineer.get("/api/admission").status_code == 200
     assert engineer.get("/api/audit").status_code == 403
     assert admin.get("/api/audit").status_code == 200
+
+
+def test_the_release_gate_enforces_the_cost_policy_not_just_shows_it(engineer, owner, admin,
+                                                                      monkeypatch):
+    from app.dlc import cost as cost_svc
+    from app.dlc import releases as release_svc
+
+    monkeypatch.setattr(release_svc, "point_endpoint", lambda *a, **k: {})
+    monkeypatch.setattr(release_svc, "endpoint_version", lambda *a, **k: "1")
+    monkeypatch.setattr("app.services.agentcore.client.control_client", lambda ctx: object())
+    agent_id, _ = _release_setup(engineer, owner)
+    db = SessionLocal()
+    try:
+        release_svc.after_deploy(db, db.get(Agent, agent_id), note=None, actor="engineer")
+        db.commit()
+    finally:
+        db.close()
+    submitted = []
+    monkeypatch.setattr("app.evaluation.service.submit_run",
+                        lambda **kw: submitted.append(kw) or _stub_run(kw))
+
+    monkeypatch.setattr(cost_svc, "estimate", lambda *a, **k: {
+        "total_usd": 12.0, "sessions": 40, "max_usd": 10.0, "over_limit": True,
+        "confirm_required": True, "confirm_usd": 5.0})
+    over = engineer.post(f"/api/agents/{agent_id}/release/evaluate",
+                         json={"repeats": 5, "confirm_cost": True})
+    assert over.status_code == 409 and over.json()["code"] == "run.cost_over_limit"
+    assert submitted == []  # refused before a single session was spent
+
+    monkeypatch.setattr(cost_svc, "estimate", lambda *a, **k: {
+        "total_usd": 6.0, "sessions": 40, "max_usd": None, "over_limit": False,
+        "confirm_required": True, "confirm_usd": 5.0})
+    unconfirmed = engineer.post(f"/api/agents/{agent_id}/release/evaluate",
+                                json={"repeats": 5})
+    assert unconfirmed.status_code == 409
+    assert unconfirmed.json()["code"] == "run.cost_confirm_required"
+    assert submitted == []
+    confirmed = engineer.post(f"/api/agents/{agent_id}/release/evaluate",
+                              json={"repeats": 5, "confirm_cost": True})
+    assert confirmed.status_code == 202, confirmed.text
+    assert {kw["repeats"] for kw in submitted} == {5}
+
+
+def test_a_task_run_over_a_golden_split_is_scored_against_its_criteria(engineer, owner,
+                                                                     monkeypatch):
+    from app.dlc import cost as cost_svc
+
+    agent_id = _agent()
+    lineage = _create_set(engineer, agent_id)
+    engineer.put(f"/api/criteria-sets/{lineage}", json={"criteria": CRITERIA})
+    engineer.post(f"/api/criteria-sets/{lineage}/publish", json={})
+    dataset_id = _golden(engineer, lineage, seeder=owner)
+    regression = engineer.get(f"/api/golden-sets/{dataset_id}").json()["splits"]["regression"]
+    submitted = []
+    monkeypatch.setattr("app.evaluation.service.submit_run",
+                        lambda **kw: submitted.append(kw) or _stub_run(
+                            {**kw, "qualifier": None, "agent_version": "2"}))
+    monkeypatch.setattr(cost_svc, "estimate", lambda *a, **k: {
+        "total_usd": 0.4, "sessions": 6, "over_limit": False, "confirm_required": False})
+
+    # pass^k needs scenarios to replay — it is refused on past sessions
+    sessions = engineer.post("/api/eval/runs", json={
+        "agent_id": agent_id, "session_ids": ["s1"], "repeats": 3,
+        "evaluators": ["Builtin.Helpfulness"]})
+    assert sessions.status_code == 422 and sessions.json()["code"] == "run.repeats_scope"
+
+    res = engineer.post("/api/eval/runs", json={
+        "agent_id": agent_id, "dataset_id": regression["id"], "repeats": 3,
+        "evaluators": ["Builtin.Helpfulness"]})
+    assert res.status_code in (200, 201, 202), res.text
+    kw = submitted[-1]
+    assert kw["repeats"] == 3 and kw["split"] == "regression"
+    assert kw["criteria_set_version"] == 1 and kw["criteria_set_id"]
+    assert kw["cost_estimate"]["sessions"] == 6

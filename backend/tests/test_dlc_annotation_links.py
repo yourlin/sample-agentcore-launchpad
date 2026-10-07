@@ -225,3 +225,16 @@ def test_link_labels_reach_the_agreement_numbers(client):
     assert agreement["human_human_kappa"] == pytest.approx(1.0)
     assert agreement["judge_human_kappa"] == pytest.approx(1.0)
     assert agreement["suggested_verdict"] == "aligned"
+
+
+def test_annotate_routes_are_public_hub_global_and_mint_is_prod_protected():
+    from app.core.route_policy import PROD_PROTECTED, PUBLIC, ROUTE_POLICY, WORKSPACE_EXEMPT
+
+    public = {k for k in ROUTE_POLICY if k[1].startswith("/share/annotate/")}
+    assert public == {("GET", "/share/annotate/{token}"),
+                      ("POST", "/share/annotate/{token}/label")}
+    assert all(ROUTE_POLICY[k] == PUBLIC and k in WORKSPACE_EXEMPT for k in public)
+    # minting a link is a judge-calibration right, not open to any member
+    mint = ("POST", "/api/annotation-tasks/{task_id}/links")
+    assert ROUTE_POLICY[mint] != PUBLIC
+    assert mint not in PROD_PROTECTED  # prod is refused by the service with a remedy

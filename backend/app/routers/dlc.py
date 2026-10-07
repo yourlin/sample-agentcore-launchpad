@@ -773,7 +773,8 @@ def evaluate_release(
                        "no candidate version is waiting for a gate decision",
                        status_code=409)
     release_svc.start_evaluation(db, record, agent, ws.context, actor=_actor(request),
-                                 repeats=req.repeats)
+                                 repeats=req.repeats, confirm_cost=req.confirm_cost,
+                                 is_admin=_is_admin(request))
     db.commit()
     return _release_payload(db, ws, agent)
 

@@ -373,9 +373,11 @@ def test_a_link_cannot_be_pointed_at_another_workspaces_agent(client):
 def test_share_routes_are_public_hub_global_and_unprotected():
     # the SME review routes (T34) are asserted in tests/test_review_links.py
     # the IM webhooks (T30) are asserted in tests/test_channels.py
+    # the annotation links (Agent-DLC) are asserted in tests/test_dlc_annotation_links.py
     share = {k for k in ROUTE_POLICY
              if k[1].startswith("/share/") and not k[1].startswith("/share/review/")
-             and not k[1].startswith("/share/channels/")}
+             and not k[1].startswith("/share/channels/")
+             and not k[1].startswith("/share/annotate/")}
     assert len(share) == 3
     assert all(ROUTE_POLICY[k] == PUBLIC and k in WORKSPACE_EXEMPT for k in share)
     # a prod workspace must still allow handing out a link (not an agent mutation)

@@ -6170,7 +6170,12 @@
         "scopeOk": "Evaluable",
         "scopeUnsupported": "Unsupported",
         "notEvaluable": "This service's spans come only from instrumentation scopes AgentCore Evaluation does not read as agent spans ({{scopes}}), so every session would fail with “No evaluable agent spans found”. Instrument the agent with a supported framework library (e.g. Strands, or an opentelemetry.instrumentation.* / openinference.instrumentation.* GenAI library)."
-      }
+      },
+      "passK": "Repeat each scenario (pass^k)",
+      "passKSub": "Off by default. Running a scenario k times answers whether the agent is consistent — and multiplies the cost by k.",
+      "repeats": "Repeats (k)",
+      "repeatsHint": "1 = run each scenario once.",
+      "confirmCost": "I accept the estimated cost of ${{usd}}"
     },
     "taskStatus": {
       "queued": "Queued",

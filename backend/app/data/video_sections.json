@@ -226,6 +226,15 @@
       "path": "/v2/eval/evaluators"
     },
     {
+      "id": "eval-standards",
+      "categoryId": "eval",
+      "title": {
+        "en": "Standards",
+        "zh-CN": "判据"
+      },
+      "path": "/v2/eval/standards"
+    },
+    {
       "id": "eval-experiments",
       "categoryId": "eval",
       "title": {

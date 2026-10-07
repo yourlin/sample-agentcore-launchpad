@@ -237,8 +237,14 @@ def start_evaluation(
     actor: str,
     repeats: int = 1,
     submit: Any = None,
+    confirm_cost: bool = False,
+    is_admin: bool = False,
 ) -> list[str]:
-    """Queue the regression + holdout runs the gate reads, against `candidate`."""
+    """Queue the regression + holdout runs the gate reads, against `candidate`.
+
+    Priced first: the estimate covers both splits × `repeats`, and the workspace's
+    `eval_cost_confirm_usd` / `eval_cost_max_usd` are enforced here, not only shown.
+    """
     if record.decision not in ("pending", "invalid", "blocked"):
         raise AppError("release.not_open", "this release is already decided", status_code=409)
     if not record.criteria_set_id:
@@ -263,6 +269,18 @@ def start_evaluation(
                        "create the golden set for these criteria before evaluating a release",
                        status_code=409)
     splits = golden_svc.splits_of(db, parent)
+    from app.dlc import cost as cost_svc
+
+    gate_items = [
+        item for name in ("regression", "holdout") if splits.get(name)
+        for item in golden_svc.active_items(splits[name])
+    ]
+    estimate = cost_svc.estimate(
+        db, agent=agent, workspace=db.get(Workspace, record.workspace_id),
+        workspace_ctx=workspace_ctx, items=gate_items, evaluators=evaluators,
+        repeats=repeats, criteria_rows=rows,
+    )
+    cost_svc.assert_allowed(estimate, confirmed=confirm_cost, is_admin=is_admin)
     if submit is None:
         from app.evaluation import service as eval_service
 

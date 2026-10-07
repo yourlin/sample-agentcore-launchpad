@@ -4136,6 +4136,10 @@ export interface V2RunCreate {
   session_source?: "logs";
   lookback_hours?: number;
   wait_seconds?: number;
+  /** pass^k: replay each dataset scenario k times (opt-in, priced first) */
+  repeats?: number;
+  /** acknowledges the estimate when the workspace policy asks for confirmation */
+  confirm_cost?: boolean;
 }
 
 /** One stream of an agent's runtime log group (`GET /api/eval/agents/{id}/log-streams`). */
