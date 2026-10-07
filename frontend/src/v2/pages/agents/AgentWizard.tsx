@@ -270,7 +270,6 @@ export function AgentWizard({ edit }: { edit?: AgentInfo } = {}) {
   });
   // a KB created here must exist (ACTIVE) to be mounted; its ingestion never blocks
   const kbBlock = inlineKbBlock(kb.inline, form.selectedKbs);
-  const advancedProblem = ["model", "maxTokens", "maxIterations", "timeout", "gateway"].some((k) => problems[k]);
   const problems = useMemo(() => {
     const out: Record<string, string> = {};
     if (!AGENT_NAME_RE.test(form.name)) out.name = t("v2.agents.wizard.errName");
@@ -309,6 +308,8 @@ export function AgentWizard({ edit }: { edit?: AgentInfo } = {}) {
     // specCatalogs is derived from cat
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form, method, cat, connections, t]);
+  // after `problems`: reading it earlier hits the TDZ and crashes every render
+  const advancedProblem = ["model", "maxTokens", "maxIterations", "timeout", "gateway"].some((k) => problems[k]);
   const err = (key: string) => (touched ? problems[key] : undefined);
 
   const toReview = () => {

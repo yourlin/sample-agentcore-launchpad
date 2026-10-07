@@ -241,3 +241,13 @@ def test_a_fresh_region_can_run_its_first_batch_evaluation(statements: list[dict
     assert "logs:GetLogEvents" in statement["Action"]
     (resource,) = statement["Resource"]
     assert resource["Fn::Sub"].endswith(":log-group:/aws/bedrock-agentcore/evaluations/*")
+
+
+def test_the_knowledge_base_console_can_list(statements: list[dict[str, Any]]):
+    """Found on real AWS: the knowledge-base page answered 403 because the role
+    could manage a knowledge base but not list them. ListKnowledgeBases has no
+    resource type, so it sits with CreateKnowledgeBase on `*`; ListDataSources
+    takes the knowledge-base ARN and stays in the scoped statement."""
+    by_sid = {statement["Sid"]: statement for statement in statements}
+    assert "bedrock:ListKnowledgeBases" in by_sid["BedrockCreateKnowledgeBase"]["Action"]
+    assert "bedrock:ListDataSources" in by_sid["BedrockKnowledgeBases"]["Action"]

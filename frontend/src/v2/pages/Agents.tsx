@@ -616,7 +616,7 @@ function AgentDetail({ id }: { id: string }) {
             {agent.invoke_capability.eligible && (
               <Button onClick={() => navigate(`/v2/chat?agent=${agent.id}`)}>{t("v2.agents.chat")}</Button>
             )}
-            <Button onClick={() => navigate("/observability")}>{t("v2.agents.observability")}</Button>
+            <Button onClick={() => navigate("/v2/observability")}>{t("v2.agents.observability")}</Button>
             {agent.method !== "discovered_runtime" && (
               <Button onClick={() => setParams({ view: "identity", id: agent.id })} testId="v2-agent-identity-open">
                 {t("v2.agents.identity.open")}

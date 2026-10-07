@@ -212,6 +212,12 @@ body.v3-body {
   gap: 2px;
   overflow-y: auto;
 }
+.v3 .v3-rail-group { display: grid; gap: 2px; }
+.v3 .v3-rail button.v3-rail-group-head { height: 32px; font-size: 13px; color: var(--v3-text-3); }
+.v3 .v3-rail button.v3-rail-group-head:hover { background: var(--v3-ink-3); color: var(--v3-text); }
+.v3 .v3-rail-group-head .chev { transition: transform 0.15s var(--v3-ease); }
+.v3 .v3-rail-group-head[aria-expanded="true"] .chev { transform: rotate(90deg); }
+.v3 .v3-rail a.v3-rail-sub { height: 32px; padding-left: 22px; font-size: 13px; }
 .v3 .v3-rail-label {
   font-family: var(--v3-mono);
   font-size: 10px;
@@ -252,7 +258,7 @@ body.v3-body {
   background: var(--v3-ok);
   box-shadow: 0 0 12px var(--v3-ok);
 }
-.v3 .v3-rail a .ext {
+.v3 .v3-rail a .ext, .v3 .v3-rail button .ext {
   margin-left: auto;
   font-family: var(--v3-mono);
   font-size: 9.5px;

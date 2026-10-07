@@ -1,5 +1,5 @@
 import { ArrowRight, Bot, MessagesSquare, Scale, Search } from "lucide-react";
-import { type KeyboardEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { type KeyboardEvent, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router-dom";
 
@@ -41,11 +41,13 @@ export function CommandPalette({
   const [cursor, setCursor] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
+  // Focus in the same commit that shows the input: a deferred focus dropped the
+  // first keys of anyone typing straight after ⌘K.
+  useLayoutEffect(() => {
     if (open) {
       setQuery("");
       setCursor(0);
-      window.setTimeout(() => inputRef.current?.focus(), 0);
+      inputRef.current?.focus();
     }
   }, [open]);
 

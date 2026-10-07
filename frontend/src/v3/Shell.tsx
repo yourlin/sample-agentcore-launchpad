@@ -1,24 +1,7 @@
 import "@fontsource-variable/archivo/wdth.css";
 import "./v3.css";
 
-import {
-  ArrowLeftRight,
-  BookOpen,
-  Bot,
-  Database,
-  Gauge,
-  Inbox,
-  LayoutDashboard,
-  LogOut,
-  MessagesSquare,
-  Plus,
-  Rocket,
-  Scale,
-  Search,
-  ShieldCheck,
-  SquareStack,
-  Users,
-} from "lucide-react";
+import { ArrowLeftRight, Bot, ChevronRight, LayoutDashboard, LogOut, MessagesSquare, Scale, Search } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, NavLink, Outlet, useNavigate } from "react-router-dom";
@@ -31,14 +14,22 @@ import { useWorkspace } from "../workspace/workspace-context";
 import { type Command, CommandPalette } from "./CommandPalette";
 import { ToastProvider } from "./ui";
 import { useLoad } from "./hooks";
+import { inV2Groups } from "./nav";
+
+const RAIL_KEY = "launchpad_v3_rail_open";
+
+function readOpen(): Record<string, boolean> {
+  try {
+    return JSON.parse(localStorage.getItem(RAIL_KEY) ?? "{}") as Record<string, boolean>;
+  } catch {
+    return {};
+  }
+}
 
 interface RailItem {
   to: string;
   labelKey: string;
   icon: ReactNode;
-  /** a page V3 has not rebuilt: it opens in V2, and says so */
-  v2?: boolean;
-  admin?: boolean;
   end?: boolean;
 }
 
@@ -47,19 +38,6 @@ const NATIVE: RailItem[] = [
   { to: "/v3/agents", labelKey: "v3.nav.agents", icon: <Bot size={16} /> },
   { to: "/v3/chat", labelKey: "v3.nav.chat", icon: <MessagesSquare size={16} /> },
   { to: "/v3/gate", labelKey: "v3.nav.gate", icon: <Scale size={16} /> },
-];
-
-const IN_V2: RailItem[] = [
-  { to: "/v2/agents?view=new", labelKey: "v3.nav.create", icon: <Plus size={16} />, v2: true },
-  { to: "/v2/promotions", labelKey: "v3.nav.releases", icon: <Rocket size={16} />, v2: true },
-  { to: "/v2/observability", labelKey: "v3.nav.observability", icon: <Gauge size={16} />, v2: true },
-  { to: "/v2/eval/tasks", labelKey: "v3.nav.evaluation", icon: <Database size={16} />, v2: true },
-  { to: "/v2/registry", labelKey: "v3.nav.registry", icon: <SquareStack size={16} />, v2: true },
-  { to: "/v2/knowledge-bases", labelKey: "v3.nav.knowledge", icon: <BookOpen size={16} />, v2: true },
-  { to: "/v2/issues", labelKey: "v3.nav.issues", icon: <Inbox size={16} />, v2: true },
-  { to: "/v2/governance", labelKey: "v3.nav.governance", icon: <ShieldCheck size={16} />, v2: true },
-  { to: "/v2/users", labelKey: "v3.nav.users", icon: <Users size={16} />, v2: true, admin: true },
-  { to: "/v2/workspaces", labelKey: "v3.nav.workspaces", icon: <SquareStack size={16} />, v2: true, admin: true },
 ];
 
 function WorkspaceSwitch() {
@@ -137,19 +115,39 @@ export function V3Shell() {
     navigate("/v2");
   };
 
+  const inV2 = useMemo(() => inV2Groups(isAdmin), [isAdmin]);
+  // V2's groups start folded: the rail leads with what V3 does natively
+  const [open, setOpen] = useState<Record<string, boolean>>(readOpen);
+  const toggle = (key: string) =>
+    setOpen((prev) => {
+      const next = { ...prev, [key]: !prev[key] };
+      try {
+        localStorage.setItem(RAIL_KEY, JSON.stringify(next));
+      } catch {
+        // per-browser convenience only
+      }
+      return next;
+    });
+
   const pages = useMemo<Command[]>(() => {
     const group = t("v3.cmdk.pages");
-    return [...NATIVE, ...IN_V2.filter((i) => !i.admin || isAdmin)].map((item) => ({
+    const all = [
+      ...NATIVE.map((item) => ({ to: item.to, labelKey: item.labelKey, icon: item.icon, v2: false })),
+      ...inV2.flatMap((g) =>
+        g.items.map(({ to, labelKey, icon: Icon }) => ({ to, labelKey, icon: <Icon size={16} />, v2: true })),
+      ),
+    ];
+    return all.map((item) => ({
       id: `p:${item.to}`,
       group,
       label: t(item.labelKey),
       hint: item.v2 ? "V2" : undefined,
+      icon: item.icon,
       // the English name and the route, so "chat" finds 对话 under zh-CN
       keywords: `${t(item.labelKey, { lng: "en" })} ${item.to.replace(/[/?=&]/g, " ")}`,
-      icon: item.icon,
       run: () => navigate(item.to),
     }));
-  }, [isAdmin, navigate, t]);
+  }, [inV2, navigate, t]);
 
   const closePalette = useCallback(() => setPaletteOpen(false), []);
   const displayName = authRequired ? (username ?? "—") : "operator";
@@ -196,14 +194,36 @@ export function V3Shell() {
               {item.to === "/v3/agents" && failing > 0 && <span className="count">{failing}</span>}
             </NavLink>
           ))}
-          <div className="v3-rail-label">{t("v3.nav.inV2")}</div>
-          {IN_V2.filter((i) => !i.admin || isAdmin).map((item) => (
-            <Link key={item.to} to={item.to} title={t("v3.nav.inV2Hint")}>
-              {item.icon}
-              {t(item.labelKey)}
-              <span className="ext">V2</span>
-            </Link>
-          ))}
+          <div className="v3-rail-label" title={t("v3.nav.inV2Hint")}>{t("v3.nav.inV2")}</div>
+          {inV2.map((group) => {
+            const isOpen = open[group.key] === true;
+            return (
+              <div key={group.key} className="v3-rail-group">
+                <button
+                  type="button"
+                  className="v3-rail-item v3-rail-group-head"
+                  aria-expanded={isOpen}
+                  onClick={() => toggle(group.key)}
+                  data-testid={`v3-rail-group-${group.key}`}
+                >
+                  <ChevronRight size={14} className="chev" aria-hidden="true" />
+                  {t(group.labelKey)}
+                  <span className="ext">{group.items.length}</span>
+                </button>
+                {isOpen &&
+                  group.items.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <Link key={item.to} to={item.to} title={t("v3.nav.inV2Hint")} className="v3-rail-sub">
+                        <Icon size={15} aria-hidden="true" />
+                        {t(item.labelKey)}
+                        <span className="ext">V2</span>
+                      </Link>
+                    );
+                  })}
+              </div>
+            );
+          })}
           <div className="v3-rail-foot">
             <span className="mono" style={{ color: "var(--v3-text-3)", fontSize: 11 }}>
               {current ? `${current.region}` : ""}

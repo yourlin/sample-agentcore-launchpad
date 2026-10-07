@@ -105,6 +105,34 @@ def main() -> int:
             check("chat.answered", len(text.strip()) > 0, repr(text.strip()[:60]))
         visit("gate", "/v3/gate", ".v3-title")
 
+        # "Still in V2": every group unfolds, and every page it lists opens in V2
+        page.goto(f"{args.ui}/v3", wait_until="networkidle")
+        page.wait_for_selector('[data-testid="v3-shell"]', timeout=15000)
+        heads = page.locator('[data-testid^="v3-rail-group-"]')
+        for i in range(heads.count()):
+            if heads.nth(i).get_attribute("aria-expanded") != "true":
+                heads.nth(i).click()
+        page.screenshot(path=str(out / f"{args.lang}-rail-open.png"))
+        links = page.locator(".v3-rail a.v3-rail-sub").evaluate_all(
+            "els => els.map(e => e.getAttribute('href'))")
+        check("rail.inV2", len(links) >= 20, f"{len(links)} pages")
+        for href in links:
+            errors.clear()
+            bad.clear()
+            page.goto(f"{args.ui}{href}", wait_until="networkidle")
+            page.wait_for_timeout(600)
+            shown = page.locator(".v2-shell, [data-testid='v2-shell'], .v2-main").count() > 0
+            real = [e for e in errors if "404" not in e and "favicon" not in e]
+            if not (shown and not real and not bad):
+                check(f"v2 {href}", False,
+                      f"shell={shown} console_errors={len(real)} 5xx={len(bad)}")
+                for line in (real + bad)[:3]:
+                    print(f"        {line[:200]}")
+        check("rail.inV2.open", not any(f.startswith("v2 ") for f in failures))
+        # following a V2 link must not undo the V3 choice
+        stored = page.evaluate("localStorage.getItem('launchpad_ui_version')")
+        check("rail.keeps.v3", stored == "v3", f"stored={stored}")
+
         # ⌘K: opens, filters, navigates
         page.goto(f"{args.ui}/v3", wait_until="networkidle")
         page.keyboard.press("Meta+k")

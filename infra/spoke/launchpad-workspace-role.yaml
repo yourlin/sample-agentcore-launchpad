@@ -334,6 +334,7 @@ Resources:
                   - bedrock:DeleteKnowledgeBase
                   - bedrock:GetDataSource
                   - bedrock:GetKnowledgeBase
+                  - bedrock:ListDataSources
                   - bedrock:ListIngestionJobs
                   - bedrock:ListKnowledgeBaseDocuments
                   - bedrock:Retrieve
@@ -342,11 +343,13 @@ Resources:
                 Resource:
                   Fn::Sub: "arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:knowledge-base/*"
 
-              # A knowledge base has no ARN before it exists.
+              # A knowledge base has no ARN before it exists, and ListKnowledgeBases has
+              # no resource type at all.
               - Sid: BedrockCreateKnowledgeBase
                 Effect: Allow
                 Action:
                   - bedrock:CreateKnowledgeBase
+                  - bedrock:ListKnowledgeBases
                 Resource: "*"
 
               # ── Cognito ────────────────────────────────────────────────────

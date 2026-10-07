@@ -9598,16 +9598,7 @@
       "gate": "Release gate",
       "inV2": "Still in V2",
       "inV2Hint": "Not rebuilt in V3 yet — opens in V2",
-      "create": "New agent",
-      "releases": "Releases",
-      "observability": "Observability",
-      "evaluation": "Evaluation",
-      "registry": "Registry",
-      "knowledge": "Knowledge bases",
-      "issues": "Issue box",
-      "governance": "Governance",
-      "users": "Users",
-      "workspaces": "Workspaces"
+      "create": "New agent"
     },
     "cmdk": {
       "label": "Command palette",

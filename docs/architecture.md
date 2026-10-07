@@ -2820,9 +2820,11 @@ backend surface.
   deploy stages, versions/endpoints, try-it), Chat (`/v3/chat`, the same
   `chat_stream` SSE chain), and Release gate (`/v3/gate`: the four-gate pipeline,
   per-criterion intervals, sign / block / roll back / run the gate).
-- **Everything else stays in V2.** The rail lists the pages V3 has not rebuilt under
-  "Still in V2"; they open the V2 page instead of being wrapped in a shell whose look
-  they do not share. The ⌘K palette (also `/`) reaches every page and every agent's
+- **Everything else stays in V2.** The rail lists every page V3 has not rebuilt under
+  "Still in V2", in V2's own collapsible groups; they open the V2 page instead of
+  being wrapped in a shell whose look they do not share. The list is derived from
+  `v2/nav.ts` (`v3/nav.ts` `inV2Groups`), so a page added to V2 is reachable from V3
+  without a V3 change (`v3/nav.test.ts` holds that). The ⌘K palette (also `/`) reaches every page and every agent's
   chat and gate, and matches English names and routes under the zh-CN UI too.
 - **Styling.** All V3 CSS is scoped under `.v3` and every custom property is prefixed
   `--v3-*`, because the classic `theme/` tokens and class names (`--ink-2`, `.split`,

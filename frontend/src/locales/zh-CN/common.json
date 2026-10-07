@@ -9598,16 +9598,7 @@
       "gate": "放行门",
       "inV2": "仍在 V2",
       "inV2Hint": "V3 尚未重做——在 V2 中打开",
-      "create": "新建智能体",
-      "releases": "发布",
-      "observability": "可观测",
-      "evaluation": "评估",
-      "registry": "注册中心",
-      "knowledge": "知识库",
-      "issues": "问题箱",
-      "governance": "治理",
-      "users": "用户",
-      "workspaces": "工作区"
+      "create": "新建智能体"
     },
     "cmdk": {
       "label": "命令面板",

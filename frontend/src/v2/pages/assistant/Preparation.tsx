@@ -480,7 +480,7 @@ function KbReadiness({ kbId, name, workspaceId }: { kbId: string; name: string; 
     <div className="v2-row" style={{ fontSize: 13 }} data-testid={`v2-assistant-kb-readiness-${kbId}`}>
       <b>{name}</b>
       <Tag tone={tone}>{t(`assistantPreparation.${key}`)}</Tag>
-      <Link to={`/knowledge-bases?view=detail&kb=${encodeURIComponent(kbId)}`} target="_blank" rel="noopener noreferrer">
+      <Link to={`/v2/knowledge-bases?view=detail&id=${encodeURIComponent(kbId)}`} target="_blank" rel="noopener noreferrer">
         {t("assistantPreparation.openKb")}
       </Link>
     </div>
