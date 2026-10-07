@@ -1,0 +1,49 @@
+backend/scripts/e2e_v3_console_browser.py
+  s_53a2f2bba8d550::t_58ba1fa75cd95d 108-135
+docs/architecture.md
+  s_53a2f2bba8d550::t_26c10280b295de 2823-2827
+docs/architecture.zh-CN.md
+  s_53a2f2bba8d550::t_a3cd58673caf5e 1483
+frontend/src/locales/en/common.json
+  s_53a2f2bba8d550::t_776367375a7918 9601
+frontend/src/locales/zh-CN/common.json
+  s_53a2f2bba8d550::t_7b4f576a9cbab4 9601
+frontend/src/v2/pages/Agents.tsx
+  s_53a2f2bba8d550::t_2d8ead926a2762 619
+frontend/src/v2/pages/agents/AgentWizard.tsx
+  s_53a2f2bba8d550::t_72654c2df6b020 311-312
+frontend/src/v2/pages/assistant/Preparation.tsx
+  s_53a2f2bba8d550::t_a5e530abb23baa 483
+frontend/src/v3/CommandPalette.tsx
+  s_53a2f2bba8d550::t_5ad6f3641b1152 2,44-46,50
+frontend/src/v3/Shell.tsx
+  s_53a2f2bba8d550::t_7b38bf4c122984 4,17-27,118-131,134-140,145,150,197-226
+frontend/src/v3/nav.test.ts
+  s_53a2f2bba8d550::t_6cf964b308eb9a 1-26
+frontend/src/v3/nav.ts
+  s_53a2f2bba8d550::t_bec4f78b2c3c9b 1-34
+frontend/src/v3/v3.css
+  s_53a2f2bba8d550::t_dbd6c087ee5d6d 215-220,261
+infra/spoke/launchpad-workspace-role-prod.yaml
+  s_53a2f2bba8d550::t_a66fa94714e77c 323,332-333,338
+infra/spoke/launchpad-workspace-role.yaml
+  s_53a2f2bba8d550::t_ecdb887cce3bd7 337,346-347,352
+infra/tests/test_spoke_template.py
+  s_53a2f2bba8d550::t_981a3d6552db9b 244-253
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "0339ab6bdf552059f0a2b6e22264419380017460",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "AI Ape Wisdom <xiehust@163.com>"
+    }
+  }
+}
