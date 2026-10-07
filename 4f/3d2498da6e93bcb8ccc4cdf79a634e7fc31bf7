@@ -1,0 +1,21 @@
+backend/scripts/e2e_agent_dlc.py
+  s_53a2f2bba8d550::t_391dad68fedfaa 33,49,52,55
+backend/scripts/e2e_multi_workspace.py
+  s_53a2f2bba8d550::t_31df10d23a3e59 30,73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "4f3d2498da6e93bcb8ccc4cdf79a634e7fc31bf7",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "AI Ape Wisdom <xiehust@163.com>"
+    }
+  }
+}
