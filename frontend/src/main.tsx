@@ -21,7 +21,19 @@ const shareToken = /^\/s\/([^/]+)\/?$/.exec(window.location.pathname)?.[1];
 // The SME review page (T34): the same account-free, shell-free rendering.
 const reviewToken = /^\/r\/([^/]+)\/?$/.exec(window.location.pathname)?.[1];
 
-if (reviewToken) {
+// The annotation page (Agent-DLC §7.4): an expert labels sessions for judge
+// calibration without an account. Matched before `/r/:token` so its longer path wins.
+const annotateToken = /^\/r\/annotate\/([^/]+)\/?$/.exec(window.location.pathname)?.[1];
+
+if (annotateToken) {
+  void import("./share/AnnotatePage").then(({ AnnotatePage }) => {
+    createRoot(document.getElementById("root")!).render(
+      <StrictMode>
+        <AnnotatePage token={decodeURIComponent(annotateToken)} />
+      </StrictMode>,
+    );
+  });
+} else if (reviewToken) {
   void import("./share/ReviewPage").then(({ ReviewPage }) => {
     createRoot(document.getElementById("root")!).render(
       <StrictMode>

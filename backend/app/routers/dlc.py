@@ -1330,3 +1330,105 @@ def scorecard(
         "coverage": coverage,
         "alerts": watch_svc.alerts(runs),
     }
+
+
+# ── annotation links: labelling without a console account (§7.4) ───────────────
+#
+# Console side mints and revokes; the public side lives in `routers/share_annotate.py`
+# so no console session or `X-Workspace` header is ever read there.
+
+
+class AnnotationLinkIn(BaseModel):
+    """`label` names the person — it is what the audit trail and κ report show."""
+
+    label: str = Field(min_length=1, max_length=64)
+    expires_in_days: int | None = Field(default=14, ge=1, le=90)
+
+
+def _annotation_link_out(link: Any) -> dict[str, Any]:
+    from app.services import annotation_links, share_links
+
+    return {
+        "id": link.id,
+        "annotator": annotation_links.annotator_name(link.id),
+        "label": link.label,
+        "prefix": link.prefix,
+        "state": share_links.link_state(link),
+        "created_by": link.created_by,
+        "expires_at": link.expires_at.isoformat() if link.expires_at else None,
+        "last_used_at": link.last_used_at.isoformat() if link.last_used_at else None,
+        "use_count": link.use_count or 0,
+    }
+
+
+@router.get("/annotation-tasks/{task_id}/links")
+def list_annotation_links(
+    task_id: str,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    from app.models.ledger import ShareLink
+    from app.services import annotation_links
+
+    task = cal_svc.get_task(db, ws.id, task_id)
+    rows = db.scalars(
+        select(ShareLink).where(
+            ShareLink.workspace_id == ws.id,
+            ShareLink.target_id == task.id,
+            ShareLink.kind == annotation_links.KIND_ANNOTATE,
+        ).order_by(ShareLink.created_at.desc())
+    ).all()
+    allowed, reason = annotation_links.links_allowed(ws.row)
+    return {
+        "links": [_annotation_link_out(r) for r in rows],
+        "allowed": allowed,
+        "reason": reason,
+    }
+
+
+@router.post("/annotation-tasks/{task_id}/links", status_code=201)
+def create_annotation_link(
+    task_id: str,
+    req: AnnotationLinkIn,
+    request: Request,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    """Mint a link that labels as its own annotator. Refused in a prod workspace."""
+    from app.services import annotation_links
+
+    task = cal_svc.get_task(db, ws.id, task_id)
+    link, raw = annotation_links.create(
+        db, task=task, workspace=ws.row, label=req.label, created_by=_actor(request),
+        expires_in_days=req.expires_in_days,
+    )
+    db.commit()
+    path = f"/r/annotate/{raw}"
+    origin = (request.headers.get("origin") or "").rstrip("/")
+    # the token is shown once, like an API key; revoke with DELETE on this route
+    return {**_annotation_link_out(link), "token": raw, "path": path, "url": f"{origin}{path}"}
+
+
+@router.delete("/annotation-tasks/{task_id}/links/{link_id}")
+def revoke_annotation_link(
+    task_id: str,
+    link_id: str,
+    db: Session = Depends(get_db),
+    ws: WorkspaceScope = Depends(require_workspace),
+) -> dict[str, Any]:
+    """Revoke a link. The labels it already recorded stay — they were real votes."""
+    from datetime import UTC
+
+    from app.models.ledger import ShareLink
+    from app.services import annotation_links
+
+    cal_svc.get_task(db, ws.id, task_id)
+    link = db.get(ShareLink, link_id)
+    if link is None or link.workspace_id != ws.id or link.target_id != task_id:
+        raise NotFoundError("share.not_found", "share link not found")
+    if link.kind != annotation_links.KIND_ANNOTATE:
+        raise NotFoundError("share.not_found", "share link not found")
+    link.revoked_at = datetime.now(UTC)
+    link.enabled = False
+    db.commit()
+    return _annotation_link_out(link)

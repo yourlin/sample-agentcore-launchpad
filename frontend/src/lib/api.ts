@@ -6461,6 +6461,7 @@ import type {
   AdmissionCandidate,
   AdmissionQueue,
   Agreement,
+  AnnotationLink,
   AnnotationTask,
   AuditEntry,
   CalibrationHistory,
@@ -6604,6 +6605,18 @@ export const dlcApi = {
     request<CalibrationRecord>(dlcTask(taskId, "/decide"), {
       method: "POST",
       body: JSON.stringify({ verdict, note }),
+    }),
+  /** Account-free annotation links. Refused in a prod workspace (`allowed: false`). */
+  annotationLinks: (taskId: string) =>
+    request<{ links: AnnotationLink[]; allowed: boolean; reason: string }>(dlcTask(taskId, "/links")),
+  createAnnotationLink: (taskId: string, body: { label: string; expires_in_days?: number | null }) =>
+    request<AnnotationLink & { token: string; path: string; url: string }>(dlcTask(taskId, "/links"), {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  revokeAnnotationLink: (taskId: string, linkId: string) =>
+    request<AnnotationLink>(dlcTask(taskId, `/links/${encodeURIComponent(linkId)}`), {
+      method: "DELETE",
     }),
   calibrationHistory: (criterionKey: string, agentId?: string) =>
     request<CalibrationHistory>(

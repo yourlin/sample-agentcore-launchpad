@@ -93,14 +93,20 @@ def create_link(
     db: Session,
     *,
     workspace_id: str,
-    agent: Agent,
+    agent: Agent | None,
     label: str,
     created_by: str,
     expires_in_days: int | None,
     kind: str = KIND_CHAT,
     channel_config: dict | None = None,
     channel_secrets: dict | None = None,
+    target_id: str | None = None,
 ) -> tuple[ShareLink, str]:
+    """`target_id` overrides the agent id: what a link points at is kind-dependent
+    (an agent for `chat` / `review`, an annotation task for `annotate`)."""
+    target = target_id or (agent.id if agent is not None else "")
+    if not target:
+        raise AppError("share.no_target", "a share link must point at something")
     raw = mint_token()
     expires_at = (
         datetime.now(UTC) + timedelta(days=expires_in_days) if expires_in_days else None
@@ -108,7 +114,7 @@ def create_link(
     link = ShareLink(
         workspace_id=workspace_id,
         kind=kind,
-        target_id=agent.id,
+        target_id=target,
         token_hash=hash_token(raw),
         prefix=raw[: len(TOKEN_PREFIX) + 4] + "…",
         label=label.strip(),
@@ -165,15 +171,26 @@ def create_channel_link(
     return link, raw
 
 
-def resolve(
+def resolve_link(
     db: Session, raw_token: str, kinds: tuple[str, ...] = (KIND_CHAT,)
-) -> tuple[ShareLink, Agent]:
-    """Token -> (live link, its agent), or 404 for every unusable state."""
+) -> ShareLink:
+    """Token -> the live link, or 404 for every unusable state.
+
+    Kinds whose target is not an agent (`annotate`) resolve the target themselves.
+    """
     if not raw_token or len(raw_token) > _MAX_TOKEN_LEN or not raw_token.startswith(TOKEN_PREFIX):
         raise not_found()
     link = db.query(ShareLink).filter(ShareLink.token_hash == hash_token(raw_token)).first()
     if link is None or link_state(link) != "active" or link.kind not in kinds:
         raise not_found()
+    return link
+
+
+def resolve(
+    db: Session, raw_token: str, kinds: tuple[str, ...] = (KIND_CHAT,)
+) -> tuple[ShareLink, Agent]:
+    """Token -> (live link, its agent), or 404 for every unusable state."""
+    link = resolve_link(db, raw_token, kinds)
     return link, live_agent(db, link)
 
 

@@ -517,6 +517,11 @@ ROUTE_POLICY: dict[tuple[str, str], str] = {
     # SME review (T34): the same account-free posture under `/share/review`
     ("GET", "/share/review/{token}"): PUBLIC,
     ("POST", "/share/review/{token}/rate"): PUBLIC,
+    # Agent-DLC annotation links (design §7.4): the same posture. The link row names
+    # the workspace, the task and the annotator; the judge's verdict and the agreement
+    # numbers are never served here.
+    ("GET", "/share/annotate/{token}"): PUBLIC,
+    ("POST", "/share/annotate/{token}/label"): PUBLIC,
     ("GET", "/api/agents/{agent_id}/review-links"): MEMBER,
     ("POST", "/api/agents/{agent_id}/review-links"): MEMBER,
     # ---- business self-service: intent view, curated answers, issue box (T33/T35/T36) ----
@@ -554,6 +559,9 @@ ROUTE_POLICY: dict[tuple[str, str], str] = {
     ("GET", "/api/annotation-tasks/{task_id}/agreement"): MEMBER,
     ("POST", "/api/annotation-tasks/{task_id}/decide"): PERM_JUDGE_CALIBRATE,
     ("GET", "/api/calibration/{criterion_key}"): MEMBER,
+    ("GET", "/api/annotation-tasks/{task_id}/links"): MEMBER,
+    ("POST", "/api/annotation-tasks/{task_id}/links"): PERM_JUDGE_CALIBRATE,
+    ("DELETE", "/api/annotation-tasks/{task_id}/links/{link_id}"): PERM_JUDGE_CALIBRATE,
     ("GET", "/api/agents/{agent_id}/release"): MEMBER,
     ("POST", "/api/agents/{agent_id}/release/migrate"): PERM_RELEASE_SIGN,
     ("POST", "/api/agents/{agent_id}/release/evaluate"): PERM_EVAL_RUN,
@@ -721,6 +729,8 @@ WORKSPACE_EXEMPT: frozenset[tuple[str, str]] = frozenset(
         ("POST", "/share/{token}/feedback"),
         ("GET", "/share/review/{token}"),
         ("POST", "/share/review/{token}/rate"),
+        ("GET", "/share/annotate/{token}"),
+        ("POST", "/share/annotate/{token}/label"),
         ("POST", "/share/channels/{platform}/{token}"),
         ("GET", "/api/announcements"),
         ("GET", "/api/announcements/manage"),

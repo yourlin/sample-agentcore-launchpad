@@ -65,6 +65,7 @@ from app.routers.review import console_router as review_links_router
 from app.routers.review import router as review_router
 from app.routers.share import console_router as share_links_router
 from app.routers.share import router as share_router
+from app.routers.share_annotate import router as share_annotate_router
 from app.routers.system_agents import router as system_agents_router
 from app.routers.tools import router as tools_router
 from app.routers.users import router as users_router
@@ -231,6 +232,8 @@ def create_app(resume_jobs: bool = False) -> FastAPI:
     app.include_router(answer_rules_router)  # curated answers (T35)
     app.include_router(issues_router)  # intent view + issue box (T33/T36)
     app.include_router(dlc_router)  # Agent-DLC: criteria, gates, calibration, watch
+    # account-free labelling for calibration — before /share/{token}, like review
+    app.include_router(share_annotate_router)
     if resume_jobs:
         clear_stale_turn_claims()  # only a live request of THIS process can hold one
         resumed = resume_pending_jobs()

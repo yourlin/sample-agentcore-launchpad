@@ -6924,7 +6924,27 @@
           "expired": "Calibration expired",
           "not_aligned": "Found not aligned",
           "evaluator_changed": "The evaluator changed since"
-        }
+        },
+        "links": "Annotation links",
+        "linksSub": "For an expert without a console account. Each link labels as its own annotator, named after the person it was sent to.",
+        "linkMinted": "Link for {{who}} — shown once, copy it now:",
+        "linkCopied": "Link copied",
+        "copyLink": "Copy",
+        "noLinks": "No link issued.",
+        "linkFor": "For whom",
+        "linkForHint": "A person's name — it is what the agreement report shows.",
+        "linkState": {
+          "active": "Active",
+          "revoked": "Revoked",
+          "disabled": "Disabled",
+          "expired": "Expired"
+        },
+        "linkUses": "Opened",
+        "revokeLink": "Revoke",
+        "linkRevoked": "Link revoked — labels it recorded stay",
+        "linkDays": "Valid for (days)",
+        "linkDaysHint": "1–90.",
+        "createLink": "Create link"
       },
       "release": {
         "title": "Release gate",
@@ -9512,5 +9532,28 @@
     "correctionPlaceholder": "Write the correct answer…",
     "noteLabel": "Note (optional)",
     "submit": "Submit"
+  },
+  "annotatePage": {
+    "notFoundTitle": "This link is not available",
+    "notFoundBody": "It may have expired or been revoked. Ask the person who sent it for a new one.",
+    "loading": "Loading…",
+    "title": "Label these answers",
+    "progress": "{{done}} of {{total}} labelled",
+    "intro": "For each answer, say whether it meets the criterion {{criterion}}. Judge the answer as you would if a customer had received it.",
+    "blindHint": "You will not see how anyone else — person or model — labelled these. That is deliberate: your judgment is only useful if it is your own.",
+    "closed": "This task is closed; labels can no longer change.",
+    "empty": "Nothing to label.",
+    "question": "What was asked",
+    "noQuestion": "(no question recorded)",
+    "answer": "What the agent said",
+    "saved": "Saved",
+    "label": {
+      "pass": "Meets it",
+      "fail": "Does not",
+      "inconclusive": "Cannot tell"
+    },
+    "rationale": "Why (optional)",
+    "expected": "What the correct answer would have been",
+    "saveNote": "Save note"
   }
 }

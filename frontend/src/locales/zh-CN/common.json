@@ -6924,7 +6924,27 @@
           "expired": "校准已过期",
           "not_aligned": "判定为不一致",
           "evaluator_changed": "评估器此后发生了变更"
-        }
+        },
+        "links": "标注链接",
+        "linksSub": "给没有控制台账号的专家使用。每个链接作为独立的标注人记票，并以收件人命名。",
+        "linkMinted": "给 {{who}} 的链接只显示这一次，请立即复制：",
+        "linkCopied": "链接已复制",
+        "copyLink": "复制",
+        "noLinks": "尚未发出链接。",
+        "linkFor": "发给谁",
+        "linkForHint": "写具体的人名——一致性报告里显示的就是它。",
+        "linkState": {
+          "active": "有效",
+          "revoked": "已撤销",
+          "disabled": "已停用",
+          "expired": "已过期"
+        },
+        "linkUses": "打开次数",
+        "revokeLink": "撤销",
+        "linkRevoked": "链接已撤销——已记录的标注保留",
+        "linkDays": "有效期（天）",
+        "linkDaysHint": "1–90 天。",
+        "createLink": "生成链接"
       },
       "release": {
         "title": "放行门",
@@ -9512,5 +9532,28 @@
     "correctionPlaceholder": "请写出正确的回答…",
     "noteLabel": "备注（可选）",
     "submit": "提交"
+  },
+  "annotatePage": {
+    "notFoundTitle": "该链接不可用",
+    "notFoundBody": "它可能已过期或被撤销。请联系发送者重新获取。",
+    "loading": "加载中……",
+    "title": "为这些回答做标注",
+    "progress": "已标注 {{done}} / {{total}}",
+    "intro": "逐条判断回答是否满足判据 {{criterion}}。就当客户真的收到了这个回答来判断。",
+    "blindHint": "你看不到其他人或模型是怎么标的。这是有意为之：只有你自己的判断才有价值。",
+    "closed": "该任务已关闭，标注不能再修改。",
+    "empty": "没有需要标注的内容。",
+    "question": "用户问了什么",
+    "noQuestion": "（没有记录到问题）",
+    "answer": "智能体答了什么",
+    "saved": "已保存",
+    "label": {
+      "pass": "满足",
+      "fail": "不满足",
+      "inconclusive": "无法判断"
+    },
+    "rationale": "理由（可选）",
+    "expected": "正确的回答应该是什么",
+    "saveNote": "保存备注"
   }
 }

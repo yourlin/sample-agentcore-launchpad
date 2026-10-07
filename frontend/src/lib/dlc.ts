@@ -309,6 +309,19 @@ export interface AnnotationTask {
   run_id: string | null;
 }
 
+/** An account-free labelling credential; `annotator` is the identity its votes carry. */
+export interface AnnotationLink {
+  id: string;
+  annotator: string;
+  label: string;
+  prefix: string;
+  state: "active" | "revoked" | "disabled" | "expired";
+  created_by: string;
+  expires_at: string | null;
+  last_used_at: string | null;
+  use_count: number;
+}
+
 export interface Disagreement {
   ref: string;
   human: string | null;
