@@ -87,6 +87,12 @@ const Workspaces = lazy(() =>
 // every classic route keeps its URL and, once the operator chose V2, renders
 // inside the V2 shell instead of the classic one (see ConsoleShell).
 const V2Shell = lazy(() => import("./v2/V2Shell").then((m) => ({ default: m.V2Shell })));
+// Console V3 — the redesigned console, opt-in and switchable with V2 (src/v3/)
+const V3Shell = lazy(() => import("./v3/Shell").then((m) => ({ default: m.V3Shell })));
+const V3Home = lazy(() => import("./v3/pages/Home").then((m) => ({ default: m.V3Home })));
+const V3Agents = lazy(() => import("./v3/pages/Agents").then((m) => ({ default: m.V3Agents })));
+const V3Chat = lazy(() => import("./v3/pages/Chat").then((m) => ({ default: m.V3Chat })));
+const V3Gate = lazy(() => import("./v3/pages/Gate").then((m) => ({ default: m.V3Gate })));
 const V2Home = lazy(() => import("./v2/pages/Home").then((m) => ({ default: m.V2Home })));
 const V2DataCenter = lazy(() =>
   import("./v2/pages/DataCenter").then((m) => ({ default: m.V2DataCenter })),
@@ -146,7 +152,9 @@ function V2OrClassic({ classic, toV2 }: { classic: ReactNode; toV2: (search: str
 
 /** The index route honours the operator's remembered console choice. */
 function IndexRoute() {
-  return useUiVersion() === "v2" ? <Navigate to="/v2" replace /> : <Overview />;
+  const version = useUiVersion();
+  if (version === "v3") return <Navigate to="/v3" replace />;
+  return version === "v2" ? <Navigate to="/v2" replace /> : <Overview />;
 }
 
 /**
@@ -289,6 +297,20 @@ export default function App() {
                 </RouteChunk>
               }
             />
+            <Route
+              path="v3"
+              element={
+                <RouteChunk>
+                  <V3Shell />
+                </RouteChunk>
+              }
+            >
+              <Route index element={<V3Home />} />
+              <Route path="agents" element={<V3Agents />} />
+              <Route path="chat" element={<V3Chat />} />
+              <Route path="gate" element={<V3Gate />} />
+              <Route path="*" element={<Navigate to="/v3" replace />} />
+            </Route>
             <Route
               path="v2"
               element={

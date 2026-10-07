@@ -9,7 +9,7 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth/auth-context";
 import { RouteChunk } from "../layout/RouteChunk";
-import { setUiVersion } from "../lib/ui-version";
+import { getUiVersion, setUiVersion } from "../lib/ui-version";
 import { useNavMode } from "../lib/nav-mode";
 import { useWorkspace } from "../workspace/workspace-context";
 import { V2Lang } from "./Lang";
@@ -91,10 +91,12 @@ export function V2Shell({ classic = false }: { classic?: boolean }) {
   const [navMode, setNavMode] = useNavMode(isAdmin);
   const navGroups = navGroupsFor(navMode, isAdmin);
 
-  // Opening a /v2 page (a bookmark, a shared link) is choosing V2: the classic
-  // modules reached from its sidebar then stay inside this shell too.
+  // Opening a /v2 page (a bookmark, a shared link) is choosing V2 over the classic
+  // console: its modules reached from the sidebar then stay inside this shell. It
+  // does NOT undo a V3 choice — V3 links to pages it has not rebuilt yet, and
+  // following one must not silently switch the operator's console back.
   useEffect(() => {
-    if (!classic) setUiVersion("v2");
+    if (!classic && getUiVersion() === "v1") setUiVersion("v2");
   }, [classic]);
 
   // The classic console styles <body> for its dark theme; V2 overrides it
@@ -140,6 +142,18 @@ export function V2Shell({ classic = false }: { classic?: boolean }) {
           <div className="v2-top-right">
             <WorkspaceSelect />
             <V2Lang />
+            <button
+              type="button"
+              className="v2-btn sm"
+              onClick={() => {
+                setUiVersion("v3");
+                navigate("/v3");
+              }}
+              data-testid="v2-switch-v3"
+              title={t("v3.switch.tryHint")}
+            >
+              {t("v3.switch.try")}
+            </button>
             <button type="button" className="v2-btn sm" onClick={switchToClassic} data-testid="v2-switch-classic">
               <Repeat size={13} aria-hidden="true" />
               {t("v2.switchClassic")}

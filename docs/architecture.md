@@ -2803,6 +2803,37 @@ unknown agent id is 404). Results are cached in-process, keyed on agent, languag
 spec fingerprint (prompt, KBs, tools): 10 minutes for model output, 60 seconds for a
 fallback so a failing model is not retried on every poll.
 
+## Console V3 (preview)
+
+An opt-in, dark "command center" console under `/v3/*` (`frontend/src/v3/`), built
+beside V2 rather than replacing it. It reads and writes through the same `api` /
+`dlcApi` clients, backend routes and permission checks as V2 — there is no V3-only
+backend surface.
+
+- **Switching.** V2's top bar has **Try V3** (`data-testid="v2-switch-v3"`); V3's has
+  **Back to V2**. The choice is stored as `v3` in `launchpad_ui_version`
+  (`lib/ui-version.ts`); `/` then lands on `/v3`. Opening any `/v3` page counts as
+  choosing V3.
+- **Native pages.** Command center (`/v3`: a ranked "needs you" queue built from
+  failed deploys, releases awaiting signature and gates that stopped —
+  `v3/signals.ts`), Agents (`/v3/agents`, `?id=` for one agent: lifecycle line,
+  deploy stages, versions/endpoints, try-it), Chat (`/v3/chat`, the same
+  `chat_stream` SSE chain), and Release gate (`/v3/gate`: the four-gate pipeline,
+  per-criterion intervals, sign / block / roll back / run the gate).
+- **Everything else stays in V2.** The rail lists the pages V3 has not rebuilt under
+  "Still in V2"; they open the V2 page instead of being wrapped in a shell whose look
+  they do not share. The ⌘K palette (also `/`) reaches every page and every agent's
+  chat and gate, and matches English names and routes under the zh-CN UI too.
+- **Styling.** All V3 CSS is scoped under `.v3` and every custom property is prefixed
+  `--v3-*`, because the classic `theme/` tokens and class names (`--ink-2`, `.split`,
+  `.caret`) are global and would otherwise collide. Signals use one vocabulary:
+  `ok` / `wait` / `act` / `info` / `off`.
+- **Timestamps.** Ledger timestamps are naive UTC; `lib/timestamps.ts`
+  `parseTimestamp` reads them as UTC (V2's `fmtTime` uses it too) instead of letting
+  `new Date()` treat them as local time.
+- **Check.** `backend/scripts/e2e_v3_console_browser.py` (headless, read-mostly; `--chat`
+  sends one message) walks the switch, every V3 page and ⌘K.
+
 ## Console authentication and accounts
 
 The platform console has an optional local account gate, independent from both

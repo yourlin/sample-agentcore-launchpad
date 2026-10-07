@@ -448,7 +448,7 @@ export interface ReleaseRecord {
   evaluator_set_hash: string | null;
   run_ids: string[];
   gate_report: GateReport | Record<string, never>;
-  decision: "open" | "pending" | "blocked" | "invalid" | "released" | "rolled_back";
+  decision: "open" | "pending" | "evaluating" | "blocked" | "invalid" | "released" | "rolled_back" | "superseded";
   requested_by: string;
   decided_by: string | null;
   decided_at: string | null;

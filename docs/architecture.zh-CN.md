@@ -1474,6 +1474,17 @@ DCV live-view chunk（它本来就是懒加载的，见 `pages/governance/ToolsV
 - **评估对象：平台 Agent 或 CloudWatch 遥测。** 任务可以直接基于 CloudWatch 遥测评估一个非平台 Agent（例如未托管在 AgentCore Runtime 上的 Agent，`v2/pages/tasks/LogSourceFields.tsx`）：操作员给出 span 的 `service.name` 与 1–10 个输入日志组——可从 `aws/spans` 中发现的服务里选择（`GET /api/eval/log-services`，同时预填 span 资源属性指向的内容日志组，并标出属于平台 Agent 的服务），也可搜索日志组（`GET /api/eval/log-groups`）。运行以 `log_source {service_name, log_group_names}` 代替 `agent_id`，与 `StartBatchEvaluation` 的 `cloudWatchLogs` 数据源一一对应。只支持被动范围：链路（时间窗口）或日志（这些日志组中该服务的会话，用 Logs Insights 从其 span 中发现——`GET /api/eval/log-sessions`——因为非 Runtime Agent 的内容日志不一定带 `session.id`）；Agent 轨迹、数据集回放与持续评估都需要平台 Agent。ledger 行的 `agent_id` 为 `""`，`agent_name` 为服务名称。
 - **结果在界面中展示，而非导出。** 任务详情与评估总览把评估记录（`GET /api/eval/runs/{id}/results`、`GET /api/eval/online/{id}/results`）读成统一的行模型（`v2/results.ts`）：状态、原始分数与**归一化**分数（0–1，惩罚型评估器经 `evaluatorPolarity` 取反）、标签、说明。归一化分数低于 0.7 即为 Bad Case。评估总览汇总（洞察类运行没有分数，不参与汇总）时间窗口内最近 12 个已完成的运行与全部持续任务，提供 KPI、按评估器拆分、筛选、CSV 导出，以及「Bad Case 回流数据集」（调用 `POST /api/eval/datasets/from-sessions`，见数据处理 API）。其中的**评估洞察**面板（`v2/InsightsPanel.tsx`）覆盖时间窗口内已完成的洞察类运行，直接使用运行行上已有的聚类（不额外读取）：先给出任务数、失败类别数、用户意图数与执行摘要数，再把失败类别、用户意图与执行摘要按名称跨任务合并、按会话数由多到少排列，并附最主要的改进建议；点击聚类打开抽屉，展示子类别、根因与改进建议、受影响会话以及来源任务链接。评估任务、Agent、数据来源与搜索筛选同样作用于该面板，评估器、状态与分数区间筛选只针对打分结果。
 
+## 控制台 V3（预览）
+
+一套可选启用的深色「指挥中心」控制台，位于 `/v3/*`（`frontend/src/v3/`），与 V2 并存而非替换。它通过与 V2 相同的 `api` / `dlcApi` 客户端、后端路由和权限检查读写——没有 V3 专属的后端接口。
+
+- **切换。** V2 顶栏有「试用 V3」（`data-testid="v2-switch-v3"`），V3 顶栏有「返回 V2」。选择以 `v3` 存在 `launchpad_ui_version`（`lib/ui-version.ts`）中，之后访问 `/` 会进入 `/v3`；打开任意 `/v3` 页面即视为选择 V3。
+- **原生页面。** 指挥中心（`/v3`：由部署失败、待签署的放行、被拦下的放行门汇总出的「需要你处理」队列，见 `v3/signals.ts`）、智能体（`/v3/agents`，`?id=` 为单个智能体：生命周期线、部署阶段、版本/端点、试一下）、对话（`/v3/chat`，同一条 `chat_stream` SSE 链路）、放行门（`/v3/gate`：四道门流水线、各判据的区间、签署 / 拦下 / 回滚 / 运行放行门）。
+- **其余页面仍在 V2。** 侧栏在「仍在 V2」下列出 V3 尚未重做的页面，点击直接打开 V2 页面。⌘K 命令面板（也可按 `/`）可到达所有页面以及每个智能体的对话与放行门，在 zh-CN 界面下也能匹配英文名称和路由。
+- **样式。** V3 的 CSS 全部限定在 `.v3` 之下，所有自定义属性都以 `--v3-*` 为前缀，因为经典版 `theme/` 的 token 和类名（`--ink-2`、`.split`、`.caret`）是全局的，否则会冲突。信号统一使用 `ok` / `wait` / `act` / `info` / `off`。
+- **时间戳。** 账本时间戳是不带时区的 UTC；`lib/timestamps.ts` 的 `parseTimestamp` 按 UTC 解析（V2 的 `fmtTime` 也改用它），避免 `new Date()` 把它当作本地时间。
+- **检查。** `backend/scripts/e2e_v3_console_browser.py`（无头浏览器、基本只读；`--chat` 会发送一条消息）覆盖切换、所有 V3 页面和 ⌘K。
+
 ## 控制台认证与账户
 
 控制台有一个可选的本地账户网关,与 Gateway/Cedar 演示使用的 Cognito 用户以及
