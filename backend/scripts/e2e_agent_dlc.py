@@ -184,6 +184,8 @@ def main() -> int:
         eng = account(admin, args.base, "engineer", args.workspace, users)
         own = account(admin, args.base, "owner", args.workspace, users)
         ops = account(admin, args.base, "operator", args.workspace, users)
+        # an operator does not hold agents.deploy by design (T19), so the engineer
+        # deploys and the operator decides what production serves
 
         # ── 2. a Harness agent on named endpoints, the workspace gated ─────────────
         res = eng.post("/api/agents", json={"name": AGENT, "method": "harness",
@@ -196,10 +198,17 @@ def main() -> int:
         v1 = str(agent["version"])
         step("agent.active", True, f"{agent_id} · version {v1}")
 
-        migrated = eng.post(f"/api/agents/{agent_id}/release/migrate")
+        # moving production onto named endpoints is a release decision, so it carries
+        # `release.sign` — the engineer who builds the agent may not do it
+        refused = eng.post(f"/api/agents/{agent_id}/release/migrate")
+        step("release.migrate_needs_release_sign", refused.status_code == 403,
+             f"HTTP {refused.status_code} {refused.json().get('code')}")
+        migrated = ops.post(f"/api/agents/{agent_id}/release/migrate")
+        state = migrated.json().get("state") or {}
         step("release.migrate", migrated.status_code == 200
-             and migrated.json()["state"]["endpoint_mode"] == "live",
-             f"HTTP {migrated.status_code} · live → {migrated.json()['state'].get('live_version')}")
+             and state.get("endpoint_mode") == "live",
+             f"HTTP {migrated.status_code} · live → {state.get('live_version')} "
+             f"{migrated.text[:160] if migrated.status_code != 200 else ''}")
 
         gated = admin.put(f"/api/release-policies/{args.workspace}",
                           json={**policy_before.get("policy", {}), "release_mode": "gated"})

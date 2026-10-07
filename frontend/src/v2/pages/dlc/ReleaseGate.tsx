@@ -524,7 +524,8 @@ export function ReleaseGate({ agentId }: { agentId: string }) {
           <Alert
             tone="warn"
             action={
-              can("agents.deploy") ? (
+              // moving production onto named endpoints is a release decision
+              can("release.sign") ? (
                 <LinkButton
                   disabled={busy || !live.gateable}
                   title={live.gateable_reason ?? undefined}

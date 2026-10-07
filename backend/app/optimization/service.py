@@ -437,6 +437,8 @@ def _agent_meta(exp: Experiment, workspace: WorkspaceContext) -> dict[str, Any]:
         "system_prompt": (agent_row.spec or {}).get("system_prompt", ""),
         "tools": discover_agent_tools(agent_row.spec or {}),
         "experiment_capability": experiment_capability(agent_row),
+        # where this agent's production traffic is logged (`live` once gated)
+        "telemetry_endpoint": _telemetry_endpoint(agent_row),
     }
     _update(exp.id, artifact={"agent_meta": meta})
     return meta
@@ -565,12 +567,14 @@ def stage_recommend(
     model_id: str | None = None,
 ) -> dict[str, Any]:
     data = data_client(workspace)
-    log_group = f"/aws/bedrock-agentcore/runtimes/{agent['resource_id']}-DEFAULT"
+    # recommendations read past production traffic: a gated agent's is on `live`
+    endpoint = agent.get("telemetry_endpoint") or "DEFAULT"
+    log_group = f"/aws/bedrock-agentcore/runtimes/{agent['resource_id']}-{endpoint}"
     log_group_arns = [
         ac.to_log_group_arn(log_group, workspace.region, workspace.account_id),
         ac.to_log_group_arn("aws/spans", workspace.region, workspace.account_id),
     ]
-    service_names = [f"{agent['runtime_name']}.DEFAULT"]
+    service_names = [f"{agent['runtime_name']}.{endpoint}"]
     current_prompt = agent["system_prompt"]
     out: dict[str, Any] = {}
 
@@ -1649,6 +1653,12 @@ def act_verdict(exp_id: str, progress: Progress) -> None:
             artifact={"verdict": {"metrics": metrics, **verdict}})
 
 
+def _telemetry_endpoint(agent_row: Any) -> str:
+    from app.evaluation.service import telemetry_endpoint
+
+    return telemetry_endpoint(agent_row)
+
+
 def start_experiment(agent_row: Any, workspace: WorkspaceContext) -> Experiment:
     """Create the experiment row only — every stage waits for its action."""
     control = control_client(workspace)
@@ -1661,6 +1671,8 @@ def start_experiment(agent_row: Any, workspace: WorkspaceContext) -> Experiment:
         "system_prompt": (agent_row.spec or {}).get("system_prompt", ""),
         "tools": discover_agent_tools(agent_row.spec or {}),
         "experiment_capability": experiment_capability(agent_row),
+        # where this agent's production traffic is logged (`live` once gated)
+        "telemetry_endpoint": _telemetry_endpoint(agent_row),
     }
     db = SessionLocal()
     try:

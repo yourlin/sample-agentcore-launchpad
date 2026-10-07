@@ -173,7 +173,7 @@ def validate_filters(filters: Sequence[dict[str, Any]] | None) -> list[dict[str,
 def _agent_log_group_matchers(db: Session, ws: WorkspaceScope) -> list[tuple[Agent, str, bool]]:
     """(agent, log-group needle, is_prefix) for every deployed agent in the workspace.
 
-    Derived offline: runtime methods log to ``runtimes/<resource_id>-DEFAULT``; a
+    Derived offline: runtime methods log to ``runtimes/<resource_id>-<endpoint>``; a
     harness's backing runtime logs under ``runtimes/harness_<name>-*`` (see
     evaluation-agent-eligibility.md). Used only for the best-effort
     ``matched_agent`` hint on external configs.
@@ -189,7 +189,8 @@ def _agent_log_group_matchers(db: Session, ws: WorkspaceScope) -> list[tuple[Age
             base = agent.resource_id.rsplit("-", 1)[0]
             out.append((agent, f"{RUNTIME_LOG_GROUP_PREFIX}harness_{base}-", True))
         else:
-            out.append((agent, f"{RUNTIME_LOG_GROUP_PREFIX}{agent.resource_id}-DEFAULT", False))
+            # the runtime's whole family of endpoint groups (-DEFAULT, -live, -candidate)
+            out.append((agent, f"{RUNTIME_LOG_GROUP_PREFIX}{agent.resource_id}-", True))
     return out
 
 

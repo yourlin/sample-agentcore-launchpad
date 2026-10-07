@@ -1530,7 +1530,10 @@ def _eval_content_log_group(agent: Agent, workspace: WorkspaceContext) -> str | 
     if not agent.resource_id:
         return None
     if agent.method in RUNTIME_LOG_METHODS:
-        return f"/aws/bedrock-agentcore/runtimes/{agent.resource_id}-DEFAULT"
+        from app.evaluation.service import telemetry_endpoint
+
+        return (f"/aws/bedrock-agentcore/runtimes/{agent.resource_id}-"
+                f"{telemetry_endpoint(agent)}")
     if agent.method != "harness":
         return None
     # Local import — the evaluation service sits above this module.

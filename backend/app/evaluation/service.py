@@ -124,11 +124,28 @@ def _start_with_retry(start: Callable[[], dict[str, Any]]) -> dict[str, Any]:
     return start()
 
 
+def telemetry_endpoint(agent: Agent | None, qualifier: str | None = None) -> str:
+    """The endpoint whose telemetry a read should use.
+
+    Every AgentCore endpoint writes its own content-log group (``…-<endpoint>``) and
+    service name (``….<endpoint>``). A pinned run reads its own endpoint; otherwise
+    a gated agent's production traffic is on ``live`` (Agent-DLC §6), and everything
+    else on ``DEFAULT``. Reading DEFAULT for a gated agent would show the dashboards,
+    online evaluation and insights an endpoint no user is talking to.
+    """
+    if qualifier:
+        return qualifier
+    if agent is not None and getattr(agent, "endpoint_mode", None) == "live":
+        return "live"
+    return "DEFAULT"
+
+
 def _harness_telemetry(
-    agent: Agent, workspace: WorkspaceContext, logs_client: Any = None
+    agent: Agent, workspace: WorkspaceContext, logs_client: Any = None,
+    endpoint: str = "DEFAULT",
 ) -> tuple[str, str]:
     """Harness span identity: the harnessId is ``{harnessName}-{suffix}`` and the
-    managed backing runtime emits ``harness_{harnessName}.DEFAULT``. Its log
+    managed backing runtime emits ``harness_{harnessName}.<endpoint>``. Its log
     group carries the BACKING runtime's own id (≠ harnessId) — discover it by
     prefix; a re-created harness leaves stale groups behind, so newest wins."""
     base = agent.resource_id.rsplit("-", 1)[0]
@@ -136,7 +153,7 @@ def _harness_telemetry(
     logs = logs_client or workspace.client("logs")
     groups = [
         g for g in logs.describe_log_groups(logGroupNamePrefix=prefix).get("logGroups", [])
-        if g["logGroupName"].endswith("-DEFAULT")
+        if g["logGroupName"].endswith(f"-{endpoint}")
     ]
     if not groups:
         raise AppError(
@@ -146,13 +163,16 @@ def _harness_telemetry(
             status_code=400,
         )
     newest = max(groups, key=lambda g: g.get("creationTime", 0))
-    return f"harness_{base}.DEFAULT", newest["logGroupName"]
+    return f"harness_{base}.{endpoint}", newest["logGroupName"]
 
 
 def resolve_telemetry(
-    agent: Agent, workspace: WorkspaceContext, logs_client: Any = None
+    agent: Agent, workspace: WorkspaceContext, logs_client: Any = None,
+    *, qualifier: str | None = None,
 ) -> tuple[str, str]:
-    """(service_name, log_group) for a platform agent's spans + content logs."""
+    """(service_name, log_group) for a platform agent's spans + content logs, on the
+    endpoint `telemetry_endpoint` picks (production unless `qualifier` pins one)."""
+    endpoint = telemetry_endpoint(agent, qualifier)
     if agent.method not in EVAL_SUPPORTED_METHODS:
         raise AppError(
             "eval.method_unsupported",
@@ -162,11 +182,11 @@ def resolve_telemetry(
     if not agent.resource_id:
         raise AppError("eval.agent_not_deployed", "agent has no runtime", status_code=400)
     if agent.method == "harness":
-        return _harness_telemetry(agent, workspace, logs_client)
+        return _harness_telemetry(agent, workspace, logs_client, endpoint)
     detail = rt.get_runtime(control_client(workspace), agent.resource_id)
     runtime_name = detail["agentRuntimeName"]
-    return f"{runtime_name}.DEFAULT", (
-        f"/aws/bedrock-agentcore/runtimes/{agent.resource_id}-DEFAULT"
+    return f"{runtime_name}.{endpoint}", (
+        f"/aws/bedrock-agentcore/runtimes/{agent.resource_id}-{endpoint}"
     )
 
 
@@ -847,7 +867,13 @@ def submit_run(
             from app.services import inbound_auth as inbound_auth_service
 
             inbound_auth_service.require_platform_reachable(agent, workspace, "m2m")
-        service_name, log_group = resolve_telemetry(agent, workspace)
+        # an unpinned replay of a gated agent exercises production (`live`), like
+        # every other invoke path; DEFAULT would silently be the newest candidate
+        if dataset_items and not qualifier:
+            from app.services.invoke import production_endpoint
+
+            qualifier = production_endpoint(agent).get("qualifier")
+        service_name, log_group = resolve_telemetry(agent, workspace, qualifier=qualifier)
         log_groups = ["aws/spans", log_group]
     # Window runs have no dataset; encode the scope in dataset_name so the
     # runs list can render "window · Nh" without a schema change.
