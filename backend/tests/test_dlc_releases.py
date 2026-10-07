@@ -317,23 +317,20 @@ def test_named_endpoints_are_deleted_before_the_resource(db, monkeypatch):
     deleted = []
     monkeypatch.setattr("app.services.agentcore.harness.delete_harness_endpoint",
                         lambda control, rid, name: deleted.append((rid, name)) or True)
-    monkeypatch.setattr(release_svc, "endpoint_version", _raises("ResourceNotFoundException"))
+    monkeypatch.setattr(release_svc, "endpoint_status", lambda a, c, name: None)
     out = release_svc.delete_endpoints(agent, object())
     # candidate first, then live: the one serving traffic goes last
     assert [name for _, name in deleted] == ["candidate", "live"]
     assert [row["status"] for row in out] == ["deleted", "deleted"]
 
 
-def _raises(kind, after=0):
-    """An `endpoint_version` that raises `kind` (optionally after N successful reads)."""
+def _gone_after(reads):
+    """An `endpoint_status` that reports DELETING for N reads, then None (gone)."""
     calls = {"n": 0}
 
-    def fn(control, agent, name):
+    def fn(agent, control, name):
         calls["n"] += 1
-        if calls["n"] > after:
-            exc = type(kind, (Exception,), {})
-            raise exc("gone")
-        return "1"
+        return "DELETING" if calls["n"] <= reads else None
 
     return fn
 
@@ -351,8 +348,7 @@ def test_endpoint_deletion_waits_for_aws_to_finish(db, monkeypatch):
     monkeypatch.setattr("app.services.agentcore.harness.delete_harness_endpoint",
                         lambda control, rid, name: True)
     # each endpoint is still there for two reads, then gone
-    monkeypatch.setattr(release_svc, "endpoint_version",
-                        _raises("ResourceNotFoundException", after=2))
+    monkeypatch.setattr(release_svc, "endpoint_status", _gone_after(2))
     out = release_svc.delete_endpoints(agent, object())
     assert [row["status"] for row in out] == ["deleted", "deleted"]
     assert waits, "it must actually wait, not just issue the delete"
@@ -370,8 +366,7 @@ def test_an_endpoint_already_deleting_is_still_waited_out(db, monkeypatch):
         raise type("ConflictException", (Exception,), {})("already DELETING")
 
     monkeypatch.setattr("app.services.agentcore.harness.delete_harness_endpoint", conflict)
-    monkeypatch.setattr(release_svc, "endpoint_version",
-                        _raises("ResourceNotFoundException", after=1))
+    monkeypatch.setattr(release_svc, "endpoint_status", _gone_after(1))
     out = release_svc.delete_endpoints(agent, object())
     assert [row["status"] for row in out] == ["deleted", "deleted"]
 
@@ -385,7 +380,7 @@ def test_a_stuck_endpoint_times_out_rather_than_hanging(db, monkeypatch):
     monkeypatch.setattr(release_svc, "_sleep", lambda s: None)
     monkeypatch.setattr("app.services.agentcore.harness.delete_harness_endpoint",
                         lambda control, rid, name: True)
-    monkeypatch.setattr(release_svc, "endpoint_version", lambda control, agent, name: "1")
+    monkeypatch.setattr(release_svc, "endpoint_status", lambda a, c, name: "DELETING")
     out = release_svc.delete_endpoints(agent, object(), timeout_s=0.01)
     # reported, not raised: a stuck endpoint must not make an agent undeletable
     assert [row["status"] for row in out] == ["timeout", "timeout"]
@@ -415,3 +410,32 @@ def test_an_ungated_agent_has_no_endpoints_to_delete(db):
 
     # endpoint_mode "default" = a single DEFAULT endpoint AWS owns; nothing to delete
     assert release_svc.delete_endpoints(_agent(db, mode="default"), object()) == []
+
+
+def test_a_still_deleting_harness_defers_instead_of_refusing_the_delete(db, monkeypatch):
+    """AgentCore refuses DeleteHarness while endpoints are DELETING. Refusing the whole
+    request would leave the operator retrying by hand against an async state machine."""
+    from app.core.errors import AppError
+    from app.deployer import harness as harness_method
+    from app.dlc import releases as release_svc
+
+    agent = _agent(db)
+    agent.method = "harness"
+    db.commit()
+
+    class _Client:
+        class exceptions:  # noqa: N801 - mirrors botocore's shape
+            ResourceNotFoundException = type("ResourceNotFoundException", (Exception,), {})
+            ConflictException = type("ConflictException", (Exception,), {})
+
+    client = _Client()
+    monkeypatch.setattr(harness_method, "control_client", lambda ws: client)
+    monkeypatch.setattr(release_svc, "delete_endpoints", lambda a, c, **kw: [])
+    monkeypatch.setattr("app.services.agentcore.harness.delete_harness",
+                        lambda c, rid: (_ for _ in ()).throw(
+                            _Client.exceptions.ConflictException("has endpoints")))
+    ws = SimpleNamespace(resources={}, region="us-east-1")
+    with pytest.raises(AppError) as exc:
+        harness_method.delete_agent_resources(agent, ws)
+    assert exc.value.code == "agent.teardown_pending"
+    assert "automatically" in exc.value.message  # it says who finishes the job

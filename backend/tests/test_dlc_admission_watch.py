@@ -393,3 +393,147 @@ def test_alert_evaluation_is_per_workspace(db, monkeypatch):
     out = scheduler.evaluate_alerts(db)
     assert seen and out["workspaces"][0]["firing"] == 0
     assert {w.id for w in db.query(Workspace).all()} >= set(seen)
+
+
+# ── deferred AWS teardown ──────────────────────────────────────────────────────
+
+
+def _row(out, agent_id):
+    """This agent's verdict — the sweep covers every deleted gated row at once."""
+    return next(r["status"] for r in out["results"] if r["agent_id"] == agent_id)
+
+
+def _deleted_gated(db, name="aw-gone"):
+    agent = Agent(workspace_id=WS, name=name, method="harness", status="deleted",
+                  spec={"name": name}, version="2", resource_id="h-gone",
+                  endpoint_mode="live")
+    db.add(agent)
+    db.commit()
+    return agent
+
+
+def test_the_sweep_waits_while_an_endpoint_is_still_deleting(db, monkeypatch):
+    """A harness endpoint can stay DELETING for minutes, so the delete request gives up
+    and this finishes the job — it must not delete the harness while they are there."""
+    from app.dlc import releases as release_svc
+
+    agent = _deleted_gated(db)
+    monkeypatch.setattr("app.services.workspace.context_for_workspace",
+                        lambda wid: SimpleNamespace(id=wid))
+    monkeypatch.setattr("app.services.agentcore.client.control_client", lambda ctx: object())
+    monkeypatch.setattr(release_svc, "endpoint_status",
+                        lambda a, c, name: "DELETING" if name == "candidate" else None)
+    reissued = []
+    monkeypatch.setattr(release_svc, "delete_endpoints",
+                        lambda a, c, **kw: reissued.append(kw) or [])
+    deleted = []
+    monkeypatch.setattr("app.services.agentcore.harness.delete_harness",
+                        lambda c, rid: deleted.append(rid))
+    out = scheduler.sweep_deleted_resources(db)
+    assert _row(out, agent.id) == "waiting"
+    assert deleted == []  # the harness is NOT deleted while an endpoint lingers
+    assert reissued == [{"timeout_s": 0}]  # re-issued, in case the delete never landed
+    assert agent.resource_id == "h-gone"  # still to be retried
+
+
+def test_the_sweep_deletes_the_harness_once_the_endpoints_are_gone(db, monkeypatch):
+    from app.dlc import releases as release_svc
+
+    agent = _deleted_gated(db)
+    monkeypatch.setattr("app.services.workspace.context_for_workspace",
+                        lambda wid: SimpleNamespace(id=wid))
+    monkeypatch.setattr("app.services.agentcore.client.control_client", lambda ctx: object())
+    monkeypatch.setattr(release_svc, "endpoint_status", lambda a, c, name: None)
+    monkeypatch.setattr("app.services.agentcore.harness.get_harness",
+                        lambda c, rid, version=None: {"harness": {"status": "READY"}})
+    deleted = []
+    monkeypatch.setattr("app.services.agentcore.harness.delete_harness",
+                        lambda c, rid: deleted.append(rid))
+    out = scheduler.sweep_deleted_resources(db)
+    assert deleted == ["h-gone"]
+    assert _row(out, agent.id) == "deleted"
+    # the done-marker: `endpoint_mode` is the sweep's own filter, and `resource_id`
+    # stays as the historical pointer every other deleted row keeps
+    assert agent.endpoint_mode == "default"
+    assert agent.resource_id == "h-gone"
+
+
+def test_an_already_gone_resource_stops_being_retried(db, monkeypatch):
+    from app.dlc import releases as release_svc
+
+    agent = _deleted_gated(db)
+    monkeypatch.setattr("app.services.workspace.context_for_workspace",
+                        lambda wid: SimpleNamespace(id=wid))
+    monkeypatch.setattr("app.services.agentcore.client.control_client", lambda ctx: object())
+    monkeypatch.setattr(release_svc, "endpoint_status", lambda a, c, name: None)
+    monkeypatch.setattr("app.services.agentcore.harness.get_harness",
+                        lambda c, rid, version=None: {"harness": {"status": "READY"}})
+
+    def gone(c, rid):
+        raise type("ResourceNotFoundException", (Exception,), {})("already gone")
+
+    monkeypatch.setattr("app.services.agentcore.harness.delete_harness", gone)
+    scheduler.sweep_deleted_resources(db)
+    assert agent.endpoint_mode == "default"
+
+
+def test_an_ungated_deleted_agent_is_not_swept(db):
+    agent = Agent(workspace_id=WS, name="aw-plain", method="harness", status="deleted",
+                  spec={}, version="1", resource_id="h-plain", endpoint_mode="default")
+    db.add(agent)
+    db.commit()
+    # the ordinary delete path already finished; nothing here to retry
+    assert scheduler.sweep_deleted_resources(db)["checked"] == 0
+    assert agent.resource_id == "h-plain"
+
+
+def test_an_already_gone_harness_is_detected_by_asking_not_by_the_delete_error(db,
+                                                                              monkeypatch):
+    """AgentCore answers DeleteHarness on an already-gone harness with **AccessDenied**,
+    not ResourceNotFound (observed on real AWS). Inferring "gone" from the delete error
+    would either retry a vanished resource forever or swallow a real permission problem,
+    so the sweep asks GetHarness first."""
+    from app.dlc import releases as release_svc
+
+    agent = _deleted_gated(db, name="aw-accessdenied")
+    monkeypatch.setattr("app.services.workspace.context_for_workspace",
+                        lambda wid: SimpleNamespace(id=wid))
+    monkeypatch.setattr("app.services.agentcore.client.control_client", lambda ctx: object())
+    monkeypatch.setattr(release_svc, "endpoint_status", lambda a, c, name: None)
+
+    def not_found(c, rid, version=None):
+        raise type("ResourceNotFoundException", (Exception,), {})("no such harness")
+
+    denied = []
+
+    def access_denied(c, rid):
+        denied.append(rid)
+        raise type("AccessDeniedException", (Exception,), {})("not authorized")
+
+    monkeypatch.setattr("app.services.agentcore.harness.get_harness", not_found)
+    monkeypatch.setattr("app.services.agentcore.harness.delete_harness", access_denied)
+    out = scheduler.sweep_deleted_resources(db)
+    assert _row(out, agent.id) == "deleted"
+    assert denied == []  # never even attempted: GetHarness already said it is gone
+    assert agent.endpoint_mode == "default"
+
+
+def test_a_real_permission_failure_keeps_being_reported(db, monkeypatch):
+    from app.dlc import releases as release_svc
+
+    agent = _deleted_gated(db, name="aw-denied-real")
+    monkeypatch.setattr("app.services.workspace.context_for_workspace",
+                        lambda wid: SimpleNamespace(id=wid))
+    monkeypatch.setattr("app.services.agentcore.client.control_client", lambda ctx: object())
+    monkeypatch.setattr(release_svc, "endpoint_status", lambda a, c, name: None)
+    monkeypatch.setattr("app.services.agentcore.harness.get_harness",
+                        lambda c, rid, version=None: {"harness": {"status": "READY"}})
+
+    def access_denied(c, rid):
+        raise type("AccessDeniedException", (Exception,), {})("not authorized")
+
+    monkeypatch.setattr("app.services.agentcore.harness.delete_harness", access_denied)
+    out = scheduler.sweep_deleted_resources(db)
+    assert _row(out, agent.id) == "error:AccessDeniedException"
+    # still to be retried: the resource is really there and really undeletable
+    assert agent.resource_id == "h-gone"

@@ -4078,12 +4078,21 @@ which only appear once an agent actually has named endpoints:
   vanished from the dashboards. `evaluation.service.telemetry_endpoint(agent,
   qualifier)` is now the single rule: a pinned run reads its own endpoint, a gated
   agent reads `live`, everything else `DEFAULT` (unchanged).
-* *Endpoint deletion is asynchronous.* AgentCore refuses to delete a runtime or
-  harness that still has endpoints, and `DeleteHarnessEndpoint` only moves the
-  endpoint to DELETING. All four delete paths call `releases.delete_endpoints` first,
-  which issues both deletes (AWS removes them in parallel) and then waits each out
-  with a bounded timeout; a stuck endpoint is reported, never raised, so it cannot
-  make an agent undeletable. Waivers need a reason, a named risk owner, an expiry
+* *Endpoint deletion is asynchronous, and a harness endpoint is slow.* AgentCore
+  refuses to delete a runtime or harness that still has endpoints, and
+  `DeleteHarnessEndpoint` only moves the endpoint to DELETING — observed at several
+  minutes. All four delete paths call `releases.delete_endpoints` first, which issues
+  both deletes (AWS removes them in parallel) and waits a **short** bound (45 s: enough
+  for a runtime endpoint). If AWS still holds the harness, `delete_agent_resources`
+  raises `agent.teardown_pending`, the route marks the ledger row deleted with
+  `aws_resource_deleted: false`, and `dlc.scheduler.sweep_deleted_resources` retries
+  until AWS lets go — rather than holding an HTTP delete open for minutes or leaving an
+  operator to retry by hand against an asynchronous state machine. The sweep asks
+  `GetHarness` before deleting, because **AgentCore answers `DeleteHarness` on an
+  already-gone harness with `AccessDenied`, not `ResourceNotFound`**: inferring "gone"
+  from the delete error would either retry a vanished resource forever or swallow a real
+  permission problem. Its done-marker is `endpoint_mode` returning to `default`, which
+  keeps `resource_id` as the historical pointer every deleted row retains. Waivers need a reason, a named risk owner, an expiry
 ≤ 30 days and a second person (`waiver.approve`); the gate report counts how often a
 criterion has been waived.
 

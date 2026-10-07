@@ -41,8 +41,12 @@ logger = logging.getLogger(__name__)
 LIVE = "live"
 CANDIDATE = "candidate"
 GATEABLE_METHODS = ("harness", "zip_runtime", "studio", "container", "byoc")
-# endpoint deletion is asynchronous; the resource delete that follows needs it finished
-ENDPOINT_DELETE_TIMEOUT_S = 180.0
+# Endpoint deletion is asynchronous and a *harness* endpoint can sit in DELETING for
+# many minutes, so the in-request wait is deliberately short: long enough for a runtime
+# endpoint (seconds), not long enough to hold an HTTP delete open. What is still
+# DELETING is finished by `scheduler.sweep_deleted_resources`, which retries the
+# resource delete until AWS has let go.
+ENDPOINT_DELETE_TIMEOUT_S = 45.0
 ENDPOINT_DELETE_POLL_S = 5.0
 
 
@@ -621,15 +625,29 @@ def waiver_out(w: Waiver, *, history: int | None = None) -> dict[str, Any]:
     }
 
 
+def endpoint_status(agent: Agent, control: Any, name: str) -> str | None:
+    """`READY` / `DELETING` / … for a named endpoint, or None once AWS forgot it."""
+    try:
+        if agent.method == "harness":
+            from app.services.agentcore import harness as hc
+
+            detail = hc.get_harness_endpoint(control, agent.resource_id, name)
+        else:
+            from app.services.agentcore import runtime as rt
+
+            detail = rt.get_runtime_endpoint(
+                control, runtime_id=agent.resource_id, endpoint_name=name
+            )
+    except Exception as exc:  # noqa: BLE001
+        if type(exc).__name__ in ("ResourceNotFoundException", "NotFoundException"):
+            return None
+        raise
+    return str((detail or {}).get("status") or "UNKNOWN")
+
+
 def _endpoint_gone(agent: Agent, control: Any, name: str) -> bool:
     """True once AWS no longer knows this endpoint."""
-    try:
-        endpoint_version(control, agent, name)
-    except Exception as exc:  # noqa: BLE001 - any read failure is treated as "unknown"
-        if type(exc).__name__ in ("ResourceNotFoundException", "NotFoundException"):
-            return True
-        raise
-    return False
+    return endpoint_status(agent, control, name) is None
 
 
 def delete_endpoints(

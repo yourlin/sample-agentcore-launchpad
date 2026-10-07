@@ -146,4 +146,4 @@ English: [troubleshooting.md](troubleshooting.md)
 | `409 annotation.links_not_allowed` | prod 级工作区不发放无账号标注链接：那里的标注会接触真实客户会话。请把标注人邀请为成员并授予 `judge.calibrate` |
 | 标注链接返回 `404 share.not_found` | 所有不可用状态刻意返回同一个答案（未知、已撤销、已过期、任务已删，或工作区升为 prod）。重新生成一个链接 |
 | 签署 / 准入 / 校准时 `403 auth.permission_required` | `criteria.sign`、`golden.admit`、`judge.calibrate` 只授予具体的人，不按角色给——它们决定“什么叫好”。由管理员按用户授予 |
-| 删除门控智能体曾返回 409“仍有端点” | 已修复：删除路径现在会先删 `candidate` 与 `live` 并等待 AWS 完成。若仍报 `timeout`，说明端点在 AWS 侧卡住了——等它稳定后重试删除 |
+| 删除门控智能体返回 `aws_resource_deleted: false` | 这是预期行为，不是失败。harness 端点可能 DELETING 数分钟，而 AgentCore 不允许删除仍带端点的资源，所以控制台的行立即删除，AWS 侧由后台 sweep（`dlc.teardown`，每个 tick 执行）收尾。无需处理；已删除行的 `endpoint_mode` 回到 `default` 就是 sweep 的回执 |

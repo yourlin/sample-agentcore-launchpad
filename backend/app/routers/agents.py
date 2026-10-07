@@ -927,7 +927,18 @@ def delete_agent_row(db: Session, agent: Agent, workspace: WorkspaceContext) -> 
     conversation purge, so both delete an agent the same way."""
     # Before the AWS teardown: a refused delete must leave the harness untouched.
     system_agents.refuse_system_mutation(agent, "delete")
-    aws_resource_deleted = _delete_agent_resources(agent, workspace)
+    try:
+        aws_resource_deleted = _delete_agent_resources(agent, workspace)
+    except AppError as exc:
+        if exc.code != "agent.teardown_pending":
+            raise
+        # AWS is still letting go of the resource (a gated agent's endpoints can stay
+        # DELETING for minutes). The console row goes now; `dlc.scheduler
+        # .sweep_deleted_resources` retries the AWS delete until it succeeds, so the
+        # alternative — refusing the delete — would just leave the operator retrying
+        # by hand against an asynchronous AWS state machine.
+        logger.info("agent %s: AWS teardown deferred — %s", agent.id, exc.message)
+        aws_resource_deleted = False
     # its workload identity (and every 3LO token keyed by it) went with the runtime
     oauth_sessions.forget_agent(db, agent.workspace_id, agent.id)
     agent.status = "deleted"

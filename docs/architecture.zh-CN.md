@@ -1855,7 +1855,7 @@ Users 页面按账号编辑（审批时会分配授权，`PATCH /api/users/{id}`
 - **放行门**：按固定顺序判定——红线 → 分母 → 各维度门限 → 观察项。证据不足判为 INVALID（无法判定），而不是不达标。
 - **流量前置门控**：门控智能体通过具名 `live` 端点对外服务，新版本部署到 `candidate`；签署后才把 `live` 指过去，回滚即重新指回，不删除任何资源。切换到具名端点（`release/migrate`）需要 `release.sign`——生产服务哪个版本是放行决定，不是构建动作。
 - **遥测按端点区分**（真实 AWS e2e 发现）：每个 AgentCore 端点各写自己的内容日志组（`…-<endpoint>`）与 service name（`….<endpoint>`）。统一由 `evaluation.service.telemetry_endpoint(agent, qualifier)` 决定读哪个：钉住端点的运行读自己的，门控智能体读 `live`，其余读 `DEFAULT`。
-- **端点删除是异步的**：AgentCore 不允许删除仍带端点的 runtime / harness，而删除端点只是把它置为 DELETING。四条删除路径都先调 `releases.delete_endpoints`，先发出两个删除再分别等待（有超时上限）；卡住的端点只上报、不抛错，不会让智能体变成删不掉。
+- **端点删除是异步的，而且 harness 端点很慢**：AgentCore 不允许删除仍带端点的 runtime / harness，删除端点只是把它置为 DELETING（实测可达数分钟）。四条删除路径都先调 `releases.delete_endpoints`，先发出两个删除再分别等待一个**短**上限（45 秒，够 runtime 端点用）。若 AWS 仍握着 harness，`delete_agent_resources` 抛 `agent.teardown_pending`，路由照常把台账行标记为已删除并返回 `aws_resource_deleted: false`，由 `dlc.scheduler.sweep_deleted_resources` 持续重试直到 AWS 放手——而不是让一个 HTTP 删除请求挂几分钟，或者让运维对着异步状态机手动重试。该 sweep 在删除前先调 `GetHarness`，因为 **AgentCore 对已经不存在的 harness 执行 `DeleteHarness` 返回的是 `AccessDenied`，而不是 `ResourceNotFound`**：从删除错误去推断“已经没了”，要么会永远重试一个早已消失的资源，要么会把真实的权限问题吞掉。完成标记是 `endpoint_mode` 回到 `default`，这样 `resource_id` 作为历史指针得以保留（其他已删除行同样保留它）。
 - **成本是强制的，不只是展示**：`POST /api/eval/runs` 与放行门的 `start_evaluation` 都会调 `cost.assert_allowed`，`eval_cost_max_usd` / `eval_cost_confirm_usd` 在花掉第一个会话之前就拒绝。
 - **校准与标注链接**：标注期间对标注人隐藏裁判判定；数据不支持时拒绝判定为“一致”。标注链接（`/r/annotate/<token>`）让无账号的专家参与标注，prod 级工作区拒绝生成。
 - **权限**：新增 `criteria.manage`、`criteria.sign`、`golden.admit`、`judge.calibrate`、`waiver.approve`、`release.sign` 六项，关键写操作均在 `PROD_PROTECTED` 之列。

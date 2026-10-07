@@ -167,10 +167,106 @@ def sweep_expiries(db: Session) -> dict[str, Any]:
     return {"waivers_expired": expired, "calibrations_due": due}
 
 
+class _Gone(Exception):
+    """The AWS resource is already gone — stop retrying this row."""
+
+
+def _resource_exists(control: Any, agent: Any) -> bool:
+    try:
+        if agent.method == "harness":
+            from app.services.agentcore import harness as hc
+
+            hc.get_harness(control, agent.resource_id)
+        else:
+            from app.services.agentcore import runtime as rt
+
+            rt.get_runtime(control, agent.resource_id)
+    except Exception as exc:  # noqa: BLE001
+        if type(exc).__name__ in ("ResourceNotFoundException", "NotFoundException"):
+            return False
+        raise
+    return True
+
+
+def sweep_deleted_resources(db: Session) -> dict[str, Any]:
+    """Finish an AWS teardown the delete request could not wait out.
+
+    A gated agent's endpoints can stay DELETING for minutes, and AgentCore refuses to
+    delete a harness/runtime that still has them. Rather than hold an HTTP delete open
+    (or leave the operator retrying by hand against an asynchronous state machine), the
+    route marks the ledger row deleted with `aws_resource_deleted: false` and this task
+    retries until AWS has let go.
+
+    The done-marker is `endpoint_mode` going back to `default` — semantically true (no
+    named endpoint remains) and it keeps `resource_id`, which every other deleted row
+    retains as a historical pointer. That same field is the sweep's filter, so an
+    ordinary deleted agent is never retried.
+    """
+    from sqlalchemy import select
+
+    from app.dlc import releases as release_svc
+    from app.models.ledger import Agent
+    from app.services.agentcore.client import control_client
+    from app.services.workspace import context_for_workspace
+
+    rows = db.scalars(
+        select(Agent).where(
+            Agent.status == "deleted",
+            Agent.resource_id.isnot(None),
+            Agent.resource_id != "",
+            Agent.endpoint_mode == "live",
+        ).limit(20)
+    ).all()
+    out: list[dict[str, Any]] = []
+    for agent in rows:
+        try:
+            control = control_client(context_for_workspace(agent.workspace_id))
+            pending = [
+                name for name in (release_svc.CANDIDATE, release_svc.LIVE)
+                if release_svc.endpoint_status(agent, control, name) is not None
+            ]
+            if pending:
+                # re-issue: an endpoint whose delete never landed would wait forever
+                release_svc.delete_endpoints(agent, control, timeout_s=0)
+                out.append({"agent_id": agent.id, "status": "waiting",
+                            "endpoints": pending})
+                continue
+            # Ask whether the resource is still there before deleting it: AgentCore
+            # answers `DeleteHarness` on an already-gone harness with
+            # **AccessDenied**, not ResourceNotFound, so inferring "gone" from the
+            # delete error would either retry a vanished resource forever or swallow
+            # a real permission problem.
+            if not _resource_exists(control, agent):
+                raise _Gone
+            if agent.method == "harness":
+                from app.services.agentcore import harness as hc
+
+                hc.delete_harness(control, agent.resource_id)
+            else:
+                from app.services.agentcore import runtime as rt
+
+                rt.delete_runtime(control, agent.resource_id)
+        except _Gone:
+            pass
+        except Exception as exc:  # noqa: BLE001 - a sweep never raises
+            kind = type(exc).__name__
+            if kind not in ("ResourceNotFoundException", "NotFoundException"):
+                out.append({"agent_id": agent.id, "status": f"error:{kind}"})
+                logger.info("teardown sweep: agent %s not yet deletable: %s: %s",
+                            agent.id, kind, exc)
+                continue
+        # gone (or never there): stop retrying this row
+        agent.endpoint_mode = "default"
+        db.commit()
+        out.append({"agent_id": agent.id, "status": "deleted"})
+    return {"checked": len(rows), "results": out}
+
 TASKS = (
     ("dlc.watch", run_due_watches, TICK_SECONDS),
     ("dlc.alerts", evaluate_alerts, int(ALERT_EVERY.total_seconds())),
     ("dlc.expiry", sweep_expiries, int(SWEEP_EVERY.total_seconds())),
+    # AWS teardown a delete request could not wait out (endpoints mid-deletion)
+    ("dlc.teardown", sweep_deleted_resources, TICK_SECONDS),
 )
 
 
