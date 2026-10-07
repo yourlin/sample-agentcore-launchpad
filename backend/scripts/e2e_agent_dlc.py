@@ -30,6 +30,7 @@ tier `prod`: the script refuses to touch one.
 """
 
 import argparse
+import secrets
 import signal
 import sys
 import time
@@ -45,13 +46,13 @@ PROMPT_V1 = "You are a concise arithmetic assistant. Reply with just the number.
 PROMPT_V2 = "You are a precise arithmetic assistant. Reply with only the resulting number."
 PEOPLE = {
     "engineer": {"username": f"dlc-eng-{RUN}", "email": f"dlc-eng-{RUN}@example.com",
-                 "password": f"Pw-{RUN}-aA1!", "role": "member",
+                 "password": f"Pw-{secrets.token_urlsafe(12)}-aA1!", "role": "member",
                  "grant": ["criteria.manage", "agents.deploy", "eval.run"]},
     "owner": {"username": f"dlc-own-{RUN}", "email": f"dlc-own-{RUN}@example.com",
-              "password": f"Pw-{RUN}-bB2!", "role": "member",
+              "password": f"Pw-{secrets.token_urlsafe(12)}-aA1!", "role": "member",
               "grant": ["criteria.sign", "golden.admit", "judge.calibrate"]},
     "operator": {"username": f"dlc-ops-{RUN}", "email": f"dlc-ops-{RUN}@example.com",
-                 "password": f"Pw-{RUN}-cC3!", "role": "operator",
+                 "password": f"Pw-{secrets.token_urlsafe(12)}-aA1!", "role": "operator",
                  "grant": ["release.sign", "waiver.approve"]},
 }
 # a latency red line keeps the standard deterministic (no LLM judge may hold a red

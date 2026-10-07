@@ -27,6 +27,7 @@ Run:  cd backend && uv run python scripts/e2e_multi_workspace.py --base URL [--k
 """
 
 import argparse
+import secrets
 import signal
 import sys
 import time
@@ -69,7 +70,7 @@ def login(base: str, creds: dict) -> httpx.Client:
 def member(admin: httpx.Client, base: str, label: str, grants: list[str],
            users: list[str]) -> httpx.Client:
     creds = {"username": f"mw-{label}-{RUN}", "email": f"mw-{label}-{RUN}@example.com",
-             "password": f"Pw-{RUN}-{label[:2]}A1!"}
+             "password": f"Pw-{secrets.token_urlsafe(12)}-aA1!"}
     admin.post("/api/auth/register", json=creds).raise_for_status()
     listing = admin.get("/api/users", params={"q": creds["username"]}).json()
     user_id = next(u["id"] for u in listing["items"] if u["username"] == creds["username"])
