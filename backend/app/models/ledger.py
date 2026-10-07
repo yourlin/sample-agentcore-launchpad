@@ -121,6 +121,12 @@ class Agent(Base):
     # payload — ``AgentSpec`` has no such field — and never editable through the
     # ordinary lifecycle routes, which refuse rows that carry it.
     system_key: Mapped[str | None] = mapped_column(String(64), index=True, default=None)
+    # Which endpoint production traffic uses (docs/agent-dlc-design.md §6): "default"
+    # (the auto-rolling DEFAULT, the historical behaviour) or "live" (a named endpoint
+    # that only moves when a release is decided).
+    endpoint_mode: Mapped[str] = mapped_column(
+        String(16), default="default", server_default="default"
+    )
     # Inbound auth actually deployed onto the Runtime — the RESOLVED choice
     # (spec > workspace default > iam), snapshotted by the deploy stage so the
     # invoke path and the console never re-resolve against a default that may

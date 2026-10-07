@@ -37,6 +37,14 @@ class EvalDataset(Base):
     # cloud: {dataset_id, arn, status, synced_at, failure_reason, draft_status
     #   (MODIFIED|UNMODIFIED), example_count, versions: [{version, example_count,
     #   created_at}]} — the row's one AWS Dataset (draft edited in place on re-sync)
+    # Agent-DLC golden sets (docs/agent-dlc-design.md §4.2): a golden parent groups
+    # three split datasets (dev | regression | holdout), each its own AWS Dataset.
+    role: Mapped[str] = mapped_column(  # scratch | golden
+        String(16), default="scratch", server_default="scratch"
+    )
+    criteria_set_id: Mapped[str | None] = mapped_column(String(32), default=None)
+    split_of: Mapped[str | None] = mapped_column(String(16), default=None)
+    split: Mapped[str | None] = mapped_column(String(16), default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
@@ -74,6 +82,22 @@ class EvalRun(Base):
     # stop_reason}): scored as they are instead of failing the run; NULL on older rows.
     budget_stops: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, default=None)
     error: Mapped[str | None] = mapped_column(Text, default=None)
+    # ── Agent-DLC lineage and accounting (docs/agent-dlc-design.md §4.3) ──
+    criteria_set_id: Mapped[str | None] = mapped_column(String(32), default=None)
+    criteria_set_version: Mapped[int | None] = mapped_column(default=None)
+    # what was actually invoked: the AWS version behind the endpoint, and the endpoint
+    agent_version: Mapped[str | None] = mapped_column(String(32), default=None)
+    endpoint_qualifier: Mapped[str | None] = mapped_column(String(64), default=None)
+    evaluator_set_hash: Mapped[str | None] = mapped_column(String(64), default=None)
+    split: Mapped[str | None] = mapped_column(String(16), default=None)
+    repeats: Mapped[int] = mapped_column(default=1, server_default="1")
+    repeat_mode: Mapped[str] = mapped_column(String(16), default="all", server_default="all")
+    cost_estimate: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=None)
+    cost_actual: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=None)
+    denominator: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=None)
+    criteria_summary: Mapped[dict[str, Any] | None] = mapped_column(JSON, default=None)
+    # one entry per invoked session: {scenario_id, attempt, session_id}
+    attempts: Mapped[list[dict[str, Any]] | None] = mapped_column(JSON, default=None)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_now, onupdate=_now

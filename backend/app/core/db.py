@@ -62,6 +62,16 @@ WORKSPACE_SCOPED_TABLES = (
     "user_token_revocations",
     "oauth_pending_sessions",
     "user_grants",
+    "criteria_sets",
+    "criteria",
+    "criterion_results",
+    "annotation_tasks",
+    "annotations",
+    "calibration_records",
+    "release_records",
+    "waivers",
+    "admission_candidates",
+    "watch_configs",
 )
 
 
@@ -110,6 +120,7 @@ def init_db(bind=None) -> None:
     they exercise this exact sequence rather than a copy of it.
     """
     bind = bind if bind is not None else engine
+    from app.models import dlc as _dlc_models  # noqa: F401 — Agent-DLC tables
     from app.models import resource_mapping as _mapping_models  # noqa: F401
     from app.models import selfservice as _selfservice_models  # noqa: F401 — T35/T36
     from app.models import video as _video_models  # noqa: F401 — register tables before create_all
@@ -191,6 +202,12 @@ def _migrate(bind) -> None:
         if "attachment_version" not in existing:
             with bind.begin() as conn:
                 conn.execute(text("ALTER TABLE agents ADD COLUMN attachment_version VARCHAR(16)"))
+        if "endpoint_mode" not in existing:
+            with bind.begin() as conn:
+                conn.execute(
+                    text("ALTER TABLE agents ADD COLUMN endpoint_mode VARCHAR(16) "
+                         "DEFAULT 'default'")
+                )
     if "deployments" in inspector.get_table_names():
         existing = {c["name"] for c in inspector.get_columns("deployments")}
         if "image_digest" not in existing:
@@ -213,6 +230,10 @@ def _migrate(bind) -> None:
         additions = {
             "description": "ALTER TABLE eval_datasets ADD COLUMN description TEXT DEFAULT ''",
             "cloud": "ALTER TABLE eval_datasets ADD COLUMN cloud JSON",
+            "role": "ALTER TABLE eval_datasets ADD COLUMN role VARCHAR(16) DEFAULT 'scratch'",
+            "criteria_set_id": "ALTER TABLE eval_datasets ADD COLUMN criteria_set_id VARCHAR(32)",
+            "split_of": "ALTER TABLE eval_datasets ADD COLUMN split_of VARCHAR(16)",
+            "split": "ALTER TABLE eval_datasets ADD COLUMN split VARCHAR(16)",
         }
         for column, ddl in additions.items():
             if column not in existing:
@@ -230,6 +251,23 @@ def _migrate(bind) -> None:
             ("description", "ALTER TABLE eval_runs ADD COLUMN description TEXT"),
             ("log_source", "ALTER TABLE eval_runs ADD COLUMN log_source JSON"),
             ("budget_stops", "ALTER TABLE eval_runs ADD COLUMN budget_stops JSON"),
+            ("criteria_set_id", "ALTER TABLE eval_runs ADD COLUMN criteria_set_id VARCHAR(32)"),
+            ("criteria_set_version",
+             "ALTER TABLE eval_runs ADD COLUMN criteria_set_version INTEGER"),
+            ("agent_version", "ALTER TABLE eval_runs ADD COLUMN agent_version VARCHAR(32)"),
+            ("endpoint_qualifier",
+             "ALTER TABLE eval_runs ADD COLUMN endpoint_qualifier VARCHAR(64)"),
+            ("evaluator_set_hash",
+             "ALTER TABLE eval_runs ADD COLUMN evaluator_set_hash VARCHAR(64)"),
+            ("split", "ALTER TABLE eval_runs ADD COLUMN split VARCHAR(16)"),
+            ("repeats", "ALTER TABLE eval_runs ADD COLUMN repeats INTEGER DEFAULT 1"),
+            ("repeat_mode",
+             "ALTER TABLE eval_runs ADD COLUMN repeat_mode VARCHAR(16) DEFAULT 'all'"),
+            ("cost_estimate", "ALTER TABLE eval_runs ADD COLUMN cost_estimate JSON"),
+            ("cost_actual", "ALTER TABLE eval_runs ADD COLUMN cost_actual JSON"),
+            ("denominator", "ALTER TABLE eval_runs ADD COLUMN denominator JSON"),
+            ("criteria_summary", "ALTER TABLE eval_runs ADD COLUMN criteria_summary JSON"),
+            ("attempts", "ALTER TABLE eval_runs ADD COLUMN attempts JSON"),
         ):
             if column not in existing:
                 with bind.begin() as conn:
@@ -735,6 +773,23 @@ def _migrate_workspace_columns(bind) -> None:
             "ALTER TABLE oauth_pending_sessions ADD COLUMN workspace_id VARCHAR(32)"
         ),
         "user_grants": "ALTER TABLE user_grants ADD COLUMN workspace_id VARCHAR(32)",
+        # born with the column (Agent-DLC); listed so the scoped-tables drift test holds
+        "criteria_sets": "ALTER TABLE criteria_sets ADD COLUMN workspace_id VARCHAR(32)",
+        "criteria": "ALTER TABLE criteria ADD COLUMN workspace_id VARCHAR(32)",
+        "criterion_results": (
+            "ALTER TABLE criterion_results ADD COLUMN workspace_id VARCHAR(32)"
+        ),
+        "annotation_tasks": "ALTER TABLE annotation_tasks ADD COLUMN workspace_id VARCHAR(32)",
+        "annotations": "ALTER TABLE annotations ADD COLUMN workspace_id VARCHAR(32)",
+        "calibration_records": (
+            "ALTER TABLE calibration_records ADD COLUMN workspace_id VARCHAR(32)"
+        ),
+        "release_records": "ALTER TABLE release_records ADD COLUMN workspace_id VARCHAR(32)",
+        "waivers": "ALTER TABLE waivers ADD COLUMN workspace_id VARCHAR(32)",
+        "admission_candidates": (
+            "ALTER TABLE admission_candidates ADD COLUMN workspace_id VARCHAR(32)"
+        ),
+        "watch_configs": "ALTER TABLE watch_configs ADD COLUMN workspace_id VARCHAR(32)",
     }
     inspector = inspect(bind)
     live_tables = set(inspector.get_table_names())
