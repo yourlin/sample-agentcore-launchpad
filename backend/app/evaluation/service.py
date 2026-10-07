@@ -283,6 +283,8 @@ def execute_run(
     online_config_arn: str | None = None,
     agent_id: str | None = None,
     inbound_jwt: bool = False,
+    repeats: int = 1,
+    qualifier: str | None = None,
 ) -> None:
     """Drive one evaluation run to completion (runs on a run-queue worker).
 
@@ -293,7 +295,11 @@ def execute_run(
     on-demand report over the sessions that config sampled, where the batch
     inherits the config's insights/evaluators (passing them is rejected).
     ``log_groups`` are the batch's input log groups (default: ``aws/spans`` plus
-    the agent's own ``log_group``)."""
+    the agent's own ``log_group``).
+
+    ``repeats`` (Agent-DLC pass^k) replays every scenario that many times, each in
+    a fresh session; every session's scenario and attempt number are recorded on the
+    run (``attempts``). ``qualifier`` pins the endpoint invoked (a release candidate)."""
     input_groups = list(log_groups or ["aws/spans", log_group])
     telemetry_start_ms = int(time.time() * 1000) - TELEMETRY_QUERY_LOOKBACK_MS
     attempt: dict[str, str] = {}
@@ -329,11 +335,15 @@ def execute_run(
             metadata_entries: list[dict[str, Any]] = []
             watermark_sid: str | None = None
 
+            # only a pinned endpoint passes `qualifier`; the default path is unchanged
+            pinned: dict[str, Any] = {"qualifier": qualifier} if qualifier else {}
+
             def invoke(prompt: str, sid: str | None) -> dict[str, Any]:
                 if method == "harness":  # InvokeHarness, not the runtime data plane
                     attempt["session_id"] = sid or hc.new_session_id()
                     return hc.invoke_harness_text(
                         data, agent_arn, prompt, session_id=attempt["session_id"],
+                        **pinned,
                     )
                 if protocol == "a2a":  # JSON-RPC runtimes reject {prompt}
                     return rt.invoke_a2a_text(data, agent_arn, prompt, session_id=sid)
@@ -346,6 +356,7 @@ def execute_run(
                         inbound_auth_service.m2m_bearer_token(workspace),
                         prompt,
                         session_id=sid,
+                        **pinned,
                     )
                 return rt.invoke_runtime_text(
                     data,
@@ -353,14 +364,23 @@ def execute_run(
                     prompt,
                     session_id=sid,
                     runtime_user_id=runtime_user_id,
+                    **pinned,
                 )
 
             budget_stops: list[dict[str, str]] = []
+            attempts: list[dict[str, Any]] = []
             _update(run_id, status="invoking")
-            for scenario in scenarios:
+            plan = [
+                (scenario, attempt_no)
+                for scenario in scenarios
+                for attempt_no in range(1, max(1, int(repeats or 1)) + 1)
+            ]
+            for scenario, attempt_no in plan:
                 _check_stop(run_id)
                 attempt.clear()
                 attempt["scenario_id"] = str(scenario.get("scenario_id") or "unknown")
+                if attempt_no > 1:
+                    attempt["attempt"] = str(attempt_no)
                 sid: str | None = None
                 for retry in range(TRANSIENT_SCENARIO_RETRIES + 1):
                     try:
@@ -406,8 +426,14 @@ def execute_run(
                 session_ids.append(sid)
                 watermark_sid = sid
                 metadata_entries.extend(ground_truth_metadata([scenario], [sid]))
+                attempts.append({
+                    "scenario_id": str(scenario.get("scenario_id") or "unknown"),
+                    "attempt": attempt_no,
+                    "session_id": sid,
+                })
                 _update(run_id, session_ids=list(session_ids),
-                        budget_stops=list(budget_stops) or None)
+                        budget_stops=list(budget_stops) or None,
+                        attempts=list(attempts))
             if session_metadata is None:
                 session_metadata = metadata_entries or None
             _check_stop(run_id)
@@ -560,6 +586,11 @@ def _finish_from_result(
         scores = ac.parse_eval_scores(
             result, records_reader=_records_reader(workspace, result))
         _update(run_id, status="completed", scores=scores, error=error)
+        if workspace is not None:
+            # Agent-DLC: snapshot per-item criterion verdicts while the stream is fresh
+            from app.dlc.engine import finalize_run
+
+            finalize_run(run_id, workspace)
 
 
 def _records_reader(workspace: WorkspaceContext | None, result: dict[str, Any]) -> Any:
@@ -760,6 +791,14 @@ def resume_interrupted_runs() -> list[str]:
         db.close()
 
 
+def evaluator_set_hash(evaluators: list[str]) -> str:
+    """Lineage of the evaluator set a run applied (sorted ids; content changes are
+    caught by calibration records, which pin each evaluator's AWS `updatedAt`)."""
+    import hashlib
+
+    return hashlib.sha256("|".join(sorted(evaluators or [])).encode()).hexdigest()[:32]
+
+
 def submit_run(
     *,
     agent: Agent | None,
@@ -781,6 +820,14 @@ def submit_run(
     name: str | None = None,
     description: str | None = None,
     log_source: dict[str, Any] | None = None,
+    repeats: int = 1,
+    repeat_mode: str = "all",
+    qualifier: str | None = None,
+    criteria_set_id: str | None = None,
+    criteria_set_version: int | None = None,
+    split: str | None = None,
+    cost_estimate: dict[str, Any] | None = None,
+    agent_version: str | None = None,
 ) -> EvalRun:
     """Queue one run. The telemetry comes from the platform ``agent`` — or, with
     ``agent=None``, from ``log_source`` {service_name, log_group_names}: an agent
@@ -824,6 +871,15 @@ def submit_run(
             evaluators=evaluators,
             status="queued",
             session_ids=session_ids or [],
+            repeats=max(1, int(repeats or 1)),
+            repeat_mode=repeat_mode,
+            endpoint_qualifier=qualifier,
+            agent_version=agent_version or (agent.version if agent else None),
+            criteria_set_id=criteria_set_id,
+            criteria_set_version=criteria_set_version,
+            split=split,
+            cost_estimate=cost_estimate,
+            evaluator_set_hash=evaluator_set_hash(evaluators),
         )
         db.add(run)
         db.commit()
@@ -869,6 +925,8 @@ def submit_run(
             online_config_arn=online_config_arn,
             agent_id=agent_ledger_id,
             inbound_jwt=agent_inbound_jwt,
+            repeats=max(1, int(repeats or 1)),
+            qualifier=qualifier,
         ),
     )
     _update(run_id, queue_position=position)

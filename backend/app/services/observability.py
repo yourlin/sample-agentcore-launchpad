@@ -301,6 +301,74 @@ def q_trace_aggregates(session_id: str | None = None, limit: int = TRACE_LIMIT) 
 """
 
 
+def q_traces_for_sessions(session_ids: list[str]) -> str:
+    """Per-trace aggregates for an explicit set of sessions (an evaluation run's)."""
+    for session_id in session_ids:
+        _require(SESSION_ID_RE, session_id, "session id")
+    quoted = ", ".join(f'"{sid}"' for sid in session_ids)
+    return f"""
+{SPANS_SOURCE}
+| filter ispresent(startTimeUnixNano) and attributes.session.id in [{quoted}]
+| {_IS_LLM_FIELDS}
+| stats sum(llm_in) as tokens_in, sum(llm_out) as tokens_out,
+        sum(llm_cache_read) as cache_read, sum(llm_cache_write) as cache_write,
+        min(startTimeUnixNano) as start_ns, max(endTimeUnixNano) as end_ns,
+        latest(attributes.session.id) as session_id,
+        latest(telemetry_model) as model
+  by traceId
+| limit 10000
+"""
+
+
+SESSION_METRICS_BATCH = 50
+
+
+def session_metrics_bulk(
+    session_ids: list[str], workspace: WorkspaceContext, *, hours: int = 168
+) -> dict[str, dict[str, float | None]]:
+    """latency (mean trace duration, ms), tokens and estimated cost per session.
+
+    One Logs Insights query per 50 sessions — what the Agent-DLC metric criteria read
+    (performance: latency; cost: tokens and cost per session). A session with no spans
+    yet maps to an empty dict, which the criterion engine reports as a metric gap.
+    """
+    out: dict[str, dict[str, float | None]] = {sid: {} for sid in session_ids}
+    valid = [sid for sid in session_ids if SESSION_ID_RE.match(sid or "")]
+    logs = logs_client(workspace)
+    per_session: dict[str, dict[str, Any]] = {}
+    for start in range(0, len(valid), SESSION_METRICS_BATCH):
+        batch = valid[start:start + SESSION_METRICS_BATCH]
+        rows = run_insights_queries(
+            {"traces": q_traces_for_sessions(batch)}, hours=hours, logs=logs
+        ).get("traces") or []
+        for row in rows:
+            sid = row.get("session_id")
+            if not sid:
+                continue
+            acc = per_session.setdefault(
+                sid, {"durations": [], "tokens": 0.0, "cost": 0.0, "priced": True}
+            )
+            start_ns, end_ns = _num(row, "start_ns"), _num(row, "end_ns")
+            if end_ns > start_ns:
+                acc["durations"].append((end_ns - start_ns) / NANOS_PER_MS)
+            tin, tout = _num(row, "tokens_in"), _num(row, "tokens_out")
+            acc["tokens"] += tin + tout
+            cost = estimate_cost(row.get("model") or None, tin, tout,
+                                 _num(row, "cache_read"), _num(row, "cache_write"))
+            if cost is None:
+                acc["priced"] = False
+            else:
+                acc["cost"] += cost
+    for sid, acc in per_session.items():
+        durations = acc["durations"]
+        out[sid] = {
+            "latency_ms": (sum(durations) / len(durations)) if durations else None,
+            "tokens": acc["tokens"],
+            "cost_usd": round(acc["cost"], 6) if acc["priced"] else None,
+        }
+    return out
+
+
 def q_root_spans(trace_ids: list[str] | None = None, limit: int = 3 * TRACE_LIMIT) -> str:
     # No session variant: root spans don't reliably carry session.id, so session
     # views join roots by traceId against the session-filtered aggregates —
