@@ -131,6 +131,7 @@ English: [troubleshooting.md](troubleshooting.md)
 
 | 你看到的 | 含义 → 怎么处理 |
 |---|---|
+| 部署在 `register` 阶段报 `ConflictException: Concurrent update detected` | AgentCore Registry 在消化刚提交的记录时的瞬态冲突——它本身不属于 Agent-DLC，但正是它会让一次门控部署在放行记录开出之前就失败。`registry.submit_record` 会按 AWS 自己的“请重试”措辞重试三次（1 秒 / 3 秒 / 7 秒）；**其他**冲突（例如记录已是 PENDING_APPROVAL）仍会上报，因为那是真实的状态冲突 |
 | `422 criteria.invalid`，带 `detail.findings` | 判据表违反了方法论的规则。`criteria.redline_judge`：红线不能交给大模型裁判——改用代码断言、轨迹匹配或指标。`criteria.dimension_uncovered`：每个维度要么有判据、要么写明 `n/a:<dimension>`。`criteria.no_redline`：没有红线的表不能发布 |
 | 某条门限判据显示“声明为门限 · 仅观察” | 裁判类判据在校准通过前不拦人。去「判据 → 裁判校准」跑一次标注任务并记录 `aligned`；在那之前它只记录，不强制 |
 | `409 calibration.not_supported` | 数据不支持把裁判判定为一致。detail 里带着裁判—人 κ、人—人 κ、样本量与下限。如果**人之间**就判不一致，请改写判据——写不下来的规则换裁判也救不了 |

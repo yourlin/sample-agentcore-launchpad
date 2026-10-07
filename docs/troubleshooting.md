@@ -178,6 +178,7 @@ Most of these are refusals by design — the message names what to do instead.
 
 | What you see | What it means → what to do |
 |---|---|
+| A deploy fails at `register` with `ConflictException: Concurrent update detected` | A transient AgentCore Registry conflict while it settles the record it was just handed — not an Agent-DLC problem, but it is what fails a gated deploy before the release even opens. `registry.submit_record` retries it three times (1 s / 3 s / 7 s) on AWS's own "please retry" wording; a *different* conflict (e.g. the record is already PENDING_APPROVAL) still surfaces, because that one is real |
 | `422 criteria.invalid` with `detail.findings` | The criteria table breaks a rule of the methodology. `criteria.redline_judge`: a red line cannot be decided by an LLM judge — use a code assertion, a trajectory matcher or a metric. `criteria.dimension_uncovered`: every dimension needs a criterion or an explicit `n/a:<dimension>` note. `criteria.no_redline`: a table with no red line cannot be published |
 | A gate criterion shows "declared gate · observed" | A judge criterion does not block until it is calibrated. Run a labelling task (Standards → Calibration) and record `aligned`; until then it is recorded, not enforced |
 | `409 calibration.not_supported` | The numbers do not support calling the judge aligned. The detail carries judge–human κ, human–human κ, n and the floor. If **people** disagree with each other, rewrite the criterion — no judge can fix an unwritable rule |
