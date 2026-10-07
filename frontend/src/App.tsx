@@ -112,6 +112,12 @@ const V2Observability = lazy(() => import("./v2/pages/Observability").then((m) =
 const V2Memory = lazy(() => import("./v2/pages/Memory").then((m) => ({ default: m.V2Memory })));
 const V2Governance = lazy(() => import("./v2/pages/Governance").then((m) => ({ default: m.V2Governance })));
 const V2Users = lazy(() => import("./v2/pages/Users").then((m) => ({ default: m.V2Users })));
+const V2Fleet = lazy(() => import("./v2/pages/Fleet").then((m) => ({ default: m.V2Fleet })));
+const V2Intents = lazy(() => import("./v2/pages/Intents").then((m) => ({ default: m.V2Intents })));
+const V2Issues = lazy(() => import("./v2/pages/Issues").then((m) => ({ default: m.V2Issues })));
+const V2Costs = lazy(() => import("./v2/pages/Costs").then((m) => ({ default: m.V2Costs })));
+const V2Promotions = lazy(() => import("./v2/pages/Promotions").then((m) => ({ default: m.V2Promotions })));
+const V2Environments = lazy(() => import("./v2/pages/Environments").then((m) => ({ default: m.V2Environments })));
 const V2Workspaces = lazy(() => import("./v2/pages/Workspaces").then((m) => ({ default: m.V2Workspaces })));
 const V2Connections = lazy(() => import("./v2/pages/Connections").then((m) => ({ default: m.V2Connections })));
 const V2MyConnections = lazy(() => import("./v2/pages/MyConnections").then((m) => ({ default: m.V2MyConnections })));
@@ -295,6 +301,7 @@ export default function App() {
               <Route path="eval/data" element={<V2DataCenter />} />
               <Route path="eval/tasks" element={<V2Tasks />} />
               <Route path="eval/insights" element={<V2Insights />} />
+              <Route path="eval/intents" element={<V2Intents />} />
               <Route path="eval/evaluators" element={<V2Evaluators />} />
               <Route path="eval/online" element={<V2Online />} />
               <Route path="eval/experiments" element={<V2Experiments />} />
@@ -307,6 +314,11 @@ export default function App() {
               <Route path="memory" element={<V2Memory />} />
               <Route path="governance" element={<V2Governance />} />
               <Route path="users" element={<V2Users />} />
+              <Route path="costs" element={<V2Costs />} />
+              <Route path="issues" element={<V2Issues />} />
+              <Route path="fleet" element={<V2Fleet />} />
+              <Route path="promotions" element={<V2Promotions />} />
+              <Route path="environments" element={<V2Environments />} />
               <Route path="workspaces" element={<V2Workspaces />} />
               <Route path="connections" element={<V2Connections />} />
               <Route path="my-connections" element={<V2MyConnections />} />

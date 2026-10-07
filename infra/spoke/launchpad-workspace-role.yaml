@@ -224,11 +224,13 @@ Resources:
                 Resource: "*"
 
               # ── ECR ────────────────────────────────────────────────────────
-              # No push, no GetAuthorizationToken: the hub never builds or pushes
+              # No GetAuthorizationToken, no docker login: the hub never builds
               # an image. CodeBuild does, inside this account, under the
               # launchpad-codebuild-role this stack lets the hub create — and
-              # that role carries its own pull/push grants. The hub only creates
-              # the repository and reads back the image digest and scan findings.
+              # that role carries its own pull/push grants. The hub itself
+              # creates the repository and reads back the image digest and scan
+              # findings; the one thing it pushes is a PROMOTED image, and only
+              # through the ECR API (see EcrArtifactCopy below).
               - Sid: EcrLaunchpad
                 Effect: Allow
                 Action:
@@ -236,6 +238,28 @@ Resources:
                   - ecr:DescribeImageScanFindings
                   - ecr:DescribeImages
                   - ecr:DescribeRepositories
+                Resource:
+                  Fn::Sub: "arn:${AWS::Partition}:ecr:*:${AWS::AccountId}:repository/launchpad-agents"
+
+              # Release promotion ("build once, deploy many", roadmap T24) copies
+              # the tested image between accounts by digest, through the ECR API:
+              # read the manifest and layers from the SOURCE workspace, upload
+              # missing layers and put the manifest into the TARGET. This account
+              # can be either end (a dev workspace is a source, a staging
+              # workspace a target), so both halves are granted, on the one
+              # repository Launchpad uses. The prod template
+              # (launchpad-workspace-role-prod.yaml) keeps only the receiving
+              # half.
+              - Sid: EcrArtifactCopy
+                Effect: Allow
+                Action:
+                  - ecr:BatchCheckLayerAvailability
+                  - ecr:BatchGetImage
+                  - ecr:CompleteLayerUpload
+                  - ecr:GetDownloadUrlForLayer
+                  - ecr:InitiateLayerUpload
+                  - ecr:PutImage
+                  - ecr:UploadLayerPart
                 Resource:
                   Fn::Sub: "arn:${AWS::Partition}:ecr:*:${AWS::AccountId}:repository/launchpad-agents"
 

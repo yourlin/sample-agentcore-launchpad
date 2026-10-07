@@ -46,6 +46,18 @@ WORKSPACE_SCOPED_TABLES = (
     "assistant_evaluation_plans",
     "evaluation_asset_operations",
     "eval_pipelines",
+    "audit_events",
+    "share_links",
+    "chat_feedback",
+    "api_key_usage",
+    "spec_snapshots",
+    "release_bundles",
+    "promotions",
+    "resource_mappings",
+    "answer_rules",
+    "answer_rule_sets",
+    "issues",
+    "alert_rules",
     "identity_providers",
     "user_token_revocations",
     "oauth_pending_sessions",
@@ -98,6 +110,8 @@ def init_db(bind=None) -> None:
     they exercise this exact sequence rather than a copy of it.
     """
     bind = bind if bind is not None else engine
+    from app.models import resource_mapping as _mapping_models  # noqa: F401
+    from app.models import selfservice as _selfservice_models  # noqa: F401 — T35/T36
     from app.models import video as _video_models  # noqa: F401 — register tables before create_all
 
     Base.metadata.create_all(bind=bind)
@@ -189,6 +203,11 @@ def _migrate(bind) -> None:
         if "permissions" not in existing:
             with bind.begin() as conn:
                 conn.execute(text("ALTER TABLE users ADD COLUMN permissions JSON"))
+        if "first_login_at" not in existing:
+            # no backfill: a prior login's time is unknown, so TTFA falls back to
+            # created_at for accounts that already logged in
+            with bind.begin() as conn:
+                conn.execute(text("ALTER TABLE users ADD COLUMN first_login_at DATETIME"))
     if "eval_datasets" in inspector.get_table_names():
         existing = {c["name"] for c in inspector.get_columns("eval_datasets")}
         additions = {
@@ -266,7 +285,12 @@ def _migrate(bind) -> None:
     _migrate_identity_provider_columns(bind)
     _migrate_oauth_session_columns(bind)
     _migrate_assistant_columns(bind)
+    _migrate_workspace_tier(bind)
+    _migrate_api_key_scope(bind)
+    _migrate_promotion_execution(bind)
+    _migrate_share_link_channels(bind)
     _migrate_workspace_columns(bind)
+    _migrate_selfservice_columns(bind)
     _migrate_system_key_index(bind)
     _migrate_system_skill_records_columns(bind)
     _migrate_system_skill_records_index(bind)
@@ -369,6 +393,125 @@ def _migrate_identity_indexes(bind) -> None:
         if table in live_tables:
             with bind.begin() as conn:
                 conn.execute(text(ddl))
+
+
+def _migrate_api_key_scope(bind) -> None:
+    """T16: per-key agent scope, expiry, rate limit and usage stamps.
+
+    Every existing key keeps NULL scope/expiry/limit, i.e. today's behaviour.
+    """
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(bind)
+    if "api_keys" not in inspector.get_table_names():
+        return
+    existing = {c["name"] for c in inspector.get_columns("api_keys")}
+    additions = {
+        "agent_ids": "ALTER TABLE api_keys ADD COLUMN agent_ids JSON",
+        "expires_at": "ALTER TABLE api_keys ADD COLUMN expires_at DATETIME",
+        "rate_per_minute": "ALTER TABLE api_keys ADD COLUMN rate_per_minute INTEGER",
+        "last_used_at": "ALTER TABLE api_keys ADD COLUMN last_used_at DATETIME",
+        "use_count": "ALTER TABLE api_keys ADD COLUMN use_count INTEGER NOT NULL DEFAULT 0",
+        "created_by": "ALTER TABLE api_keys ADD COLUMN created_by VARCHAR(64)",
+    }
+    for column, ddl in additions.items():
+        if column not in existing:
+            with bind.begin() as conn:
+                conn.execute(text(ddl))
+
+
+def _migrate_share_link_channels(bind) -> None:
+    """T30: channel (Slack / Feishu) settings and secrets on a share link. Additive
+    and nullable: every existing web link keeps NULL, i.e. today's behaviour."""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(bind)
+    if "share_links" not in inspector.get_table_names():
+        return
+    existing = {c["name"] for c in inspector.get_columns("share_links")}
+    additions = {
+        "channel_config": "ALTER TABLE share_links ADD COLUMN channel_config JSON",
+        "channel_secrets": "ALTER TABLE share_links ADD COLUMN channel_secrets JSON",
+    }
+    for column, ddl in additions.items():
+        if column not in existing:
+            with bind.begin() as conn:
+                conn.execute(text(ddl))
+
+
+def _migrate_selfservice_columns(bind) -> None:
+    """T34/T35: the reviewer's correction text and the "answered by a rule" marker.
+
+    Additive and nullable: every existing answer was produced by the model and every
+    existing verdict has no correction."""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(bind)
+    tables = set(inspector.get_table_names())
+    additions = {
+        "chat_feedback": {
+            "correction": "ALTER TABLE chat_feedback ADD COLUMN correction TEXT",
+        },
+        "chat_messages": {
+            "answered_by": "ALTER TABLE chat_messages ADD COLUMN answered_by VARCHAR(48)",
+        },
+    }
+    for table, columns in additions.items():
+        if table not in tables:
+            continue
+        existing = {c["name"] for c in inspector.get_columns(table)}
+        for column, ddl in columns.items():
+            if column not in existing:
+                with bind.begin() as conn:
+                    conn.execute(text(ddl))
+
+
+def _migrate_promotion_execution(bind) -> None:
+    """T26/T27: promotion execution state and the per-workspace release policy.
+
+    Additive and nullable: a promotion approved before execution existed simply has no
+    stages yet, and a workspace with no policy uses the tier defaults."""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(bind)
+    tables = set(inspector.get_table_names())
+    additions: dict[str, dict[str, str]] = {
+        "promotions": {
+            "stages": "ALTER TABLE promotions ADD COLUMN stages JSON",
+            "execution": "ALTER TABLE promotions ADD COLUMN execution JSON",
+            "previous_bundle_id": (
+                "ALTER TABLE promotions ADD COLUMN previous_bundle_id VARCHAR(32)"
+            ),
+            "started_at": "ALTER TABLE promotions ADD COLUMN started_at DATETIME",
+            "finished_at": "ALTER TABLE promotions ADD COLUMN finished_at DATETIME",
+        },
+        "workspaces": {
+            "release_policy": "ALTER TABLE workspaces ADD COLUMN release_policy JSON",
+        },
+    }
+    for table, columns in additions.items():
+        if table not in tables:
+            continue
+        existing = {c["name"] for c in inspector.get_columns(table)}
+        for column, ddl in columns.items():
+            if column not in existing:
+                with bind.begin() as conn:
+                    conn.execute(text(ddl))
+
+
+def _migrate_workspace_tier(bind) -> None:
+    """`workspaces.tier` (T05): every pre-existing row — `default` included — becomes
+    `dev`, the tier that changes nothing about what members may do."""
+    from sqlalchemy import inspect, text
+
+    inspector = inspect(bind)
+    if "workspaces" not in inspector.get_table_names():
+        return
+    if "tier" not in {c["name"] for c in inspector.get_columns("workspaces")}:
+        with bind.begin() as conn:
+            conn.execute(
+                text("ALTER TABLE workspaces ADD COLUMN tier VARCHAR(16) NOT NULL DEFAULT 'dev'")
+            )
 
 
 def _migrate_system_skill_records_columns(bind) -> None:
@@ -563,6 +706,25 @@ def _migrate_workspace_columns(bind) -> None:
             "ALTER TABLE evaluation_asset_operations ADD COLUMN workspace_id VARCHAR(32)"
         ),
         "eval_pipelines": "ALTER TABLE eval_pipelines ADD COLUMN workspace_id VARCHAR(32)",
+        # born with the column (T16/T18); listed so the scoped-tables drift test holds
+        "api_key_usage": "ALTER TABLE api_key_usage ADD COLUMN workspace_id VARCHAR(32)",
+        "spec_snapshots": "ALTER TABLE spec_snapshots ADD COLUMN workspace_id VARCHAR(32)",
+        # born with the column (T05); listed so the scoped-tables drift test holds
+        "audit_events": "ALTER TABLE audit_events ADD COLUMN workspace_id VARCHAR(32)",
+        # born with the column (T13/T15); listed so the scoped-tables drift test holds
+        "share_links": "ALTER TABLE share_links ADD COLUMN workspace_id VARCHAR(32)",
+        "chat_feedback": "ALTER TABLE chat_feedback ADD COLUMN workspace_id VARCHAR(32)",
+        # born with the column (T20/T21); listed so the scoped-tables drift test holds
+        "release_bundles": "ALTER TABLE release_bundles ADD COLUMN workspace_id VARCHAR(32)",
+        "promotions": "ALTER TABLE promotions ADD COLUMN workspace_id VARCHAR(32)",
+        # born with the column (T29); listed so the scoped-tables drift test holds
+        "alert_rules": "ALTER TABLE alert_rules ADD COLUMN workspace_id VARCHAR(32)",
+        # born with the column (T23); listed so the scoped-tables drift test holds
+        "resource_mappings": "ALTER TABLE resource_mappings ADD COLUMN workspace_id VARCHAR(32)",
+        # born with the column (T35/T36); listed so the scoped-tables drift test holds
+        "answer_rules": "ALTER TABLE answer_rules ADD COLUMN workspace_id VARCHAR(32)",
+        "answer_rule_sets": "ALTER TABLE answer_rule_sets ADD COLUMN workspace_id VARCHAR(32)",
+        "issues": "ALTER TABLE issues ADD COLUMN workspace_id VARCHAR(32)",
         "identity_providers": (
             "ALTER TABLE identity_providers ADD COLUMN workspace_id VARCHAR(32)"
         ),
@@ -719,9 +881,10 @@ def _seed_default_workspace(bind) -> None:
                     {"id": DEFAULT_WORKSPACE_ID},
                 )
         else:
-            # name/role_arn/external_id are operator-owned, so the mirror leaves
-            # them alone. If a second workspace already claimed this (account,
-            # region) while default held a bogus identity, UNIQUE(account_id,
+            # name/role_arn/external_id/tier are operator-owned, so the mirror
+            # leaves them alone (an admin's `prod` must survive a restart). If a
+            # second workspace already claimed this (account, region) while
+            # default held a bogus identity, UNIQUE(account_id,
             # region) raises here and startup fails loudly — that conflict needs
             # an operator decision, not a silent winner.
             conn.execute(

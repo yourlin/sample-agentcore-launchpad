@@ -35,10 +35,49 @@ AGENT_PERMISSIONS = (
     "agents.delete",
     "agents.convert",
     "eval.run",
+    # T19: the promotion surface. Unlike the keys above these are NOT granted to a
+    # plain member by default — approving and executing a release is the operator's
+    # job — so they carry their own default table (`DEFAULT_BY_ROLE`).
+    "promotion.request",
+    "promotion.approve",
     "identity.manage",
     "identity.grant",
     "memory.manage",
 )
+
+ROLE_ADMIN = "admin"
+ROLE_OPERATOR = "operator"
+ROLE_MEMBER = "member"
+ROLES = (ROLE_ADMIN, ROLE_OPERATOR, ROLE_MEMBER)
+
+# Which permissions each role holds unless an administrator overrode one. Admins are
+# absent on purpose: they hold everything by role, never by row.
+#
+# The split is separation of duties (T19): a member builds and asks for a release, an
+# operator approves and runs it. An operator deliberately does NOT hold `agents.deploy`
+# / `agents.convert` — they release what a member built rather than editing prompts or
+# code themselves — and a member does not hold `promotion.approve`, so nobody can
+# approve their own release without an administrator saying so explicitly.
+#
+# The identity / memory keys follow the build side: a member creates Connections and
+# memories for the agents they build. `identity.grant` (consenting one's OWN token for
+# an as_user tool) is also an operator's, who invokes agents while running releases.
+DEFAULT_BY_ROLE: dict[str, frozenset[str]] = {
+    ROLE_OPERATOR: frozenset(
+        {"eval.run", "promotion.request", "promotion.approve", "identity.grant"}
+    ),
+    ROLE_MEMBER: frozenset(
+        {"agents.deploy", "agents.import", "agents.delete", "agents.convert", "eval.run",
+         "promotion.request", "identity.manage", "identity.grant", "memory.manage"}
+    ),
+}
+
+
+def default_permissions(role: str) -> frozenset[str]:
+    """The keys a role holds before any per-user override."""
+    if role == ROLE_ADMIN:
+        return frozenset(AGENT_PERMISSIONS)
+    return DEFAULT_BY_ROLE.get(role, DEFAULT_BY_ROLE[ROLE_MEMBER])
 
 # --- password hashing -------------------------------------------------------
 
@@ -226,6 +265,9 @@ def serialize(
         "created_at": (as_utc(user.created_at) or moment).isoformat(),
         "last_login_at": last_login.isoformat() if last_login else None,
         "login_count": user.login_count,
+        "first_login_at": (
+            first_login.isoformat() if (first_login := as_utc(user.first_login_at)) else None
+        ),
         "created_by": user.created_by,
         "permissions": effective_permissions(user),
         "workspaces": workspaces or [],
@@ -233,10 +275,19 @@ def serialize(
 
 
 def effective_permissions(user: User) -> dict[str, bool]:
-    """Full permission map as it will be enforced (admins hold everything)."""
+    """Full permission map as it will be enforced (admins hold everything).
+
+    A key the role does not hold by default is granted only by an explicit `True`
+    override, which is what lets an administrator give one member the approval right
+    without making them an operator.
+    """
     overrides = user.permissions or {}
+    defaults = default_permissions(user.role)
     return {
-        key: user.role == "admin" or overrides.get(key) is not False
+        key: (
+            user.role == ROLE_ADMIN
+            or (overrides[key] if key in overrides else key in defaults)
+        )
         for key in AGENT_PERMISSIONS
     }
 
@@ -340,7 +391,12 @@ def authenticate(db: Session, username: str, password: str) -> User:
 
 
 def record_login(db: Session, user: User) -> None:
-    user.last_login_at = datetime.now(UTC)
+    now = datetime.now(UTC)
+    if user.first_login_at is None and not user.login_count:
+        # only a genuinely first login starts the TTFA clock; an account that
+        # logged in before the column existed keeps NULL (→ created_at fallback)
+        user.first_login_at = now
+    user.last_login_at = now
     user.login_count = (user.login_count or 0) + 1
     db.commit()
 
@@ -479,8 +535,10 @@ def apply_patch(
             )
     if "role" in patch:
         role = patch["role"]
-        if role not in ("admin", "member"):
-            raise AppError("users.invalid_role", "Role must be admin or member")
+        if role not in ROLES:
+            raise AppError(
+                "users.invalid_role", f"Role must be one of {', '.join(ROLES)}"
+            )
         user.role = role
     if "extend_days" in patch and patch["extend_days"] is not None:
         days = int(patch["extend_days"])
@@ -499,7 +557,8 @@ def apply_patch(
         user.password_hash = hash_password(password)
         generated = None if chosen else password
     if "permissions" in patch:
-        user.permissions = _normalized_permissions(patch["permissions"])
+        # after the role patch above, so an override is measured against the new role
+        user.permissions = _normalized_permissions(patch["permissions"], user.role)
     if "workspaces" in patch:
         set_workspace_grants(db, user, patch["workspaces"])
     db.commit()
@@ -562,11 +621,17 @@ def set_workspace_grants(db: Session, user: User, value: Any) -> None:
         db.add(UserWorkspace(user_id=user.id, workspace_id=workspace_id))
 
 
-def _normalized_permissions(value: Any) -> dict[str, bool] | None:
-    """Validate a full/partial permission map; keep only explicit denials.
+def _normalized_permissions(value: Any, role: str = ROLE_MEMBER) -> dict[str, bool] | None:
+    """Validate a full/partial permission map; keep only what differs from the role.
 
-    Unsent keys count as granted, so an all-granted map normalizes to None and
-    permission keys added later stay default-on for every account.
+    Unsent keys fall back to the role's defaults, so a map that matches them
+    normalizes to None and permission keys added later follow their role default for
+    every existing account.
+
+    Amended by T19: an explicit **grant** is stored too, not just a denial. The defaults
+    are per role now (`DEFAULT_BY_ROLE`), so `{"promotion.approve": true}` on a member is
+    a real change — dropping it, as the denial-only form did, silently discarded the one
+    way to give a single member the approval right without making them an operator.
     """
     if value is None:
         return None
@@ -580,8 +645,11 @@ def _normalized_permissions(value: Any) -> dict[str, bool] | None:
         )
     if not all(isinstance(flag, bool) for flag in value.values()):
         raise AppError("users.invalid_permissions", "permission values must be booleans")
-    denied = {key: False for key, flag in value.items() if flag is False}
-    return denied or None
+    defaults = default_permissions(role)
+    overrides = {
+        key: flag for key, flag in value.items() if flag is not (key in defaults)
+    }
+    return overrides or None
 
 
 def delete_user(db: Session, user: User) -> None:

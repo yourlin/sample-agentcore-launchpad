@@ -19,7 +19,7 @@ import {
   Table,
 } from "../../ui";
 import { WORKSPACE_STATUSES } from "./status";
-import { ExternalTag, HubTag, StatusTag } from "./tags";
+import { ExternalTag, HubTag, StatusTag, TierTag } from "./tags";
 
 /** While any bootstrap runs, the list re-reads so its status tag moves on its own. */
 const POLL_MS = 5000;
@@ -83,6 +83,7 @@ export function WorkspaceList() {
       ),
     },
     { key: "region", title: t("v2.workspaces.col.region"), render: (w) => <span className="mono">{w.region}</span> },
+    { key: "tier", title: t("v2.workspaces.field.tier"), render: (w) => <TierTag tier={w.tier} /> },
     { key: "status", title: t("v2.workspaces.col.status"), render: (w) => <StatusTag status={w.bootstrap_status} /> },
     { key: "created", title: t("v2.workspaces.col.created"), render: (w) => fmtTime(w.created_at) },
     {

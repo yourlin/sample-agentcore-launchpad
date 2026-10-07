@@ -8,6 +8,8 @@
  * sends `model_source` only, never `api_format`.
  */
 
+import { getActiveRegion, modelAvailableInRegion } from "./regions";
+
 export type ModelSource = "mantle" | "bedrock";
 
 export interface ModelOption {
@@ -118,7 +120,11 @@ export function defaultModelFor(source: ModelSource, claudeOnly = false): string
  * catalog's Nova entry would otherwise be advertised as a valid choice there.
  */
 export function modelOptionsFor(source: ModelSource, claudeOnly = false): ModelOption[] {
-  const options = MODEL_CATALOG[source];
+  // A geographic profile (`us.…`) only exists in its own geography, so a workspace
+  // in another region is not offered it (custom entry stays possible).
+  const options = MODEL_CATALOG[source].filter((option) =>
+    modelAvailableInRegion(option.model_id, getActiveRegion()),
+  );
   return claudeOnly
     ? options.filter((option) => option.model_id.includes("anthropic.claude"))
     : options;

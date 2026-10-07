@@ -478,7 +478,7 @@ def _execution_role_arn(ctx: StageContext, agent: Agent) -> str:
     if not arn:
         if get_settings().per_agent_execution_roles:
             arn = (
-                f"arn:aws:iam::{ctx.workspace.account_id}:role/"
+                f"arn:{ctx.workspace.partition}:iam::{ctx.workspace.account_id}:role/"
                 f"{agent_iam.role_name_for(agent.name, agent.id)}"
             )
         else:

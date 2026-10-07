@@ -20,8 +20,8 @@ from app.harness_tool_access import (
 )
 from app.models.ledger import Agent
 from app.optimization import canary_harness, canary_service
+from app.services import answer_rules, guardrail, oauth_sessions
 from app.services import inbound_auth as inbound_auth_service
-from app.services import oauth_sessions
 from app.services.agentcore import gateway
 from app.services.agentcore import harness as hc
 from app.services.agentcore import runtime as rt
@@ -464,13 +464,76 @@ def invoke_agent_text(
     bearer_token: str | None = None,
     console_user: bool = True,
 ) -> dict[str, Any]:
-    """One synchronous turn. ``console_user=False`` marks a caller with no
-    signed-in console user (public /v1): an as_user consent ask is then refused
-    by name instead of recorded (see ``_record_auth_sessions``)."""
+    """The single entry point both entrances share (console chat and `/v1`).
+
+    ``console_user=False`` marks a caller with no signed-in console user (public
+    /v1): an as_user consent ask is then refused by name instead of recorded (see
+    ``_record_auth_sessions``).
+
+    T12: when the agent opted into PII protection, both ends of the turn are
+    screened — the prompt before dispatch (so a `block` refusal costs no model call)
+    and the answer before it is returned.
+    """
+    screen = guardrail.guardrail_config(agent.spec)
+    if screen:
+        ctx = _agent_workspace(agent, workspace)
+        text = attachments.prompt(prompt) if attachments else prompt
+        prompt = guardrail.screen(
+            text, source="INPUT", mode=screen["mode"], workspace=ctx
+        ).text
+    # T35: a curated answer short-circuits the model call. It runs AFTER the input
+    # screen (a `block` agent still refuses PII, an `anonymize` agent matches on the
+    # masked text) and its answer is NOT output-screened — it is owner-authored.
+    if not attachments:
+        hit = answer_rules.match_for_agent(agent, prompt)
+        if hit is not None:
+            return {
+                "text": hit.answer,
+                "session_id": session_id or hc.new_session_id(),
+                "answered_by": "rule",
+                "rule": {"id": hit.rule_id, "name": hit.name},
+            }
+    result = _dispatch_invoke(
+        agent,
+        prompt,
+        session_id=session_id,
+        actor_id=actor_id,
+        runtime_user_id=runtime_user_id,
+        gateway_access_token=gateway_access_token,
+        workspace=workspace,
+        attachments=attachments,
+        # the screened prompt already carries the attachment preamble
+        prompt_prepared=screen is not None,
+        bearer_token=bearer_token,
+        console_user=console_user,
+    )
+    if screen and isinstance(result.get("text"), str):
+        result["text"] = guardrail.screen(
+            result["text"],
+            source="OUTPUT",
+            mode=screen["mode"],
+            workspace=_agent_workspace(agent, workspace),
+        ).text
+    return result
+
+
+def _dispatch_invoke(
+    agent: Agent,
+    prompt: str,
+    session_id: str | None = None,
+    actor_id: str = "default",
+    runtime_user_id: str | None = None,
+    gateway_access_token: str | None = None,
+    workspace: WorkspaceContext | None = None,
+    attachments: PreparedAttachments | None = None,
+    prompt_prepared: bool = False,
+    bearer_token: str | None = None,
+    console_user: bool = True,
+) -> dict[str, Any]:
     require_invoke_capability(agent)
     refuse_assistant_session(agent, session_id)
     workspace = _agent_workspace(agent, workspace)
-    if attachments:
+    if attachments and not prompt_prepared:
         prompt = attachments.prompt(prompt)
     # A JWT-mode runtime accepts Bearer only — SigV4 InvokeAgentRuntime 403s.
     # The bearer path bypasses canary gateway routing (the canary gateway signs

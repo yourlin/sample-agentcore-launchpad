@@ -13,14 +13,40 @@ import App from "./App";
 import { AuthGate } from "./auth/AuthGate";
 import { installWorkspaceHeader } from "./lib/workspace-header";
 
-// Before the first render, so no mount effect can reach the backend without
-// naming the workspace it means.
-installWorkspaceHeader();
+// The account-free share page (T14) is rendered on its own: no AuthGate (a share
+// visitor has no account and must never be shown the sign-in form), no console
+// shell, and no workspace header — the link in the URL names the workspace.
+const shareToken = /^\/s\/([^/]+)\/?$/.exec(window.location.pathname)?.[1];
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <AuthGate>
-      <App />
-    </AuthGate>
-  </StrictMode>,
-);
+// The SME review page (T34): the same account-free, shell-free rendering.
+const reviewToken = /^\/r\/([^/]+)\/?$/.exec(window.location.pathname)?.[1];
+
+if (reviewToken) {
+  void import("./share/ReviewPage").then(({ ReviewPage }) => {
+    createRoot(document.getElementById("root")!).render(
+      <StrictMode>
+        <ReviewPage token={decodeURIComponent(reviewToken)} />
+      </StrictMode>,
+    );
+  });
+} else if (shareToken) {
+  void import("./share/SharePage").then(({ SharePage }) => {
+    createRoot(document.getElementById("root")!).render(
+      <StrictMode>
+        <SharePage token={decodeURIComponent(shareToken)} />
+      </StrictMode>,
+    );
+  });
+} else {
+  // Before the first render, so no mount effect can reach the backend without
+  // naming the workspace it means.
+  installWorkspaceHeader();
+
+  createRoot(document.getElementById("root")!).render(
+    <StrictMode>
+      <AuthGate>
+        <App />
+      </AuthGate>
+    </StrictMode>,
+  );
+}

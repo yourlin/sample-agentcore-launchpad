@@ -212,7 +212,10 @@ TIMEOUT_SCENARIO_RETRIES = 1
 # recorded in ``EvalRun.budget_stops`` instead of failing the whole run.
 BUDGET_STOP_CODES = frozenset({"harness.execution_timeout", "harness.execution_limit"})
 _TRANSIENT_CODES = frozenset({
-    "runtimeClientError", "internalServerException", "InternalServerException",
+    # the stream event names are camelCase; a non-streaming call (InvokeHarness answering
+    # "Runtime initialization time exceeded" during a cold start) raises PascalCase
+    "runtimeClientError", "RuntimeClientError",
+    "internalServerException", "InternalServerException",
     "throttlingException", "ThrottlingException", "serviceUnavailableException",
     "ServiceUnavailableException",
 })

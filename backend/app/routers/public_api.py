@@ -21,7 +21,9 @@ from app.core.db import get_db
 from app.core.errors import AppError, NotFoundError
 from app.models.ledger import Agent, ApiKey
 from app.routers.apikeys import hash_key
-from app.schemas.attachments import AttachmentRequest
+from app.schemas.agent import display_name_of
+from app.schemas.attachments import AttachmentRequest, SessionIdField
+from app.services import api_keys as key_limits
 from app.services.attachments import attachment_capability, prepare_attachments
 from app.services.chat import chat_stream, sse_encode
 from app.services.invoke import invoke_agent_text
@@ -51,19 +53,29 @@ def require_api_key(
         # could resolve an invoke target. Answered like any other unusable key:
         # /v1 never reports whether a workspace once existed.
         raise AppError("auth.invalid_api_key", "invalid or disabled API key", status_code=401)
+    if key_limits.is_expired(key):
+        raise AppError("auth.expired_api_key", "API key has expired", status_code=401)
+    key_limits.check_rate(key)
+    key_limits.record_use(db, key)
     return key
 
 
 class InvokeV1Request(AttachmentRequest):
-    session_id: str | None = None
+    session_id: str | None = SessionIdField
     actor_id: str = "api"
 
 
 def _active_agent(db: Session, key: ApiKey, agent_id: str) -> Agent:
     """The agent this key may invoke. One from another workspace reads exactly
-    like a missing one — the key's scope must not be probeable."""
+    like a missing one — the key's scope must not be probeable. So does one outside
+    the key's own `agent_ids` allow-list (T16)."""
     agent = db.get(Agent, agent_id)
-    if agent is None or agent.status == "deleted" or agent.workspace_id != key.workspace_id:
+    if (
+        agent is None
+        or agent.status == "deleted"
+        or agent.workspace_id != key.workspace_id
+        or not key_limits.allows_agent(key, agent_id)
+    ):
         raise NotFoundError("agent.not_found", "agent not found")
     require_invoke_capability(agent)
     return agent
@@ -78,11 +90,12 @@ def v1_list_agents(
         for agent in db.query(Agent)
         .filter(Agent.status == "active", Agent.workspace_id == key.workspace_id)
         .all()
-        if invoke_capability(agent)["eligible"]
+        if invoke_capability(agent)["eligible"] and key_limits.allows_agent(key, agent.id)
     ]
     return {
         "agents": [
-            {"id": a.id, "name": a.name, "method": a.method, "version": a.version,
+            {"id": a.id, "name": a.name, "display_name": display_name_of(a.spec),
+             "method": a.method, "version": a.version,
              "attachment_capability": attachment_capability(a)}
             for a in agents
         ]
@@ -116,6 +129,8 @@ def v1_invoke(
         "text": result["text"],
         "session_id": result["session_id"],
         "latency_ms": int((time.monotonic() - started) * 1000),
+        # T35: "rule" when a curated answer replied without a model call
+        "answered_by": result.get("answered_by", "model"),
     }
     return body
 

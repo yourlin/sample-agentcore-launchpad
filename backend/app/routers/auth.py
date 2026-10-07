@@ -51,6 +51,7 @@ _OPEN_API_PATHS = {
 }
 
 ROLE_ADMIN = "admin"
+ROLE_OPERATOR = "operator"
 ROLE_MEMBER = "member"
 
 # Member-grantable agent-management capabilities (route_policy `perm:` values).
@@ -59,10 +60,20 @@ ROLE_MEMBER = "member"
 AGENT_PERMISSIONS = users_service.AGENT_PERMISSIONS
 
 
-def granted_permissions(overrides: dict[str, bool] | None) -> frozenset[str]:
-    """The granted keys for a member row's `permissions` column value."""
+def granted_permissions(
+    overrides: dict[str, bool] | None, role: str = ROLE_MEMBER
+) -> frozenset[str]:
+    """The granted keys for a row's `permissions` column value, given its role.
+
+    T19: the defaults are per role (`users_service.default_permissions`) — an operator
+    holds the promotion keys but not `agents.deploy`, a member the reverse — and an
+    explicit override in the column wins either way.
+    """
+    defaults = users_service.default_permissions(role)
     return frozenset(
-        key for key in AGENT_PERMISSIONS if (overrides or {}).get(key) is not False
+        key
+        for key in AGENT_PERMISSIONS
+        if (overrides or {}).get(key, key in defaults)
     )
 
 
@@ -80,6 +91,12 @@ class Identity:
     @property
     def is_admin(self) -> bool:
         return self.role == ROLE_ADMIN
+
+    @property
+    def is_operator(self) -> bool:
+        """T19 — the release role. Distinct from admin: an operator approves and runs
+        releases but holds no user/workspace administration."""
+        return self.role == ROLE_OPERATOR
 
     def can(self, permission: str) -> bool:
         return self.is_admin or permission in self.permissions
@@ -211,7 +228,7 @@ def resolve_identity(
             email=user.email,
             account_expires_at=users_service.as_utc(user.expires_at),
             user_id=user.id,
-            permissions=granted_permissions(user.permissions),
+            permissions=granted_permissions(user.permissions, user.role),
         )
     finally:
         if owned:
@@ -302,6 +319,17 @@ def require_identity(request: Request, settings: Settings | None = None) -> Iden
     if identity is None:
         raise AppError("auth.required", "Authentication required", status_code=401)
     return identity
+
+
+def current_identity(request: Request) -> Identity:
+    """`require_identity` as a FastAPI dependency.
+
+    `require_identity` takes an optional `settings` argument so tests can inject one.
+    FastAPI reads that annotation as a second **body** parameter, which silently embeds
+    a route's real body under a wrapper key (`{"req": {...}}`) — so a handler that wants
+    an identity alongside a request body must depend on this instead.
+    """
+    return require_identity(request)
 
 
 def require_admin(request: Request) -> Identity:
@@ -420,7 +448,7 @@ def login(req: LoginRequest, response: Response) -> dict[str, Any]:
                 email=user.email,
                 account_expires_at=users_service.as_utc(user.expires_at),
                 user_id=user.id,
-                permissions=granted_permissions(user.permissions),
+                permissions=granted_permissions(user.permissions, user.role),
             )
         finally:
             db.close()
