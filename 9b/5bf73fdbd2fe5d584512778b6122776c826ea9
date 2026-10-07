@@ -1,0 +1,31 @@
+backend/app/dlc/calibration.py
+  s_53a2f2bba8d550::t_88b79f02935660 311-333,351,354-356
+backend/tests/test_dlc_annotation_links.py
+  s_53a2f2bba8d550::t_cc6098e8d7827c 241-290
+backend/tests/test_dlc_gate_calibration.py
+  s_53a2f2bba8d550::t_f3312509f1b19b 181,201
+docs/api.md
+  s_53a2f2bba8d550::t_2d44953bc211f3 936
+docs/api.zh-CN.md
+  s_53a2f2bba8d550::t_7bcdb7f7bd1b10 633
+docs/troubleshooting.md
+  s_53a2f2bba8d550::t_1078e19099ea8a 196
+docs/troubleshooting.zh-CN.md
+  s_53a2f2bba8d550::t_2aadeb037f96f7 149
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "9b5bf73fdbd2fe5d584512778b6122776c826ea9",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "linyesh <linyesh@amazon.com>"
+    }
+  }
+}
