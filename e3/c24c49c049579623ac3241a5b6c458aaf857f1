@@ -1,0 +1,117 @@
+backend/app/data/video_sections.json
+  s_53a2f2bba8d550::t_ac6caf001df9db 169-170,277-278
+backend/app/models/ledger.py
+  s_53a2f2bba8d550::t_b8bcb826fc70a2 358
+backend/app/routers/governance.py
+  s_53a2f2bba8d550::t_7778a57dc4e8d8 35-39,533,553
+backend/app/services/chat_ledger.py
+  s_53a2f2bba8d550::t_eee9293487f692 143-148
+backend/app/services/policy_denials.py
+  s_53a2f2bba8d550::t_2b0a1a6bcf9bda 1-47
+backend/app/services/videos.py
+  s_53a2f2bba8d550::t_fddca4f64339c3 327
+backend/scripts/e2e_policy_deny_browser.py
+  s_53a2f2bba8d550::t_94c00dcf7d15bf 1-124
+backend/tests/test_chat_api.py
+  s_53a2f2bba8d550::t_42137e5f0eb6d6 327-356
+backend/tests/test_claude_sdk_template.py
+  s_53a2f2bba8d550::t_272f367b116472 583-584,586-589
+backend/tests/test_harness_execution.py
+  s_53a2f2bba8d550::t_db830a1d9f6962 462-536
+backend/tests/test_policy_denials.py
+  s_53a2f2bba8d550::t_d606aa87c97902 1-75
+backend/tests/test_strands_template.py
+  s_53a2f2bba8d550::t_994a83f3b51129 648-651
+backend/tests/test_videos.py
+  s_53a2f2bba8d550::t_b33c597020b6db 58-59
+docs/api.md
+  s_53a2f2bba8d550::t_6d66ae5b3d221d 40-47,184-185,206,716
+docs/api.zh-CN.md
+  s_53a2f2bba8d550::t_4a237bd4fda23a 41-47,425,429,431,433,435
+docs/architecture.md
+  s_53a2f2bba8d550::t_6d41878a7c3a08 71-74,100,102
+docs/architecture.zh-CN.md
+  s_53a2f2bba8d550::t_79ef9162ad9172 61,63
+docs/identity.md
+  s_53a2f2bba8d550::t_0dba05271a2860 173-175,276,393,826-834
+docs/video-library.md
+  s_53a2f2bba8d550::t_f494c7c45d0d93 82-98
+frontend/src/lib/api.ts
+  s_53a2f2bba8d550::t_cb2b56fd8b644a 178-183
+frontend/src/lib/policy-deny.test.ts
+  s_53a2f2bba8d550::t_0333f63e60e325 1-52
+frontend/src/lib/policy-deny.ts
+  s_53a2f2bba8d550::t_3f11870595ddab 1-42
+frontend/src/lib/user-grants.ts
+  s_53a2f2bba8d550::t_020ca2e2672d58 4
+frontend/src/lib/videos.test.ts
+  s_53a2f2bba8d550::t_56e286f5a30534 1-58
+frontend/src/lib/videos.ts
+  s_53a2f2bba8d550::t_8074b822d5f734 26-27,85,117-122
+frontend/src/locales/en/common.json
+  s_53a2f2bba8d550::t_a286246f67d733 120-121,172-176,2372-2377,2386,2390,2415,5664,5685-5686,5690,7353-7362,8528,8531,8534,8536-8537,8558,8560-8562,8565,8567,8601,8615,8637,8643,8647,8649,8651,8653,8684,8687,8689,8691,9096-9098,9105-9106,9123-9126,9130-9131,9158-9162,9212,10305-10307,10798
+frontend/src/locales/zh-CN/common.json
+  s_53a2f2bba8d550::t_095f4b892891f4 120-121,172-176,2372-2377,2386,2390,2415,5664,5685-5686,5690,7353-7362,8528,8531,8534,8536-8537,8558,8560-8562,8565,8567,8601,8615,8634,8637,8643,8647,8649,8651,8653,8668,8684,8687,8689,8691,9096-9098,9105-9106,9123-9126,9130-9131,9158-9162,9212,10305,10307,10798,10801
+frontend/src/v2/V2Shell.tsx
+  s_53a2f2bba8d550::t_921a2fd696c04e 17-18,119-149,152-155,157,159-225,228
+frontend/src/v2/hooks.ts
+  s_53a2f2bba8d550::t_932b6a38ecfc9c 1,9-14
+frontend/src/v2/nav.ts
+  s_53a2f2bba8d550::t_2f67891e4944db 163-186
+frontend/src/v2/pages/Chat.tsx
+  s_53a2f2bba8d550::t_89402f70529104 38,184-186,295-298
+frontend/src/v2/pages/MyConnections.tsx
+  s_53a2f2bba8d550::t_8de39e2615a753 20
+frontend/src/v2/pages/agents/IdentityCard.tsx
+  s_53a2f2bba8d550::t_b53ab17364fba8 19,77,81,83-90,99,101-103,107-112,142,144-151,161,163-177
+frontend/src/v2/pages/agents/InboundAuthFields.tsx
+  s_53a2f2bba8d550::t_a93b275eddf392 27,30-32,98,101-103,106-110,151-152,154-160,162-166
+frontend/src/v2/pages/chat/PolicyDenyCard.tsx
+  s_53a2f2bba8d550::t_019648ad607cd9 1-53
+frontend/src/v2/pages/chat/Thread.tsx
+  s_53a2f2bba8d550::t_8ecf0803f1b171 10,15-16,115-116
+frontend/src/v2/pages/chat/chat.css
+  s_53a2f2bba8d550::t_5b9d68169fee24 90-93
+frontend/src/v2/pages/chat/messages.ts
+  s_53a2f2bba8d550::t_e7d2e255b1b749 2,8,21-22
+frontend/src/v2/pages/connections/GatewayTargets.tsx
+  s_53a2f2bba8d550::t_a81bce49b9998d 19,324-331,358-367
+frontend/src/v2/pages/videos/ModuleDemo.tsx
+  s_53a2f2bba8d550::t_60e62cfdb3e2d4 1-142
+frontend/src/v2/pages/videos/Player.tsx
+  s_53a2f2bba8d550::t_8eef37c8871290 1-2,5-8,11-12,28,51,53-54,103,106
+frontend/src/v2/pages/videos/playback.tsx
+  s_53a2f2bba8d550::t_67b69cefae5eb5 1-97
+frontend/src/v2/pages/videos/useVideoPlayback.tsx
+  s_53a2f2bba8d550::t_51d4f2b92e1dee 1-128
+frontend/src/v2/pages/videos/videos.css
+  s_53a2f2bba8d550::t_bbf6ca9641f4a8 119-127
+frontend/src/v2/ui.tsx
+  s_53a2f2bba8d550::t_c1f53da5f89d93 23,32,555,561-566,1034,1042-1043,1049,1059,1066,1074
+frontend/src/v2/v2.css
+  s_53a2f2bba8d550::t_e046ac01ba358c 444
+frontend/src/v3/Shell.tsx
+  s_53a2f2bba8d550::t_deddc7d6c4ffb5 33,378-388
+frontend/src/v3/pages/Chat.tsx
+  s_53a2f2bba8d550::t_4b5fe1888c50fe 1,17-18,35-64,107-108,115-117,174-177,301
+frontend/src/v3/pages/chat.css
+  s_53a2f2bba8d550::t_8f8f9cf48973f0 153-165
+backend/app/services/chat.py
+  s_53a2f2bba8d550::t_1fcbde0a045b95 17,44-46,198-201,205-208,210,215-220,222-223,226-261
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "e3c24c49c049579623ac3241a5b6c458aaf857f1",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "AI Ape Wisdom <xiehust@163.com>"
+    }
+  }
+}
