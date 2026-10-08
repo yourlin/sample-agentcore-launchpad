@@ -12,7 +12,14 @@ from app.schemas.requirements import assert_all_pinned
 
 # Latest Sonnet inference profile available in the target account (verified via
 # bedrock list-inference-profiles; there is no "sonnet-5" profile).
-DEFAULT_MODEL_ID = "global.anthropic.claude-sonnet-5"
+# GLM-5.3 through its global inference profile: offered in every region the
+# console targets (us-east-1, us-west-2, us-east-2, ca-central-1). Mirrors the
+# console's SPEC_DEFAULT_MODEL_ID (frontend/src/lib/models.ts).
+DEFAULT_MODEL_ID = "global.zai.glm-5.3"
+# The Claude Agent SDK (method "container") can only drive Claude, so a container
+# spec that names no model gets this instead of the platform default. Mirrors the
+# console's claude-only default (defaultModelFor(source, claudeOnly)).
+CLAUDE_SDK_DEFAULT_MODEL_ID = "global.anthropic.claude-sonnet-5"
 
 Method = Literal["harness", "zip_runtime", "container", "studio", "byoc"]
 
@@ -580,6 +587,13 @@ class AgentSpec(BaseModel):
     # is snapshotted onto the Agent row (``inbound_auth_mode`` /
     # ``inbound_auth_config``) by the deploy stage, so consumers never re-derive.
     inbound_auth: InboundAuth | None = None
+
+    @model_validator(mode="after")
+    def _claude_sdk_default_model(self) -> "AgentSpec":
+        # only when the caller named no model: an explicit id is the caller's call
+        if self.method == "container" and "model_id" not in self.model_fields_set:
+            self.model_id = CLAUDE_SDK_DEFAULT_MODEL_ID
+        return self
 
     @model_validator(mode="after")
     def _inbound_auth_supported(self) -> "AgentSpec":

@@ -1047,9 +1047,9 @@ Agent 自身的执行角色完成。但 Mantle 需要自己的 IAM 授权:`bedro
 Agent 会部署成功并进入 ACTIVE,但首次调用报 `401 access_denied`;该授权由 harness
 与 zip 共用,新增它需要执行一次 CDK 部署。该字段默认为 `bedrock`,以兼容
 此字段出现之前写入的 spec。控制台表单的各方式同样默认 `bedrock`,默认模型为
-GPT-6 Sol(`global.openai.gpt-6-sol`);harness 与 zip 仍可切换到 Mantle
+GLM-5.3（`global.zai.glm-5.3`，全球推理配置文件，控制台面向的各区域均可用），`AgentSpec` 的默认值也是它；harness 与 zip 仍可切换到 Mantle
 (`frontend/src/lib/agent-spec.ts` 中的 `MODEL_SOURCE_BY_METHOD`)。Claude Agent SDK
-方式则默认取清单中第一个 Claude 模型。控制台提供的模型清单位于
+方式则默认取清单中第一个 Claude 模型，后端也会为未指定模型的 container spec 使用 `global.anthropic.claude-sonnet-5`（`CLAUDE_SDK_DEFAULT_MODEL_ID`）。意图归类与回答建议使用各自的平台模型；Strands Studio 画布对未指定模型的节点保留 Claude 兜底（改动会改变已有流程），新拖入的节点默认 GLM-5.3。控制台提供的模型清单位于
 `frontend/src/lib/models.ts`,清单第一项即默认模型。
 
 **Harness(方式B)** —— 两种来源使用 `HarnessModelConfiguration` 联合类型中

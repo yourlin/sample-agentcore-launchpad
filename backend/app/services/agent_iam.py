@@ -29,7 +29,6 @@ from typing import Any
 from app.core.regions import partition_for_region
 from app.models.ledger import Agent
 from app.schemas.agent import (
-    DEFAULT_MODEL_ID,
     INFERENCE_PROFILE_PREFIXES,
     AgentSpec,
     byoc_model_target,
@@ -210,8 +209,12 @@ def model_resources(model_id: str, ctx: RoleContext) -> list[str]:
 # invoke. Provider strings and the node types that carry a model mirror
 # ``frontend/src/studio`` (``MANTLE_PROVIDER`` in lib/models.ts, the agent-node
 # filter in lib/graph-code-generator.ts); a node without a model id generates
-# the canvas fallback, which equals ``DEFAULT_MODEL_ID``.
+# the canvas fallback, ``STUDIO_FALLBACK_MODEL_ID``.
 STUDIO_MODEL_NODE_TYPES = frozenset({"agent", "orchestrator-agent", "swarm"})
+# The canvas's own fallback (``DEFAULT_MODEL_ID`` in frontend/src/studio/lib/
+# models.ts), which deliberately does not follow the platform default: changing
+# it would silently change every existing flow's model-less nodes.
+STUDIO_FALLBACK_MODEL_ID = "global.anthropic.claude-sonnet-5"
 STUDIO_BEDROCK_PROVIDER = "AWS Bedrock"
 STUDIO_MANTLE_PROVIDER = "Amazon Bedrock (Mantle)"
 
@@ -227,7 +230,7 @@ def studio_node_models(spec: AgentSpec) -> list[tuple[str, str]]:
         data = node.get("data") if isinstance(node.get("data"), dict) else {}
         provider = data.get("modelProvider") or STUDIO_BEDROCK_PROVIDER
         model = data.get("modelId") or (
-            DEFAULT_MODEL_ID if provider == STUDIO_BEDROCK_PROVIDER else ""
+            STUDIO_FALLBACK_MODEL_ID if provider == STUDIO_BEDROCK_PROVIDER else ""
         )
         models.append((str(provider), str(model)))
     return models

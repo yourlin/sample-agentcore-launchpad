@@ -1928,10 +1928,15 @@ ACTIVE and then fails its first invoke with `401 access_denied`; the grant is
 shared by harness and zip, and adding it needs a CDK deploy.
 The field defaults to `bedrock` for backward compatibility with specs
 stored before it existed. The console form also starts every method on `bedrock`,
-with GPT-6 Sol (`global.openai.gpt-6-sol`) as the default model; Mantle stays
+with GLM-5.3 (`global.zai.glm-5.3`, a global inference profile offered in every region the
+console targets) as the default model, which `AgentSpec` also defaults to; Mantle stays
 selectable for harness and zip (`MODEL_SOURCE_BY_METHOD` in
 `frontend/src/lib/agent-spec.ts`). The Claude Agent SDK method defaults to the
-first Claude entry instead. The console's model catalog lives in
+first Claude entry instead, and the backend gives a container spec that names no model
+`global.anthropic.claude-sonnet-5` (`CLAUDE_SDK_DEFAULT_MODEL_ID`). Intent clustering and
+answer suggestions keep their own platform model, and the Strands Studio canvas keeps its
+Claude fallback for nodes without a model (changing it would change existing flows); new
+canvas nodes start on GLM-5.3. The console's model catalog lives in
 `frontend/src/lib/models.ts`, where the catalog's first entry is the default.
 
 **Harness (方式B)** — both sources ride the **same** `bedrockModelConfig` branch

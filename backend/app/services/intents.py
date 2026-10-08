@@ -37,9 +37,13 @@ from botocore.config import Config
 from sqlalchemy.orm import Session
 
 from app.models.ledger import Agent, ChatFeedback, ChatMessage, ChatSession
-from app.schemas.agent import DEFAULT_MODEL_ID
 from app.services.answer_rules import normalize
 from app.services.workspace import WorkspaceContext
+
+# The model intent clustering runs on — a platform feature, so it does not follow the
+# agent default (AgentSpec.DEFAULT_MODEL_ID) and its prompts stay on the model they
+# were written for.
+PLATFORM_MODEL_ID = "global.anthropic.claude-sonnet-5"
 
 logger = logging.getLogger("launchpad.intents")
 
@@ -234,7 +238,7 @@ def _model_groups(
         config=Config(read_timeout=45, retries={"max_attempts": 1, "mode": "standard"}),
     )
     resp = client.converse(
-        modelId=DEFAULT_MODEL_ID,
+        modelId=PLATFORM_MODEL_ID,
         system=[{"text": system}],
         messages=[{"role": "user", "content": [{"text": _prompt_lines(turns)}]}],
         inferenceConfig={"maxTokens": MAX_OUTPUT_TOKENS, "temperature": 0.0},
