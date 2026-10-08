@@ -1,0 +1,52 @@
+frontend/src/v3/onboarding/Tour.tsx
+  s_53a2f2bba8d550::t_e8da502ff01d92 1-131
+frontend/src/v3/onboarding/state.ts
+  s_53a2f2bba8d550::t_fffe27f6b1476f 1-79
+frontend/src/v3/onboarding/Glossary.tsx
+  s_53a2f2bba8d550::t_cc746bb1da94b3 1-77
+frontend/src/v3/onboarding/LaunchSequence.tsx
+  s_53a2f2bba8d550::t_212e1d2dace5c5 1-101
+  s_53a2f2bba8d550::t_fc8c0b274fc630 102
+backend/scripts/e2e_v3_console_browser.py
+  s_53a2f2bba8d550::t_c145ca6b3cc711 88-112
+frontend/src/locales/en/common.json
+  s_53a2f2bba8d550::t_29c2b0b844d3aa 10833-10905
+frontend/src/locales/zh-CN/common.json
+  s_53a2f2bba8d550::t_0ab5df5a973c16 10833-10905
+frontend/src/v3/Shell.tsx
+  s_53a2f2bba8d550::t_ae28598cb4a1df 6,8-22,30,32,39-41,67-100,189-217,235,248-266,284,292,322,360-365,402-404
+frontend/src/v3/onboarding/onboarding.css
+  s_53a2f2bba8d550::t_835825af5be956 1-114
+frontend/src/v3/onboarding/steps.test.ts
+  s_53a2f2bba8d550::t_d1ad44ec012da5 1-45
+frontend/src/v3/onboarding/steps.ts
+  s_53a2f2bba8d550::t_391bb5cffa3e5c 1-32
+frontend/src/v3/pages/Create.tsx
+  s_53a2f2bba8d550::t_c8e4dc73d3b2cf 24,154
+frontend/src/v3/pages/Home.tsx
+  s_53a2f2bba8d550::t_0512f5cdac17d5 9,76-78,107,139
+frontend/src/v3/pages/Knowledge.tsx
+  s_53a2f2bba8d550::t_6a6df6411895eb 43,145
+frontend/src/v3/pages/Registry.tsx
+  s_53a2f2bba8d550::t_a25f0dd3539178 30,133-135
+docs/architecture.md
+  s_53a2f2bba8d550::t_9e9da1a8262ccd 2875-2885
+docs/architecture.zh-CN.md
+  s_53a2f2bba8d550::t_0c09afea082c40 1486
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "f7ee15a887e06b9779a1ee56ec7e06897eb7adf8",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "AI Ape Wisdom <xiehust@163.com>"
+    }
+  }
+}
