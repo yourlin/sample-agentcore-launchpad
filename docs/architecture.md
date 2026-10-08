@@ -2837,6 +2837,21 @@ backend surface.
   conversation's working view stays hosted. `v3TwinOf` (`v3/nav.ts`) maps each
   module's V2 list/detail URL onto its V3 page, so the rail and every V2 link land
   there.
+- **Rebuilt modules (batch 2, Agent run).** `/v3/releases` (the dev→ops release
+  desk: requests waiting on a reviewer first, then approved-not-executed, in flight
+  and history; a release's detail at `?id=` with review / execute / rollback behind
+  confirms), `/v3/environments` (an agent × environment matrix with drift against
+  AWS on demand), `/v3/observability` (a dashboard led by what needs attention,
+  sessions and traces, and native session and trace views — the waterfall with the
+  span inspector — at V2's `?view=session|trace&id=`), `/v3/memory` (overview,
+  short-term actor → session → events, long-term records and retrieval, resources;
+  a resource's editor stays hosted), `/v3/governance` (gateways with their targets,
+  Policy Engine mode and recent denials, and the tool catalog; the Cedar and
+  rate-limit editors stay hosted), `/v3/connections` (the member's as_user grants and
+  revoke), `/v3/costs` (spend by agent and by person, month to date, and alert rules
+  at `?view=alerts`) and `/v3/issues` (the issue box, answer rules and reviewers, at
+  V2's `?view=` tabs). Each mirrors its V2 page's calls and guards; `v3TwinOf` routes
+  V2 links to them, including the views they rebuilt.
 - **Every other page is hosted, not handed off.** Once V3 is chosen, the `/v2/*`
   routes render through `V2Frame` (`App.tsx`) inside `<V3Shell hosted="v2" />`, and
   the classic routes through `<V3Shell hosted="classic" />` — same URLs, same page

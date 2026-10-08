@@ -1,6 +1,17 @@
 import { V2_NAV } from "../v2/nav";
 import type { V2NavItem } from "../v2/nav";
 
+const BATCH2: Record<string, string> = {
+  "/v2/promotions": "/v3/releases",
+  "/v2/issues": "/v3/issues",
+  "/v2/environments": "/v3/environments",
+  "/v2/observability": "/v3/observability",
+  "/v2/memory": "/v3/memory",
+  "/v2/governance": "/v3/governance",
+  "/v2/my-connections": "/v3/connections",
+  "/v2/costs": "/v3/costs",
+};
+
 /** V2 entries V3 has rebuilt natively — the rail shows the V3 page instead. */
 const REBUILT = new Set(["/v2", "/v2/chat"]);
 
@@ -61,6 +72,24 @@ export function v3TwinOf(pathname: string, search: string): string | null {
       // skill) is the full form the launch page hands over to
       if (view === "new" && ![...params.keys()].some((k) => k !== "view")) return "/v3/create";
       return null;
+    case "/v2/promotions":
+      if (view === "detail" && id) return `/v3/releases?id=${encodeURIComponent(id)}`;
+      return view ? null : `/v3/releases${search}`;
+    // their `view=` is a tab of the landing, not a sub-page: it rides along
+    case "/v2/costs":
+      return `/v3/costs${search}`;
+    // the session and trace views are rebuilt as well
+    case "/v2/observability":
+      return !view || ((view === "session" || view === "trace") && id) ? `/v3/observability${search}` : null;
+    case "/v2/issues":
+      return `/v3/issues${search}`;
+    // batch 2 (Agent run): the module's landing — its tabs ride along (`?tab=`,
+    // `?range=`); a `view=` sub-page (a detail, an editor) stays hosted
+    case "/v2/environments":
+    case "/v2/memory":
+    case "/v2/governance":
+    case "/v2/my-connections":
+      return view ? null : `${BATCH2[pathname.replace(/\/$/, "")]}${search}`;
     case "/v2/assistant":
       return view ? null : "/v3/assistant";
     case "/v2/registry":

@@ -95,6 +95,14 @@ const V3Agents = lazy(() => import("./v3/pages/Agents").then((m) => ({ default: 
 const V3Chat = lazy(() => import("./v3/pages/Chat").then((m) => ({ default: m.V3Chat })));
 const V3Gate = lazy(() => import("./v3/pages/Gate").then((m) => ({ default: m.V3Gate })));
 const V3Registry = lazy(() => import("./v3/pages/Registry").then((m) => ({ default: m.V3Registry })));
+const V3Releases = lazy(() => import("./v3/pages/Releases").then((m) => ({ default: m.V3Releases })));
+const V3Issues = lazy(() => import("./v3/pages/Issues").then((m) => ({ default: m.V3Issues })));
+const V3Environments = lazy(() => import("./v3/pages/Environments").then((m) => ({ default: m.V3Environments })));
+const V3Observability = lazy(() => import("./v3/pages/Observability").then((m) => ({ default: m.V3Observability })));
+const V3Memory = lazy(() => import("./v3/pages/Memory").then((m) => ({ default: m.V3Memory })));
+const V3Governance = lazy(() => import("./v3/pages/Governance").then((m) => ({ default: m.V3Governance })));
+const V3Connections = lazy(() => import("./v3/pages/Connections").then((m) => ({ default: m.V3Connections })));
+const V3Costs = lazy(() => import("./v3/pages/Costs").then((m) => ({ default: m.V3Costs })));
 const V3Assistant = lazy(() => import("./v3/pages/Assistant").then((m) => ({ default: m.V3Assistant })));
 const V3Create = lazy(() => import("./v3/pages/Create").then((m) => ({ default: m.V3Create })));
 const V3Knowledge = lazy(() => import("./v3/pages/Knowledge").then((m) => ({ default: m.V3Knowledge })));
@@ -328,6 +336,14 @@ export default function App() {
               <Route path="knowledge" element={<V3Knowledge />} />
               <Route path="create" element={<V3Create />} />
               <Route path="assistant" element={<V3Assistant />} />
+              <Route path="releases" element={<V3Releases />} />
+              <Route path="issues" element={<V3Issues />} />
+              <Route path="environments" element={<V3Environments />} />
+              <Route path="observability" element={<V3Observability />} />
+              <Route path="memory" element={<V3Memory />} />
+              <Route path="governance" element={<V3Governance />} />
+              <Route path="connections" element={<V3Connections />} />
+              <Route path="costs" element={<V3Costs />} />
               <Route path="*" element={<Navigate to="/v3" replace />} />
             </Route>
             <Route

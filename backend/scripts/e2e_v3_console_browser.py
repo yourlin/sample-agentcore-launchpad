@@ -111,8 +111,14 @@ def main() -> int:
         visit("registry", "/v3/registry", ".v3-title")
         visit("knowledge", "/v3/knowledge", ".v3-title")
         visit("assistant", "/v3/assistant", ".v3-title")
+        for name in ("releases", "issues", "environments", "observability", "memory",
+                     "governance", "connections", "costs"):
+            visit(name, f"/v3/{name}", ".v3-title")
         for v2, v3 in (("/v2/registry", "/v3/registry"), ("/v2/knowledge-bases", "/v3/knowledge"),
-                       ("/v2/assistant", "/v3/assistant"), ("/v2/agents?view=new", "/v3/create")):
+                       ("/v2/assistant", "/v3/assistant"), ("/v2/agents?view=new", "/v3/create"),
+                       ("/v2/promotions", "/v3/releases"), ("/v2/costs?view=alerts", "/v3/costs"),
+                       ("/v2/my-connections", "/v3/connections"),
+                       ("/v2/observability", "/v3/observability")):
             page.goto(f"{args.ui}{v2}", wait_until="networkidle")
             check(f"twin {v2}", page.url.replace(args.ui, "").startswith(v3),
                   page.url.replace(args.ui, ""))

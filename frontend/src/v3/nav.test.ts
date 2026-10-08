@@ -53,6 +53,10 @@ describe("v3TwinOf", () => {
     expect(v3TwinOf("/v2/knowledge-bases", "?view=new")).toBeNull();
     expect(v3TwinOf("/v2/agents", "?view=new")).toBe("/v3/create");
     expect(v3TwinOf("/v2/assistant", "")).toBe("/v3/assistant");
+    expect(v3TwinOf("/v2/promotions", "?view=detail&id=p1")).toBe("/v3/releases?id=p1");
+    expect(v3TwinOf("/v2/costs", "?view=alerts")).toBe("/v3/costs?view=alerts");
+    expect(v3TwinOf("/v2/observability", "?view=trace&id=t1&range=6h")).toBe("/v3/observability?view=trace&id=t1&range=6h");
+    expect(v3TwinOf("/v2/issues", "?view=rules")).toBe("/v3/issues?view=rules");
     expect(v3TwinOf("/v2/assistant", "?view=detail&id=c1")).toBeNull();
     expect(v3TwinOf("/v2/agents", "?view=new&scenario=it")).toBeNull();
     expect(v3TwinOf("/v2/agents", "?view=detail&id=a")).toBeNull();
@@ -62,7 +66,9 @@ describe("v3TwinOf", () => {
     expect(v3TwinOf("/v2/registry", "?view=register")).toBeNull();
     expect(v3TwinOf("/v2/registry", "?view=detail&id=r1&full=1")).toBeNull();
     expect(v3TwinOf("/v2/chat", "?agent=a&full=1")).toBeNull();
-    expect(v3TwinOf("/v2/governance", "")).toBeNull();
+    expect(v3TwinOf("/v2/eval/tasks", "")).toBeNull();
+    expect(v3TwinOf("/v2/governance", "?tab=tools")).toBe("/v3/governance?tab=tools");
+    expect(v3TwinOf("/v2/governance", "?view=policy&id=p")).toBeNull();
   });
 
   it("lists a rebuilt module at its V3 page, lit on its hosted sub-pages", () => {
