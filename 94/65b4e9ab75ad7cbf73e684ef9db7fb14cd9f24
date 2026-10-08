@@ -1,0 +1,39 @@
+backend/app/schemas/agent.py
+  s_53a2f2bba8d550::t_d11144386a9658 15-22,591-597
+backend/app/services/agent_iam.py
+  s_53a2f2bba8d550::t_c9249b38e1a3e5 212,214-217,233
+backend/app/services/intents.py
+  s_53a2f2bba8d550::t_eac9d4c97b15b1 43-47,241
+backend/app/services/suggestions.py
+  s_53a2f2bba8d550::t_85b11a02a7c3a3 22-26,138
+backend/tests/test_agents_api.py
+  s_53a2f2bba8d550::t_7432996d5ec628 460-472
+frontend/src/lib/models.ts
+  s_53a2f2bba8d550::t_dbb09eb49360af 45-50,52-54,102,111,119
+frontend/src/studio/lib/models.ts
+  s_53a2f2bba8d550::t_db298cd65ce637 31-42
+README.md
+  s_53a2f2bba8d550::t_e6f45e7b40b0c7 298
+README.zh-CN.md
+  s_53a2f2bba8d550::t_7bd7cfc9528e8d 259
+docs/architecture.md
+  s_53a2f2bba8d550::t_d966deae47e21b 1931-1932,1935-1939
+docs/architecture.zh-CN.md
+  s_53a2f2bba8d550::t_f44caaa48d5cba 1050,1052
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "9465b4e9ab75ad7cbf73e684ef9db7fb14cd9f24",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "AI Ape Wisdom <xiehust@163.com>"
+    }
+  }
+}
