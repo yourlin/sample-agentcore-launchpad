@@ -10830,6 +10830,79 @@
       "costConfirm": "Above the confirm line — starting it confirms the cost",
       "migrateBody": "This moves production traffic onto named live/candidate endpoints, so later versions can be gated before anyone sees them. The live version does not change.",
       "revokeWaiverBody": "The waiver on {{key}} stops covering the gate immediately; the next gate run treats that criterion as blocked again."
+    },
+    "onboard": {
+      "close": "Close",
+      "launch": {
+        "title": "Launch sequence",
+        "hide": "Hide",
+        "allDone": "Launch sequence complete — this workspace builds, runs, evaluates and gates releases.",
+        "workspace": "Workspace ready",
+        "workspaceSub": "The AWS account and region this console works in, bootstrapped.",
+        "workspaceCta": "Check it",
+        "agent": "First agent live",
+        "agentSub": "A managed Harness agent deploys in about 30 seconds, no code.",
+        "agentCta": "Launch one",
+        "chat": "Talk to it",
+        "chatSub": "One conversation gives you a trace, tokens and cost to look at.",
+        "chatCta": "Open chat",
+        "evaluate": "Score it",
+        "evaluateSub": "Run evaluators over real sessions or a dataset to see where it falls short.",
+        "evaluateCta": "Run an evaluation",
+        "gate": "Gate its releases",
+        "gateSub": "Let a new version reach users only when a person signs a passing report.",
+        "gateCta": "Set up the gate"
+      },
+      "tour": {
+        "label": "Console tour",
+        "skip": "Skip",
+        "back": "Back",
+        "next": "Next",
+        "done": "Got it",
+        "cmdkTitle": "One keystroke to anywhere",
+        "cmdkBody": "Press ⌘K (or /) and type — a page, an agent, an action, or a word you don't know. It is the fastest way through this console.",
+        "launchTitle": "Your launch sequence",
+        "launchBody": "Five steps from an empty workspace to a release that waits for a signature. Each step ticks itself off from what actually exists.",
+        "queueTitle": "What needs you",
+        "queueBody": "Failed deploys, blocked gates and releases waiting for your signature land here, most urgent first. When it is empty, nothing needs you.",
+        "signalsTitle": "Colour means something",
+        "signalsBody": "Colour is used only for status, and always the same way:",
+        "modulesTitle": "Every module, grouped",
+        "modulesBody": "Build, run, evaluate, learn, configure. Groups fold away; the switch at the bottom shows only the everyday modules, or all of them.",
+        "helpTitle": "Help is always here",
+        "helpBody": "Reopen this tour, the launch sequence or the glossary from this button. Back to V2 next to it returns to the classic layout, on the same page."
+      },
+      "signal": {
+        "ok": "Mint",
+        "okSub": "running as intended",
+        "wait": "Amber",
+        "waitSub": "waiting on someone or something",
+        "act": "Coral",
+        "actSub": "it needs you",
+        "info": "Blue",
+        "infoSub": "in progress, or just so you know",
+        "off": "Grey",
+        "offSub": "off, draft or not applicable"
+      },
+      "glossary": {
+        "title": "Glossary",
+        "search": "Find a term",
+        "none": "No term matches",
+        "explain": "What is {{term}}?"
+      },
+      "help": {
+        "label": "Help",
+        "group": "Help",
+        "tour": "Take the tour",
+        "launch": "Show the launch sequence",
+        "glossary": "Glossary",
+        "videos": "Video guides"
+      },
+      "mode": {
+        "showExpert": "Show every module",
+        "showBusiness": "Show the everyday modules only",
+        "hint": "A view filter: every page stays reachable by URL and ⌘K"
+      }
     }
   }
 }

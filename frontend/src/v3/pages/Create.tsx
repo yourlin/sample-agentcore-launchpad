@@ -21,6 +21,7 @@ import { useProdLock } from "../../workspace/useProdLock";
 import { useWorkspace } from "../../workspace/workspace-context";
 import { useLoad, useToast } from "../hooks";
 import { Btn, Chip, Notice, PageHead, Panel, Skeleton } from "../ui";
+import { Term } from "../onboarding/Glossary";
 
 const BLANK = "blank";
 
@@ -150,7 +151,7 @@ export function V3Create() {
             )}
           </Panel>
 
-          <Panel title={quick ? t("v3.create.quick") : t("v3.create.notQuick")} signal={quick ? "ok" : undefined}
+          <Panel title={quick ? <Term term="harness">{t("v3.create.quick")}</Term> : t("v3.create.notQuick")} signal={quick ? "ok" : undefined}
             end={<Link to={fullForm} className="v3-btn ghost sm">{t("v3.create.fullForm")} <ArrowRight size={13} /></Link>}>
             {!quick ? (
               <div style={{ display: "grid", gap: 12 }}>

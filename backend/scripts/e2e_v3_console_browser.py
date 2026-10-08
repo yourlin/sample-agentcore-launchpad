@@ -85,6 +85,31 @@ def main() -> int:
         stored = page.evaluate("localStorage.getItem('launchpad_ui_version')")
         check("switch.remembered", stored == "v3", f"stored={stored}")
 
+        # first visit: the tour opens on its own, steps with the keyboard, and once
+        # left it does not come back on the next visit
+        page.goto(f"{args.ui}/v3", wait_until="networkidle")
+        try:
+            page.wait_for_selector(".v3-tour-card", timeout=8000)
+            opened = True
+        except Exception:  # noqa: BLE001 - reported as a failed check below
+            opened = False
+        stops = 0
+        if opened:
+            page.screenshot(path=str(out / f"{args.lang}-tour.png"))
+            seen = set()
+            for _ in range(8):
+                seen.add(page.locator(".v3-tour-card h3").inner_text())
+                page.keyboard.press("ArrowRight")
+                page.wait_for_timeout(450)
+            stops = len(seen)
+            page.keyboard.press("Escape")
+            page.wait_for_timeout(300)
+        check("tour.first-visit", opened and stops >= 4, f"stops={stops}")
+        page.goto(f"{args.ui}/v3", wait_until="networkidle")
+        page.wait_for_timeout(1800)
+        check("tour.once", page.locator(".v3-tour-card").count() == 0)
+        check("launch.sequence", page.locator('[data-tour="launch"]').count() == 1)
+
         visit("home", "/v3", ".v3-title")
         visit("agents", "/v3/agents", "table.v3-table, .v3-empty")
         first = page.locator("table.v3-table tbody tr.click").first

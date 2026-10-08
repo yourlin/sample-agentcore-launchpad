@@ -2872,6 +2872,17 @@ backend surface.
   knowledge-base create, a conversation's assistant workspace, memory-resource and
   dataset/pipeline editors, Cedar policy and rate-limit editors, gateway detail, and
   workspace registration.
+- **Onboarding (`v3/onboarding/`).** A *launch sequence* on the command center —
+  workspace ready → first agent live → first conversation → first evaluation → a
+  gated release — where every step is read from what exists (`launchSteps`, unit
+  tested), never from a click; hidden per workspace once dismissed and folded to one
+  line when complete. A first-visit *tour* lights one area at a time (⌘K, the launch
+  sequence, the needs-you queue, the signal colours, the module rail, help),
+  keyboard-driven and skippable, shown once (`launchpad_v3_tour_done`). The
+  *glossary* reuses V2's `glossary.*` sentences: inline `Term` tooltips, a glossary
+  dialog, and a ⌘K entry per term. The rail honours V2's business / expert mode
+  (`lib/nav-mode.ts`) — a view filter only; ⌘K and URLs reach every page. The "?"
+  menu in the top bar reopens the tour, the launch sequence and the glossary.
 - **Overlays.** `.v3-reveal` children animate with `fill-mode: backwards`, never
   `forwards`: a filled transform animation makes each block a containing block for
   `position: fixed`, which trapped dialogs inside panels (and a filled opacity

@@ -10830,6 +10830,79 @@
       "costConfirm": "超过确认线——启动即视为确认费用",
       "migrateBody": "这会把生产流量迁到具名的 live/candidate 端点上，之后的版本可以在用户看到之前先过放行门。生产版本本身不变。",
       "revokeWaiverBody": "{{key}} 的豁免将立即失效；下一次放行门运行会再次把该判据判为被拦下。"
+    },
+    "onboard": {
+      "close": "关闭",
+      "launch": {
+        "title": "启动序列",
+        "hide": "隐藏",
+        "allDone": "启动序列已完成——这个工作区已经能构建、运行、评估智能体，并为发布把关。",
+        "workspace": "工作区就绪",
+        "workspaceSub": "这个控制台所使用的 AWS 账号和区域，已完成初始化。",
+        "workspaceCta": "查看",
+        "agent": "首个智能体上线",
+        "agentSub": "托管 Harness 智能体约 30 秒上线，无需写代码。",
+        "agentCta": "创建一个",
+        "chat": "和它对话",
+        "chatSub": "一次对话就能看到链路、Token 和花费。",
+        "chatCta": "打开对话",
+        "evaluate": "给它打分",
+        "evaluateSub": "用评估器跑一遍真实会话或数据集，看看哪里还不够好。",
+        "evaluateCta": "运行评估",
+        "gate": "为发布把关",
+        "gateSub": "新版本只有在一份通过的报告由人签署后，才会到达用户。",
+        "gateCta": "设置放行门"
+      },
+      "tour": {
+        "label": "控制台导览",
+        "skip": "跳过",
+        "back": "上一步",
+        "next": "下一步",
+        "done": "知道了",
+        "cmdkTitle": "一个快捷键到达任何地方",
+        "cmdkBody": "按 ⌘K（或 /）然后输入——页面、智能体、操作，或者一个你不认识的词。这是在控制台里移动最快的方式。",
+        "launchTitle": "你的启动序列",
+        "launchBody": "从空工作区到一个需要签署才能放行的发布，一共五步。每一步都会根据实际情况自动打勾。",
+        "queueTitle": "需要你处理的事",
+        "queueBody": "部署失败、被拦下的放行门、等你签署的发布都会出现在这里，最紧急的排在最前。这里为空时，就没有需要你处理的事。",
+        "signalsTitle": "颜色是有含义的",
+        "signalsBody": "颜色只用来表示状态，而且含义始终一致：",
+        "modulesTitle": "所有模块，按组排列",
+        "modulesBody": "开发、运行、评估、学习、配置。分组可以折叠；底部的开关可以只显示常用模块，或显示全部。",
+        "helpTitle": "帮助随时都在",
+        "helpBody": "可以从这个按钮重新打开导览、启动序列或术语表。旁边的「返回 V2」会回到经典布局，并停留在同一页。"
+      },
+      "signal": {
+        "ok": "薄荷绿",
+        "okSub": "运行正常",
+        "wait": "琥珀色",
+        "waitSub": "在等某人或某件事",
+        "act": "珊瑚红",
+        "actSub": "需要你处理",
+        "info": "蓝色",
+        "infoSub": "进行中，或供你参考",
+        "off": "灰色",
+        "offSub": "关闭、草稿或不适用"
+      },
+      "glossary": {
+        "title": "术语表",
+        "search": "查找术语",
+        "none": "没有匹配的术语",
+        "explain": "什么是{{term}}？"
+      },
+      "help": {
+        "label": "帮助",
+        "group": "帮助",
+        "tour": "开始导览",
+        "launch": "显示启动序列",
+        "glossary": "术语表",
+        "videos": "视频教程"
+      },
+      "mode": {
+        "showExpert": "显示全部模块",
+        "showBusiness": "只显示常用模块",
+        "hint": "只是显示筛选：所有页面仍可通过 URL 和 ⌘K 到达"
+      }
     }
   }
 }

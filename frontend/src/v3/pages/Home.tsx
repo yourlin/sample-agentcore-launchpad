@@ -6,6 +6,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api, dlcApi, type AgentInfo } from "../../lib/api";
 import type { ReleaseState } from "../../lib/dlc";
 import { useWorkspace } from "../../workspace/workspace-context";
+import { LaunchSequence } from "../onboarding/LaunchSequence";
 import { type Attention, agentSignal, attentionFor, sortAttention } from "../signals";
 import { Chip, Empty, Lamp, PageHead, Panel, Skeleton, Spark, Stat } from "../ui";
 import { useLoad } from "../hooks";
@@ -72,7 +73,9 @@ export function V3Home() {
         sub={t("v3.home.sub")}
       />
 
-      <div className="v3-grid c4">
+      <LaunchSequence workspace={current ?? null} agents={list} releases={rel.data} />
+
+      <div className="v3-grid c4" data-tour="stats">
         <Panel signal="ok">
           <Stat
             label={t("v3.home.live")}
@@ -101,6 +104,7 @@ export function V3Home() {
       </div>
 
       <div className="v3-grid v3-split">
+        <div data-tour="queue">
         <Panel title={t("v3.home.queue")} end={<span className="mono">{queue.length}</span>} flush>
           {rel.loading && !rel.data ? (
             <div style={{ padding: 20 }}><Skeleton rows={4} /></div>
@@ -132,6 +136,7 @@ export function V3Home() {
             </table>
           )}
         </Panel>
+        </div>
 
         <Panel title={t("v3.home.traffic")} end={<span className="mono">24h</span>}>
           {dash.loading && !dash.data ? (

@@ -40,6 +40,7 @@ import {
   Track,
   type TrackNode,
 } from "../ui";
+import { Term } from "../onboarding/Glossary";
 
 /* Same cadence and guards as V2's detail page, whose create-flow automation this
    page now carries (a KB created in the hosted V2 form lands here). */
@@ -141,7 +142,7 @@ function KbShelf() {
         end={<Link to="/v2/knowledge-bases?view=new" className="v3-btn primary"><Plus size={14} /> {t("v3.kb.create")}</Link>}
       />
       <div className="v3-grid c4">
-        <Panel><Stat label={t("v3.kb.total")} value={list.data ? kbs.length : "—"} /></Panel>
+        <Panel><Stat label={<Term term="knowledgeBase">{t("v3.kb.total")}</Term>} value={list.data ? kbs.length : "—"} /></Panel>
         <Panel><Stat label={t("v3.kb.ready")} value={list.data ? count("ok") : "—"} signal={count("ok") ? "ok" : undefined} /></Panel>
         <Panel signal={count("wait") ? "wait" : undefined}>
           <Stat label={t("v3.kb.moving")} value={list.data ? count("wait") : "—"} foot={t("v3.kb.movingFoot")} />

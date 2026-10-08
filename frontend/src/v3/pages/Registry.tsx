@@ -27,6 +27,7 @@ import {
   Track,
   type TrackNode,
 } from "../ui";
+import { Term } from "../onboarding/Glossary";
 
 type RecordType = RegistryRecordOut["type"];
 type Lifecycle = "submit" | "approve" | "reject" | "disable";
@@ -129,9 +130,9 @@ function RecordList() {
       />
 
       <div className="v3-grid c4">
-        <Panel><Stat label={typeLabel("A2A")} value={countType("A2A")} foot={t("v3.registry.footA2A")} /></Panel>
-        <Panel><Stat label={typeLabel("MCP")} value={countType("MCP")} foot={t("v3.registry.footMcp")} /></Panel>
-        <Panel><Stat label={typeLabel("AGENT_SKILLS")} value={countType("AGENT_SKILLS")} foot={t("v3.registry.footSkills")} /></Panel>
+        <Panel><Stat label={<Term term="a2a">{typeLabel("A2A")}</Term>} value={countType("A2A")} foot={t("v3.registry.footA2A")} /></Panel>
+        <Panel><Stat label={<Term term="mcp">{typeLabel("MCP")}</Term>} value={countType("MCP")} foot={t("v3.registry.footMcp")} /></Panel>
+        <Panel><Stat label={<Term term="skill">{typeLabel("AGENT_SKILLS")}</Term>} value={countType("AGENT_SKILLS")} foot={t("v3.registry.footSkills")} /></Panel>
         <Panel signal={pending.length ? "wait" : undefined}>
           <Stat label={t("v3.registry.pending")} value={pending.length} signal={pending.length ? "wait" : undefined}
             foot={discoverable.data ? t("v3.registry.hiddenFoot", { count: all.filter((r) => !discoverable.data!.has(r.record_id)).length }) : undefined} />

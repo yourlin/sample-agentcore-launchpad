@@ -3,8 +3,23 @@ import "../v2/v2.css";
 import "../v2/glossary.css";
 import "./v3.css";
 import "./host.css";
+import "./onboarding/onboarding.css";
 
-import { ArrowLeftRight, Bot, ChevronRight, LayoutDashboard, LogOut, MessagesSquare, Scale, Search } from "lucide-react";
+import {
+  ArrowLeftRight,
+  BookOpen,
+  Bot,
+  ChevronRight,
+  CircleHelp,
+  Compass,
+  LayoutDashboard,
+  ListChecks,
+  LogOut,
+  MessagesSquare,
+  PlayCircle,
+  Scale,
+  Search,
+} from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -12,13 +27,18 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-do
 import { useAuth } from "../auth/auth-context";
 import { RouteChunk } from "../layout/RouteChunk";
 import { api } from "../lib/api";
+import { useNavMode } from "../lib/nav-mode";
 import { setUiVersion } from "../lib/ui-version";
+import { GLOSSARY_TERMS } from "../v2/Glossary";
 import { V2ToastProvider } from "../v2/ui";
 import { useWorkspace } from "../workspace/workspace-context";
 import { type Command, CommandPalette } from "./CommandPalette";
 import { ToastProvider } from "./ui";
 import { useLoad } from "./hooks";
 import { hostedGroups, isActive } from "./nav";
+import { GlossaryDialog } from "./onboarding/Glossary";
+import { openGlossary, requestTour, tourDone, useLaunchHidden, useTourRequest } from "./onboarding/state";
+import { Tour } from "./onboarding/Tour";
 
 const RAIL_KEY = "launchpad_v3_rail_open";
 
@@ -43,6 +63,40 @@ const NATIVE: RailItem[] = [
   { to: "/v3/chat", labelKey: "v3.nav.chat", icon: <MessagesSquare size={16} /> },
   { to: "/v3/gate", labelKey: "v3.nav.gate", icon: <Scale size={16} /> },
 ];
+
+/** "?" in the top bar: the tour, the glossary, the launch sequence and the videos, any time. */
+function HelpMenu() {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const { current } = useWorkspace();
+  const [, setLaunchHidden] = useLaunchHidden(current?.id ?? "");
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open) return;
+    const close = () => setOpen(false);
+    window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
+  }, [open]);
+  const item = (icon: ReactNode, label: string, run: () => void) => (
+    <button type="button" role="menuitem" onClick={() => { setOpen(false); run(); }}>{icon} {label}</button>
+  );
+  return (
+    <div className="v3-help" data-tour="help" onClick={(e) => e.stopPropagation()}>
+      <button type="button" className="v3-btn ghost sm" aria-haspopup="menu" aria-expanded={open}
+        aria-label={t("v3.onboard.help.label")} title={t("v3.onboard.help.label")} onClick={() => setOpen((v) => !v)}>
+        <CircleHelp size={15} />
+      </button>
+      {open && (
+        <div className="v3-help-menu" role="menu">
+          {item(<Compass size={15} />, t("v3.onboard.help.tour"), requestTour)}
+          {item(<ListChecks size={15} />, t("v3.onboard.help.launch"), () => { setLaunchHidden(false); navigate("/v3"); })}
+          {item(<BookOpen size={15} />, t("v3.onboard.help.glossary"), () => openGlossary("all"))}
+          {item(<PlayCircle size={15} />, t("v3.onboard.help.videos"), () => navigate("/v3/videos"))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function WorkspaceSwitch() {
   const { t } = useTranslation();
@@ -132,7 +186,35 @@ export function V3Shell({ hosted }: { hosted?: "v2" | "classic" } = {}) {
     else navigate("/v2");
   };
 
-  const groups = useMemo(() => hostedGroups(isAdmin), [isAdmin]);
+  // business mode shows the build → run essentials; expert shows every module.
+  // A view filter only: every page stays reachable by URL and by ⌘K.
+  const [navMode, setNavMode] = useNavMode(isAdmin);
+  const allGroups = useMemo(() => hostedGroups(isAdmin), [isAdmin]);
+  const groups = useMemo(
+    () =>
+      navMode === "expert"
+        ? allGroups
+        : allGroups
+            .map((g) => ({ ...g, items: g.items.filter((item) => item.business === true) }))
+            .filter((g) => g.items.length > 0),
+    [allGroups, navMode],
+  );
+  // the tour opens on its own on a first visit to the command center, and on request
+  const [touring, setTouring] = useState(false);
+  const tourAsk = useTourRequest();
+  useEffect(() => {
+    if (tourAsk === 0) return;
+    if (location.pathname !== "/v3") navigate("/v3");
+    const timer = window.setTimeout(() => setTouring(true), 700);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only a new request opens it
+  }, [tourAsk]);
+  useEffect(() => {
+    if (location.pathname !== "/v3" || tourDone()) return;
+    // after the page has drawn, so every stop can be measured
+    const timer = window.setTimeout(() => setTouring(true), 1200);
+    return () => window.clearTimeout(timer);
+  }, [location.pathname]);
   // the module groups start folded, except the one holding the current page
   const [open, setOpen] = useState<Record<string, boolean>>(readOpen);
   const toggle = (key: string, wasOpen: boolean) =>
@@ -150,7 +232,7 @@ export function V3Shell({ hosted }: { hosted?: "v2" | "classic" } = {}) {
     const group = t("v3.cmdk.pages");
     const all = [
       ...NATIVE.map((item) => ({ to: item.to, labelKey: item.labelKey, icon: item.icon })),
-      ...groups.flatMap((g) =>
+      ...allGroups.flatMap((g) =>
         g.items.map(({ to, labelKey, icon: Icon }) => ({ to, labelKey, icon: <Icon size={16} /> })),
       ),
     ];
@@ -163,7 +245,25 @@ export function V3Shell({ hosted }: { hosted?: "v2" | "classic" } = {}) {
       keywords: `${t(item.labelKey, { lng: "en" })} ${item.to.replace(/[/?=&]/g, " ")}`,
       run: () => navigate(item.to),
     }));
-  }, [groups, navigate, t]);
+  }, [allGroups, navigate, t]);
+
+  // help in the palette: the tour, the glossary, and one entry per term, so typing
+  // a word you do not know ("harness", "金标集") explains it
+  const help = useMemo<Command[]>(() => {
+    const group = t("v3.onboard.help.group");
+    return [
+      { id: "h:tour", group, label: t("v3.onboard.help.tour"), icon: <Compass size={16} />, keywords: "tour guide help 导览 引导", run: requestTour },
+      { id: "h:glossary", group, label: t("v3.onboard.help.glossary"), icon: <BookOpen size={16} />, keywords: "glossary terms help 术语", run: () => openGlossary("all") },
+      ...GLOSSARY_TERMS.map((term) => ({
+        id: `g:${term}`,
+        group,
+        label: t("v3.onboard.glossary.explain", { term: t(`glossary.name.${term}`) }),
+        icon: <BookOpen size={16} />,
+        keywords: `${term} ${t(`glossary.name.${term}`, { lng: "en" })}`,
+        run: () => openGlossary(term),
+      })),
+    ];
+  }, [t]);
 
   const managingAgent =
     location.pathname === "/v2/agents" && new URLSearchParams(location.search).get("view") !== "new";
@@ -181,7 +281,7 @@ export function V3Shell({ hosted }: { hosted?: "v2" | "classic" } = {}) {
             Launchpad
             <sup>V3</sup>
           </Link>
-          <button type="button" className="v3-cmdk-trigger" onClick={() => setPaletteOpen(true)}>
+          <button type="button" className="v3-cmdk-trigger" data-tour="cmdk" onClick={() => setPaletteOpen(true)}>
             <Search size={15} aria-hidden="true" />
             {t("v3.top.search")}
             <kbd>⌘K</kbd>
@@ -189,6 +289,7 @@ export function V3Shell({ hosted }: { hosted?: "v2" | "classic" } = {}) {
           <div className="v3-top-right">
             <WorkspaceSwitch />
             <Lang />
+            <HelpMenu />
             <button type="button" className="v3-btn sm" onClick={backToV2} data-testid="v3-switch-v2">
               <ArrowLeftRight size={13} aria-hidden="true" />
               {t("v3.switch.back")}
@@ -218,6 +319,7 @@ export function V3Shell({ hosted }: { hosted?: "v2" | "classic" } = {}) {
               {item.to === "/v3/agents" && failing > 0 && <span className="count">{failing}</span>}
             </NavLink>
           ))}
+          <div data-tour="modules" style={{ display: "grid", gap: 2 }}>
           <div className="v3-rail-label">{t("v3.nav.more")}</div>
           {groups.map((group) => {
             const current = group.items.some((item) => isActive(item, location.pathname, location.search));
@@ -255,6 +357,12 @@ export function V3Shell({ hosted }: { hosted?: "v2" | "classic" } = {}) {
               </div>
             );
           })}
+          <button type="button" className="v3-rail-mode" data-testid="v3-nav-mode"
+            title={t("v3.onboard.mode.hint")}
+            onClick={() => setNavMode(navMode === "business" ? "expert" : "business")}>
+            {navMode === "business" ? t("v3.onboard.mode.showExpert") : t("v3.onboard.mode.showBusiness")}
+          </button>
+          </div>
           <div className="v3-rail-foot">
             <span className="mono" style={{ color: "var(--v3-text-3)", fontSize: 11 }}>
               {current ? `${current.region}` : ""}
@@ -291,7 +399,9 @@ export function V3Shell({ hosted }: { hosted?: "v2" | "classic" } = {}) {
           )}
         </main>
 
-        <CommandPalette open={paletteOpen} onClose={closePalette} agents={agents.data?.agents ?? []} pages={pages} />
+        <CommandPalette open={paletteOpen} onClose={closePalette} agents={agents.data?.agents ?? []} pages={[...pages, ...help]} />
+        <GlossaryDialog />
+        {touring && <Tour onClose={() => setTouring(false)} />}
       </ToastProvider>
     </div>
   );
