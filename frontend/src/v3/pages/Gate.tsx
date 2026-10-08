@@ -5,10 +5,10 @@ import { Link, useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../../auth/auth-context";
 import { api, dlcApi, errorMessage } from "../../lib/api";
-import type { GateReport, GateRow, ReleaseState, Scorecard } from "../../lib/dlc";
+import type { CostEstimate, GateReport, GateRow, ReleaseState, Scorecard } from "../../lib/dlc";
 import { useWorkspace } from "../../workspace/workspace-context";
 import { gateSignal, releaseSignal } from "../signals";
-import { Btn, Chip, Empty, Lamp, Notice, PageHead, Panel, type Signal, Skeleton, Stat } from "../ui";
+import { Btn, Chip, Dialog, Empty, Lamp, Notice, PageHead, Panel, type Signal, Skeleton, Stat } from "../ui";
 import { useLoad, useToast } from "../hooks";
 import { ago, pct } from "../format";
 
@@ -120,6 +120,14 @@ export function V3Gate() {
 
   const [nonce, setNonce] = useState(0);
   const [busy, setBusy] = useState(false);
+  // sign / block / rollback each go through a dialog with a note, as in V2: a
+  // block or rollback must say why, and the reason is recorded against the release
+  const [deciding, setDeciding] = useState<"sign" | "block" | "rollback" | null>(null);
+  const [note, setNote] = useState("");
+  // what running the gate would cost; over the workspace limit it cannot run, and
+  // the server decides whether the cost needs an explicit confirm
+  const estimate = useLoad<CostEstimate | null>(
+    () => (agentId ? dlcApi.estimate({ agent_id: agentId, repeats: 1 }) : Promise.resolve(null)), `v3-gate-est:${agentId}`);
   const release = useLoad<ReleaseState | null>(
     () => (agentId ? dlcApi.release(agentId) : Promise.resolve(null)), `v3-gate-rel:${agentId}:${nonce}`);
   const card = useLoad<Scorecard | null>(
@@ -201,10 +209,28 @@ export function V3Gate() {
 
           {pending && !evaluated && (
             <Panel title={t("v3.gate.run")} signal="wait">
-              <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
                 <span style={{ color: "var(--v3-text-2)" }}>{t("v3.gate.runHint")}</span>
-                <Btn kind="primary" disabled={busy || !can("eval.run")}
-                  onClick={() => act(() => dlcApi.evaluateRelease(agent.id, { repeats: 1, confirm_cost: true }), "v3.gate.started")}>
+                <span style={{ display: "inline-flex", gap: 8, alignItems: "center", marginLeft: "auto" }} title={t("v2.dlc.cost.basisHint")}>
+                  <span style={{ color: "var(--v3-text-3)" }}>{t("v2.dlc.cost.estimate")}</span>
+                  <b className="mono">
+                    {estimate.data?.total_usd == null ? t("v2.dlc.cost.unknown") : `$${estimate.data.total_usd.toFixed(2)}`}
+                  </b>
+                  {estimate.data && (
+                    <span style={{ color: "var(--v3-text-3)", fontSize: 12 }}>
+                      {t("v2.dlc.cost.sessions", { sessions: estimate.data.sessions, minutes: estimate.data.duration_minutes ?? 0 })}
+                    </span>
+                  )}
+                  {estimate.data?.unpriced && <Chip s="wait">{t("v2.dlc.cost.unpriced")}</Chip>}
+                  {estimate.data?.over_limit && <Chip s="act">{t("v2.dlc.cost.overLimit")}</Chip>}
+                </span>
+                <Btn kind="primary" disabled={busy || !can("eval.run") || estimate.loading || Boolean(estimate.data?.over_limit)}
+                  onClick={() =>
+                    act(
+                      () => dlcApi.evaluateRelease(agent.id, { repeats: 1, confirm_cost: Boolean(estimate.data?.confirm_required) }),
+                      "v3.gate.started",
+                    )
+                  }>
                   <Play size={14} /> {t("v3.gate.runBtn")}
                 </Btn>
               </div>
@@ -219,11 +245,11 @@ export function V3Gate() {
                   <span style={{ display: "flex", gap: 8 }}>
                     <Btn kind="primary" size="sm" disabled={busy || report.verdict !== "PASS"}
                       title={report.verdict !== "PASS" ? t("v2.dlc.release.onlyPassSigns") : undefined}
-                      onClick={() => act(() => dlcApi.signRelease(agent.id, ""), "v3.gate.signed")}>
+                      onClick={() => { setNote(""); setDeciding("sign"); }}>
                       <ShieldCheck size={13} /> {t("v3.gate.sign")}
                     </Btn>
                     <Btn kind="danger" size="sm" disabled={busy}
-                      onClick={() => act(() => dlcApi.blockRelease(agent.id, "blocked from V3"), "v3.gate.blocked")}>
+                      onClick={() => { setNote(""); setDeciding("block"); }}>
                       <ShieldX size={13} /> {t("v3.gate.block")}
                     </Btn>
                   </span>
@@ -273,7 +299,7 @@ export function V3Gate() {
             <Panel title={t("v3.gate.history")} flush
               end={can("release.sign") && state?.live_version ? (
                 <Btn size="sm" kind="ghost" disabled={busy}
-                  onClick={() => act(() => dlcApi.rollback(agent.id, "rollback from V3"), "v3.gate.rolledBack")}>
+                  onClick={() => { setNote(""); setDeciding("rollback"); }}>
                   <RotateCcw size={13} /> {t("v3.gate.rollback")}
                 </Btn>
               ) : undefined}>
@@ -294,13 +320,52 @@ export function V3Gate() {
           )}
 
           <div style={{ display: "flex", gap: 10 }}>
-            <Link to={`/v2/eval/standards?agent=${agent.id}&view=criteria`} className="v3-btn ghost">
+            <Link to={`/v3/standards?agent=${agent.id}&view=criteria`} className="v3-btn ghost">
               {t("v3.gate.editCriteria")}
             </Link>
-            <Link to={`/v2/eval/standards?agent=${agent.id}&view=calibration`} className="v3-btn ghost">
+            <Link to={`/v3/standards?agent=${agent.id}&view=calibration`} className="v3-btn ghost">
               {t("v3.gate.calibrate")}
             </Link>
           </div>
+
+          {deciding && (
+            <Dialog
+              title={t(deciding === "sign" ? "v3.gate.sign" : deciding === "block" ? "v3.gate.block" : "v3.gate.rollback")}
+              onClose={() => setDeciding(null)}
+              foot={
+                <>
+                  <Btn kind="ghost" onClick={() => setDeciding(null)}>{t("v3.common.cancel")}</Btn>
+                  <Btn
+                    kind={deciding === "sign" ? "primary" : "danger"}
+                    disabled={busy || (deciding !== "sign" && !note.trim())}
+                    onClick={() => {
+                      const action = deciding;
+                      setDeciding(null);
+                      if (action === "sign") act(() => dlcApi.signRelease(agent.id, note), "v3.gate.signed");
+                      else if (action === "block") act(() => dlcApi.blockRelease(agent.id, note), "v3.gate.blocked");
+                      else act(() => dlcApi.rollback(agent.id, note), "v3.gate.rolledBack");
+                    }}
+                  >
+                    {t(deciding === "sign" ? "v3.gate.sign" : deciding === "block" ? "v3.gate.block" : "v3.gate.rollback")}
+                  </Btn>
+                </>
+              }
+            >
+              <p style={{ marginTop: 0 }}>{t(`v2.dlc.release.${deciding}Hint`)}</p>
+              {deciding === "sign" && report && (
+                <dl className="v3-kv" style={{ marginBottom: 14 }}>
+                  <dt>{t("v2.dlc.release.verdict")}</dt><dd><Chip s={gateSignal(report.verdict)}>{report.verdict}</Chip></dd>
+                  <dt>{t("v2.dlc.release.waived")}</dt><dd>{report.waived.join(", ") || "—"}</dd>
+                  <dt>{t("v2.dlc.release.liveAfter")}</dt><dd className="mono">{pending?.candidate_version ? `v${pending.candidate_version}` : "—"}</dd>
+                  <dt>{t("v2.dlc.release.rollbackTo")}</dt><dd className="mono">{pending?.previous_live_version ? `v${pending.previous_live_version}` : "—"}</dd>
+                </dl>
+              )}
+              <label className="v3-field">
+                <span>{t("v2.dlc.release.note")}{deciding !== "sign" ? " *" : ""}</span>
+                <textarea className="v3-input" rows={3} value={note} onChange={(e) => setNote(e.target.value)} />
+              </label>
+            </Dialog>
+          )}
         </>
       )}
     </div>

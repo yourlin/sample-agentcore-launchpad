@@ -2852,6 +2852,30 @@ backend surface.
   at `?view=alerts`) and `/v3/issues` (the issue box, answer rules and reviewers, at
   V2's `?view=` tabs). Each mirrors its V2 page's calls and guards; `v3TwinOf` routes
   V2 links to them, including the views they rebuilt.
+- **Rebuilt modules (batches 3-4, evaluation, learning, administration).**
+  `/v3/insights`, `/v3/intents`, `/v3/data` (traces, datasets, pipelines; trace and
+  dataset views), `/v3/evaluators` (list, detail and the judge / derived / code
+  editor), `/v3/tasks` (runs failed-first, a run's detail, and the new-run wizard
+  with the same pass^k and `confirm_cost` handling as V2), `/v3/online` (list, detail,
+  editor), `/v3/experiments` (experiment and canary boards), `/v3/standards` (all nine
+  Agent-DLC views; the gate itself links to `/v3/gate`), `/v3/skill-lab` (landing and
+  evaluation runs), `/v3/users`, `/v3/workspaces` (list and detail with bootstrap,
+  tier, grants, purge), `/v3/identity` (the admin Connections page and gateway
+  targets), `/v3/fleet`, `/v3/announcements`, `/v3/videos` and
+  `/v3/video-management`. `v3TwinOf` maps these from a table (`MODULES` in
+  `v3/nav.ts`) listing, per V2 path, which `view=`s the V3 page rebuilt.
+  Where a flow is a large state machine with no data to prove a rewrite against
+  (experiment / canary detail and start, Skill Lab editors and wizards, a few result
+  tables and pickers), the V3 page embeds the V2 component in a `.v2.v3-host`
+  wrapper instead, so its guards are V2's own. Still hosted outright: the agent
+  wizard and agent detail/edit/identity, registry register/edit/consumer view,
+  knowledge-base create, a conversation's assistant workspace, memory-resource and
+  dataset/pipeline editors, Cedar policy and rate-limit editors, gateway detail, and
+  workspace registration.
+- **Overlays.** `.v3-reveal` children animate with `fill-mode: backwards`, never
+  `forwards`: a filled transform animation makes each block a containing block for
+  `position: fixed`, which trapped dialogs inside panels (and a filled opacity
+  overrode an overlay's own fade). `Confirm` / `Dialog` close on Esc from anywhere.
 - **Every other page is hosted, not handed off.** Once V3 is chosen, the `/v2/*`
   routes render through `V2Frame` (`App.tsx`) inside `<V3Shell hosted="v2" />`, and
   the classic routes through `<V3Shell hosted="classic" />` — same URLs, same page

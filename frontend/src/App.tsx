@@ -103,6 +103,22 @@ const V3Memory = lazy(() => import("./v3/pages/Memory").then((m) => ({ default: 
 const V3Governance = lazy(() => import("./v3/pages/Governance").then((m) => ({ default: m.V3Governance })));
 const V3Connections = lazy(() => import("./v3/pages/Connections").then((m) => ({ default: m.V3Connections })));
 const V3Costs = lazy(() => import("./v3/pages/Costs").then((m) => ({ default: m.V3Costs })));
+const V3Insights = lazy(() => import("./v3/pages/Insights").then((m) => ({ default: m.V3Insights })));
+const V3Intents = lazy(() => import("./v3/pages/Intents").then((m) => ({ default: m.V3Intents })));
+const V3Data = lazy(() => import("./v3/pages/Data").then((m) => ({ default: m.V3Data })));
+const V3Evaluators = lazy(() => import("./v3/pages/Evaluators").then((m) => ({ default: m.V3Evaluators })));
+const V3Tasks = lazy(() => import("./v3/pages/Tasks").then((m) => ({ default: m.V3Tasks })));
+const V3Online = lazy(() => import("./v3/pages/Online").then((m) => ({ default: m.V3Online })));
+const V3Experiments = lazy(() => import("./v3/pages/Experiments").then((m) => ({ default: m.V3Experiments })));
+const V3Standards = lazy(() => import("./v3/pages/Standards").then((m) => ({ default: m.V3Standards })));
+const V3SkillLab = lazy(() => import("./v3/pages/SkillLab").then((m) => ({ default: m.V3SkillLab })));
+const V3Users = lazy(() => import("./v3/pages/Users").then((m) => ({ default: m.V3Users })));
+const V3Workspaces = lazy(() => import("./v3/pages/Workspaces").then((m) => ({ default: m.V3Workspaces })));
+const V3Identity = lazy(() => import("./v3/pages/Identity").then((m) => ({ default: m.V3Identity })));
+const V3Fleet = lazy(() => import("./v3/pages/Fleet").then((m) => ({ default: m.V3Fleet })));
+const V3Announcements = lazy(() => import("./v3/pages/Announcements").then((m) => ({ default: m.V3Announcements })));
+const V3Videos = lazy(() => import("./v3/pages/Videos").then((m) => ({ default: m.V3Videos })));
+const V3VideoManagement = lazy(() => import("./v3/pages/VideoManagement").then((m) => ({ default: m.V3VideoManagement })));
 const V3Assistant = lazy(() => import("./v3/pages/Assistant").then((m) => ({ default: m.V3Assistant })));
 const V3Create = lazy(() => import("./v3/pages/Create").then((m) => ({ default: m.V3Create })));
 const V3Knowledge = lazy(() => import("./v3/pages/Knowledge").then((m) => ({ default: m.V3Knowledge })));
@@ -336,6 +352,22 @@ export default function App() {
               <Route path="knowledge" element={<V3Knowledge />} />
               <Route path="create" element={<V3Create />} />
               <Route path="assistant" element={<V3Assistant />} />
+              <Route path="insights" element={<V3Insights />} />
+              <Route path="intents" element={<V3Intents />} />
+              <Route path="data" element={<V3Data />} />
+              <Route path="evaluators" element={<V3Evaluators />} />
+              <Route path="tasks" element={<V3Tasks />} />
+              <Route path="online" element={<V3Online />} />
+              <Route path="experiments" element={<V3Experiments />} />
+              <Route path="standards" element={<V3Standards />} />
+              <Route path="skill-lab" element={<V3SkillLab />} />
+              <Route path="users" element={<V3Users />} />
+              <Route path="workspaces" element={<V3Workspaces />} />
+              <Route path="identity" element={<V3Identity />} />
+              <Route path="fleet" element={<V3Fleet />} />
+              <Route path="announcements" element={<V3Announcements />} />
+              <Route path="videos" element={<V3Videos />} />
+              <Route path="video-management" element={<V3VideoManagement />} />
               <Route path="releases" element={<V3Releases />} />
               <Route path="issues" element={<V3Issues />} />
               <Route path="environments" element={<V3Environments />} />

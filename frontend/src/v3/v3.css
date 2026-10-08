@@ -653,9 +653,12 @@ body.v3-body {
 
 /* ── load choreography: one orchestrated reveal per page, nothing else ──── */
 
+/* `backwards`, not `forwards`: the start keyframe holds through the stagger delay,
+   and once the rise ends nothing is left applied. A filled transform animation
+   would keep each block a containing block for position: fixed, trapping any
+   dialog inside it, and a filled opacity would override an overlay's own fade. */
 .v3 .v3-reveal > * {
-  opacity: 0;
-  animation: v3-rise 0.55s var(--v3-ease) forwards;
+  animation: v3-rise 0.55s var(--v3-ease) backwards;
 }
 .v3 .v3-reveal > *:nth-child(1) { animation-delay: 0.02s; }
 .v3 .v3-reveal > *:nth-child(2) { animation-delay: 0.08s; }

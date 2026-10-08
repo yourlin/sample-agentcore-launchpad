@@ -12,6 +12,30 @@ const BATCH2: Record<string, string> = {
   "/v2/costs": "/v3/costs",
 };
 
+/**
+ * Batches 3-4: a module's V2 landing maps onto its V3 page with the same search;
+ * a `view=` sub-page does too when the V3 page rebuilt it (listed), and otherwise
+ * stays hosted. `views: "all"` — every `view=` of that page is rebuilt.
+ */
+const MODULES: Record<string, { to: string; views: string[] | "all" }> = {
+  "/v2/eval/insights": { to: "/v3/insights", views: [] },
+  "/v2/eval/intents": { to: "/v3/intents", views: [] },
+  "/v2/eval/data": { to: "/v3/data", views: ["trace", "dataset"] },
+  "/v2/eval/evaluators": { to: "/v3/evaluators", views: "all" },
+  "/v2/eval/tasks": { to: "/v3/tasks", views: ["new", "detail"] },
+  "/v2/eval/online": { to: "/v3/online", views: ["new", "edit", "detail"] },
+  "/v2/eval/experiments": { to: "/v3/experiments", views: "all" },
+  "/v2/eval/standards": { to: "/v3/standards", views: "all" },
+  "/v2/skill-lab": { to: "/v3/skill-lab", views: "all" },
+  "/v2/users": { to: "/v3/users", views: ["detail"] },
+  "/v2/workspaces": { to: "/v3/workspaces", views: ["detail"] },
+  "/v2/connections": { to: "/v3/identity", views: ["targets"] },
+  "/v2/fleet": { to: "/v3/fleet", views: "all" },
+  "/v2/announcements": { to: "/v3/announcements", views: "all" },
+  "/v2/videos": { to: "/v3/videos", views: "all" },
+  "/v2/video-management": { to: "/v3/video-management", views: "all" },
+};
+
 /** V2 entries V3 has rebuilt natively — the rail shows the V3 page instead. */
 const REBUILT = new Set(["/v2", "/v2/chat"]);
 
@@ -100,8 +124,12 @@ export function v3TwinOf(pathname: string, search: string): string | null {
       if (!view) return "/v3/knowledge";
       if (view === "detail" && id) return `/v3/knowledge?id=${encodeURIComponent(id)}`;
       return null;
-    default:
-      return null;
+    default: {
+      const mod = MODULES[pathname.replace(/\/$/, "")];
+      if (!mod) return null;
+      const rebuilt = !view || mod.views === "all" || mod.views.includes(view);
+      return rebuilt ? `${mod.to}${search}` : null;
+    }
   }
 }
 

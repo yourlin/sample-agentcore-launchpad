@@ -4,7 +4,7 @@
 // off, and every status in the console — an agent, a gate, a release, a run — is
 // mapped onto it once, here, so the same colour always means the same thing.
 import { AlertTriangle, CheckCircle2, Inbox, Info, XCircle } from "lucide-react";
-import { type ReactNode, useCallback, useId, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { ToastContext, type ToastFn } from "./hooks";
 
@@ -217,6 +217,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
 /* ── confirm ───────────────────────────────────────────────────────────── */
 
+/** Esc closes an overlay wherever focus is, unless it is busy. */
+function useEscape(onClose: () => void, enabled = true) {
+  const ref = useRef(onClose);
+  ref.current = onClose;
+  useEffect(() => {
+    if (!enabled) return;
+    const onKey = (e: globalThis.KeyboardEvent) => e.key === "Escape" && ref.current();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [enabled]);
+}
+
 /**
  * The one confirmation dialog: says what will happen, names the thing, and puts
  * the destructive choice on the right. Esc and the mask cancel; nothing confirms
@@ -241,12 +253,9 @@ export function Confirm({
   onConfirm: () => void;
   onCancel: () => void;
 }) {
+  useEscape(onCancel, !busy);
   return (
-    <div
-      className="v3-modal-mask"
-      onMouseDown={(e) => e.target === e.currentTarget && !busy && onCancel()}
-      onKeyDown={(e) => e.key === "Escape" && !busy && onCancel()}
-    >
+    <div className="v3-modal-mask" onMouseDown={(e) => e.target === e.currentTarget && !busy && onCancel()}>
       <div className="v3-modal" role="alertdialog" aria-modal="true" aria-label={typeof title === "string" ? title : undefined}>
         <h2>{title}</h2>
         <div className="body">{children}</div>
@@ -337,12 +346,9 @@ export function Dialog({
   wide?: boolean;
   onClose: () => void;
 }) {
+  useEscape(onClose);
   return (
-    <div
-      className="v3-modal-mask"
-      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
-      onKeyDown={(e) => e.key === "Escape" && onClose()}
-    >
+    <div className="v3-modal-mask" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className={wide ? "v3-modal wide" : "v3-modal"} role="dialog" aria-modal="true" aria-label={typeof title === "string" ? title : undefined}>
         <h2>{title}</h2>
         <div className="body">{children}</div>
