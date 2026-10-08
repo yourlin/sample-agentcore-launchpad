@@ -1,0 +1,21 @@
+backend/app/core/config.py
+  s_53a2f2bba8d550::t_0c69ae04bb9584 14,305-316,325-336
+backend/tests/test_model_prices.py
+  s_53a2f2bba8d550::t_e2a6378a858bcd 277-296
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "f52e00a21cd41793076df6c264326b621721d2f4",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "AI Ape Wisdom <xiehust@163.com>"
+    }
+  }
+}
