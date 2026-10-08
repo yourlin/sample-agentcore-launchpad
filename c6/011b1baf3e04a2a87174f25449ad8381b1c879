@@ -1,0 +1,100 @@
+frontend/src/v3/pages/issues.css
+  s_53a2f2bba8d550::t_0b4e78dcbcfa1b 1-63
+frontend/src/v3/pages/releases.css
+  s_53a2f2bba8d550::t_2effc1325aa36a 1-39
+frontend/src/v3/pages/memory/Resources.tsx
+  s_53a2f2bba8d550::t_efc8010b89d238 1-188
+frontend/src/v3/pages/costs.css
+  s_53a2f2bba8d550::t_656a202aa1ef65 1-25
+frontend/src/v3/pages/issues/AnswerRules.tsx
+  s_53a2f2bba8d550::t_a013626d54a232 1-237
+frontend/src/v3/pages/issues/common.ts
+  s_53a2f2bba8d550::t_01407f91956cab 1-30
+frontend/src/v3/pages/memory/ShortTerm.tsx
+  s_53a2f2bba8d550::t_84af0b670b157b 1-158
+frontend/src/v3/pages/memory/LongTerm.tsx
+  s_53a2f2bba8d550::t_ad83a959b74b86 1-209
+frontend/src/v3/pages/observability.css
+  s_53a2f2bba8d550::t_ed061a282ade98 1-139
+frontend/src/v3/pages/issues/Reviewers.tsx
+  s_53a2f2bba8d550::t_b3ad7590d5efc1 1-160
+frontend/src/v3/pages/Issues.tsx
+  s_53a2f2bba8d550::t_c9af9a15286e1c 1-41
+  s_53a2f2bba8d550::t_26f2e28f90d4ea 42
+frontend/src/v3/pages/memory/Overview.tsx
+  s_53a2f2bba8d550::t_383adbe9e37cc1 1-108
+frontend/src/v3/pages/Environments.tsx
+  s_53a2f2bba8d550::t_82fec71ceaaad3 1-414
+frontend/src/v3/pages/issues/IssueBox.tsx
+  s_53a2f2bba8d550::t_08def01a1a9369 1-375
+frontend/src/v3/pages/observability/TraceView.tsx
+  s_53a2f2bba8d550::t_7dfc3547289c35 1-227
+frontend/src/v3/pages/Costs.tsx
+  s_53a2f2bba8d550::t_98f6bb79672d93 1-437
+  s_53a2f2bba8d550::t_678d93d2090b2f 438-439
+frontend/src/v3/pages/Observability.tsx
+  s_53a2f2bba8d550::t_d7a04aac407523 1-139
+frontend/src/v3/pages/memory/common.tsx
+  s_53a2f2bba8d550::t_668a45aa2cf81e 1-32
+frontend/src/v3/pages/observability/Dashboard.tsx
+  s_53a2f2bba8d550::t_6cc5bce461df2e 1-288
+  s_53a2f2bba8d550::t_a70041ea0ea769 289-294
+frontend/src/v3/pages/observability/Lists.tsx
+  s_53a2f2bba8d550::t_ae4bdd2b19c7ac 1-267
+frontend/src/v3/pages/Governance.tsx
+  s_53a2f2bba8d550::t_aa8bc0f9e40441 1-505
+frontend/src/v3/pages/observability/SessionView.tsx
+  s_53a2f2bba8d550::t_5a47bf88cffd27 1-220
+frontend/src/v3/pages/Releases.tsx
+  s_53a2f2bba8d550::t_b8d7d0dc54dec3 1-652
+backend/scripts/e2e_v3_console_browser.py
+  s_53a2f2bba8d550::t_5b1990a45515c2 114-116,118-121
+docs/architecture.md
+  s_53a2f2bba8d550::t_7059831d2970f3 2840-2854
+docs/architecture.zh-CN.md
+  s_53a2f2bba8d550::t_6b7c4c7e4df005 1484
+frontend/src/App.tsx
+  s_53a2f2bba8d550::t_9023de7ddda67b 98-105,339-346
+frontend/src/locales/en/common.json
+  s_53a2f2bba8d550::t_0809fe506598d5 9973-10449
+frontend/src/locales/zh-CN/common.json
+  s_53a2f2bba8d550::t_b98f7e6b077164 9973-10449
+frontend/src/v3/nav.test.ts
+  s_53a2f2bba8d550::t_f18f76ad4582c9 56-59,69-71
+frontend/src/v3/nav.ts
+  s_53a2f2bba8d550::t_a6960921719e69 4-14,75-92
+frontend/src/v3/pages/Connections.tsx
+  s_53a2f2bba8d550::t_6536379f576ffd 1-135
+frontend/src/v3/pages/Memory.tsx
+  s_53a2f2bba8d550::t_d7f11ed64645db 1-92
+frontend/src/v3/pages/environments.css
+  s_53a2f2bba8d550::t_eb79009e32a891 1-12
+frontend/src/v3/pages/governance.css
+  s_53a2f2bba8d550::t_37043454f4a210 1-20
+frontend/src/v3/pages/memory.css
+  s_53a2f2bba8d550::t_7e42adbe75e980 1-26
+frontend/src/v3/pages/memory/signal.ts
+  s_53a2f2bba8d550::t_6f32488b9feb66 1-10
+frontend/src/v3/pages/observability/attention.test.ts
+  s_53a2f2bba8d550::t_6c383bab9e5086 1-65
+frontend/src/v3/pages/observability/attention.ts
+  s_53a2f2bba8d550::t_b1eb8b720415f4 1-74
+frontend/src/v3/pages/observability/shared.tsx
+  s_53a2f2bba8d550::t_95da60ebca0de1 1-61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "c6011b1baf3e04a2a87174f25449ad8381b1c879",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "unknown"
+      },
+      "human_author": "AI Ape Wisdom <xiehust@163.com>"
+    }
+  }
+}
