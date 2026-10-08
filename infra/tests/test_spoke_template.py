@@ -251,3 +251,22 @@ def test_the_knowledge_base_console_can_list(statements: list[dict[str, Any]]):
     by_sid = {statement["Sid"]: statement for statement in statements}
     assert "bedrock:ListKnowledgeBases" in by_sid["BedrockCreateKnowledgeBase"]["Action"]
     assert "bedrock:ListDataSources" in by_sid["BedrockKnowledgeBases"]["Action"]
+
+
+def test_the_hub_can_call_models_and_guardrails(statements: list[dict[str, Any]]):
+    """Found on real AWS: intent clustering, suggestions, prompt optimization and
+    the judge test-invoke on CreateEvaluator all failed with bedrock:InvokeModel
+    denied, and the PII guardrail preset could neither be created nor applied.
+    Invocation is scoped to models and this account's inference profiles; the
+    guardrail reads are scoped to this account's guardrails."""
+    by_sid = {statement["Sid"]: statement for statement in statements}
+    infer = by_sid["BedrockModelInference"]
+    assert set(infer["Action"]) == {"bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"}
+    resources = [r["Fn::Sub"] for r in infer["Resource"]]
+    assert all(":foundation-model/" in r or ":${AWS::AccountId}:" in r for r in resources)
+    assert any(r.endswith(":inference-profile/*") for r in resources)
+    guard = by_sid["BedrockGuardrails"]
+    assert set(guard["Action"]) == {"bedrock:ApplyGuardrail", "bedrock:GetGuardrail"}
+    assert guard["Resource"]["Fn::Sub"].endswith(":${AWS::AccountId}:guardrail/*")
+    create = set(by_sid["BedrockGuardrailsCreate"]["Action"])
+    assert create == {"bedrock:CreateGuardrail", "bedrock:ListGuardrails"}

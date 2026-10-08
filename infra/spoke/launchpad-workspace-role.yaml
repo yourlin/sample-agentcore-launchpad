@@ -351,6 +351,40 @@ Resources:
                   - bedrock:CreateKnowledgeBase
                   - bedrock:ListKnowledgeBases
                 Resource: "*"
+              # ── Bedrock (model inference) ──────────────────────────────────────────────
+              # The hub itself calls models: intent clustering and answer suggestions
+              # (Converse), prompt optimization (ConverseStream), and AgentCore's test
+              # invoke of a judge model on CreateEvaluator, which runs with the caller's
+              # credentials. Cross-region and global inference profiles resolve to a
+              # foundation model in any region (global ones with no region), so both are
+              # listed. Agents invoke under their own execution roles, not this one.
+              - Sid: BedrockModelInference
+                Effect: Allow
+                Action:
+                  - bedrock:InvokeModel
+                  - bedrock:InvokeModelWithResponseStream
+                Resource:
+                  - Fn::Sub: "arn:${AWS::Partition}:bedrock:*::foundation-model/*"
+                  - Fn::Sub: "arn:${AWS::Partition}:bedrock:::foundation-model/*"
+                  - Fn::Sub: "arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:inference-profile/*"
+                  - Fn::Sub: "arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:application-inference-profile/*"
+
+              # ── Bedrock Guardrails (the workspace PII preset) ──────────────────────────
+              - Sid: BedrockGuardrails
+                Effect: Allow
+                Action:
+                  - bedrock:ApplyGuardrail
+                  - bedrock:GetGuardrail
+                Resource:
+                  Fn::Sub: "arn:${AWS::Partition}:bedrock:*:${AWS::AccountId}:guardrail/*"
+
+              # Listing has no resource type, and a guardrail has no ARN before it exists.
+              - Sid: BedrockGuardrailsCreate
+                Effect: Allow
+                Action:
+                  - bedrock:CreateGuardrail
+                  - bedrock:ListGuardrails
+                Resource: "*"
 
               # ── Cognito ────────────────────────────────────────────────────
               # The RESOURCE cannot be scoped: a user pool's ARN contains the pool
