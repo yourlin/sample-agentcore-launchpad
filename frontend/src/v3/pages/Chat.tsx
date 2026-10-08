@@ -1,4 +1,4 @@
-import { ArrowUp, Plus, ThumbsDown, ThumbsUp, Wrench } from "lucide-react";
+import { ArrowUp, Plus, ShieldX, ThumbsDown, ThumbsUp, Wrench } from "lucide-react";
 import { type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useSearchParams } from "react-router-dom";
@@ -14,6 +14,8 @@ import {
   localizedMessage,
 } from "../../lib/api";
 import { chatEligible, sseEvents } from "../../lib/chat";
+import { livePolicyDeny, type PolicyDeny, policyDenyHref, restoredPolicyDeny } from "../../lib/policy-deny";
+import { useAuth } from "../../auth/auth-context";
 import { useWorkspace } from "../../workspace/workspace-context";
 import { appendDelta } from "../../v2/pages/chat/messages";
 import type { ChatMessage } from "../../v2/pages/chat/messages";
@@ -30,6 +32,36 @@ import "./chat.css";
  * always in reach (⏎ to send, ⇧⏎ for a new line). Attachments and as_user consent
  * are not rebuilt here yet — the thread says so and hands that turn to V2.
  */
+/**
+ * A Gateway tool call a Cedar policy denied for the signed-in identity: the agent
+ * reached the tool, the Gateway refused it. No retry — a deny holds until the
+ * rule changes; the link goes to the policies that decide it.
+ */
+function PolicyDenied({ deny }: { deny: PolicyDeny }) {
+  const { t } = useTranslation();
+  const { authRequired, username, role } = useAuth();
+  return (
+    <div className="v3-deny" data-testid="policy-deny-card">
+      <div className="head">
+        <ShieldX size={15} aria-hidden="true" />
+        <b>{t("v2.chat.policy.title")}</b>
+        <span className="mono">{deny.tool || "—"}</span>
+        <span className="v3-chip" data-s="act">{t("v2.chat.policy.denied")}</span>
+      </div>
+      <p>{t("v2.chat.policy.body", { tool: deny.tool || "—" })}</p>
+      <dl className="v3-kv">
+        <dt>{t("v2.chat.policy.reason")}</dt>
+        <dd data-testid="policy-deny-reason">{deny.reason || "—"}</dd>
+        {deny.policyId && (<><dt>{t("v2.chat.policy.policy")}</dt><dd className="mono">{deny.policyId}</dd></>)}
+        {authRequired && username && (<><dt>{t("v2.chat.policy.identity")}</dt><dd><span className="mono">{username}</span>{role ? ` · ${role}` : ""}</dd></>)}
+      </dl>
+      <Link className="v3-btn sm" to={policyDenyHref(deny)} data-testid="policy-deny-link">
+        {t(deny.gatewayId ? "v2.chat.policy.openPolicies" : "v2.chat.policy.openGovernance")}
+      </Link>
+    </div>
+  );
+}
+
 export function V3Chat() {
   const { t } = useTranslation();
   const toast = useToast();
@@ -72,14 +104,17 @@ export function V3Chat() {
     try {
       const rows = (await chatApi.history(agentId, sid)).messages;
       setMessages(
-        rows.map((r): ChatMessage =>
+        // a consent ask is not replayed (its URL is single-use): the next turn asks again
+        rows.filter((r) => r.role !== "auth").map((r): ChatMessage =>
           r.role === "user"
             ? { kind: "user", text: r.text }
             : r.role === "agent"
               ? { kind: "agent", text: r.text, id: r.id, verdict: r.verdict ?? null, curated: !!r.answered_by }
               : r.role === "tool"
                 ? { kind: "tool", text: r.name ?? "tool", name: r.name ?? "tool" }
-                : { kind: "error", text: r.text },
+                : r.role === "policy"
+                  ? { kind: "policy", text: r.text, name: r.name ?? "", policy: restoredPolicyDeny(r) }
+                  : { kind: "error", text: r.text },
         ),
       );
       setSessionId(sid);
@@ -136,6 +171,10 @@ export function V3Chat() {
         } else if (event === "auth_required") {
           // consent cards are V2's for now: say so rather than half-render one
           setNeedsV2(true);
+        } else if (event === "policy_denied") {
+          // follows its tool row, which already closed the open bubble
+          const policy = livePolicyDeny(data);
+          setMessages((m) => [...m, { kind: "policy", text: policy.reason, name: policy.tool, policy }]);
         } else if (event === "delta") {
           const wasOpen = openBubble;
           setMessages((m) => appendDelta(m, data.text ?? "", wasOpen, curated));
@@ -259,6 +298,7 @@ export function V3Chat() {
                   </div>
                 );
               if (m.kind === "error") return <div key={i} className="v3-msg"><Notice s="act">{m.text}</Notice></div>;
+              if (m.kind === "policy" && m.policy) return <div key={i} className="v3-msg"><PolicyDenied deny={m.policy} /></div>;
               if (m.kind !== "agent") return null;
               return (
                 <div key={i} className={`v3-msg agent${m.streaming ? " streaming" : ""}`}>

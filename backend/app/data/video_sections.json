@@ -166,8 +166,8 @@
       "id": "my-connections",
       "categoryId": "run",
       "title": {
-        "en": "My connections",
-        "zh-CN": "我的连接"
+        "en": "My authorizations",
+        "zh-CN": "我的授权"
       },
       "path": "/v2/my-connections"
     },
@@ -274,8 +274,8 @@
       "id": "connections",
       "categoryId": "admin",
       "title": {
-        "en": "Connections",
-        "zh-CN": "连接"
+        "en": "Outbound credentials",
+        "zh-CN": "出站凭证"
       },
       "path": "/v2/connections"
     },

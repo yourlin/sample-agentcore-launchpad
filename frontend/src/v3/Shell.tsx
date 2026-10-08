@@ -30,6 +30,7 @@ import { api } from "../lib/api";
 import { useNavMode } from "../lib/nav-mode";
 import { setUiVersion } from "../lib/ui-version";
 import { GLOSSARY_TERMS } from "../v2/Glossary";
+import { ModuleDemoProvider } from "../v2/pages/videos/ModuleDemo";
 import { V2ToastProvider } from "../v2/ui";
 import { useWorkspace } from "../workspace/workspace-context";
 import { type Command, CommandPalette } from "./CommandPalette";
@@ -374,14 +375,17 @@ export function V3Shell({ hosted }: { hosted?: "v2" | "classic" } = {}) {
           {hosted === "v2" ? (
             <V2ToastProvider>
               {/* workspace-bound pages refetch on a switch; hub-global ones keep drafts */}
-              <div
-                className="v2 v3-host"
-                key={HUB_GLOBAL.has(location.pathname) ? "hub-global-content" : current?.id ?? "none"}
-              >
-                <RouteChunk key={location.pathname}>
-                  <Outlet />
-                </RouteChunk>
-              </div>
+              {/* V2's per-module demo video rides in the hosted page header too */}
+              <ModuleDemoProvider>
+                <div
+                  className="v2 v3-host"
+                  key={HUB_GLOBAL.has(location.pathname) ? "hub-global-content" : current?.id ?? "none"}
+                >
+                  <RouteChunk key={location.pathname}>
+                    <Outlet />
+                  </RouteChunk>
+                </div>
+              </ModuleDemoProvider>
             </V2ToastProvider>
           ) : hosted === "classic" ? (
             <div
