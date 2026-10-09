@@ -53,6 +53,14 @@ MAX_ON_DEMAND_EVALUATORS = 5
 CACHE_TTL_SECONDS = 60.0
 QUERY_DEADLINE_SECONDS = 55
 NANOS_PER_MS = 1_000_000
+# A trace's entry span. AgentCore Runtime and Harness invocations never export a
+# parentless span: even `POST /invocations` carries the caller's parentSpanId
+# (measured on the test hub, 2026-10-10 — zero parentless spans over 7 days, one
+# `POST /invocations` per trace). Filtering on "no parent" alone therefore
+# counted no traces at all, so the dashboard read 0 traffic and the p95 alert
+# stayed unknown. Parentless spans still count, for OTel sources that do emit a
+# true root.
+ROOT_SPAN_FILTER = '(not ispresent(parentSpanId) or name = "POST /invocations")'
 
 # Anthropic-convention multipliers applied when a price entry has no explicit
 # cache_read / cache_write rate — advisory, like every cost figure here.
@@ -375,7 +383,7 @@ def q_root_spans(trace_ids: list[str] | None = None, limit: int = 3 * TRACE_LIMI
     # `trace_ids` narrows the scan to those traces (an unfiltered roots query
     # over 7d is the slow half of a session view, and its newest-N cap can miss
     # an older session's roots entirely).
-    filters = ["ispresent(startTimeUnixNano)", "not ispresent(parentSpanId)"]
+    filters = ["ispresent(startTimeUnixNano)", ROOT_SPAN_FILTER]
     if trace_ids is not None:
         for trace_id in trace_ids:
             _require(TRACE_ID_RE, trace_id, "trace id")
@@ -412,7 +420,7 @@ def q_session_aggregates(limit: int = SESSION_LIMIT) -> str:
 def q_dashboard_series(range_key: str) -> str:
     return f"""
 {SPANS_SOURCE}
-| filter ispresent(startTimeUnixNano) and not ispresent(parentSpanId)
+| filter ispresent(startTimeUnixNano) and {ROOT_SPAN_FILTER}
 | fields strcontains(status.code, "ERROR") as is_error
 | stats count(*) as traces, sum(is_error) as errors,
         pct(durationNano, 50) as p50_nano, pct(durationNano, 95) as p95_nano
@@ -425,7 +433,7 @@ def q_dashboard_series(range_key: str) -> str:
 def q_dashboard_totals() -> str:
     return f"""
 {SPANS_SOURCE}
-| filter ispresent(startTimeUnixNano) and not ispresent(parentSpanId)
+| filter ispresent(startTimeUnixNano) and {ROOT_SPAN_FILTER}
 | fields strcontains(status.code, "ERROR") as is_error
 | stats count(*) as traces, sum(is_error) as errors,
         pct(durationNano, 50) as p50_nano, pct(durationNano, 95) as p95_nano
