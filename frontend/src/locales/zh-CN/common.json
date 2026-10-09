@@ -10917,6 +10917,37 @@
         "showBusiness": "只显示常用模块",
         "hint": "只是显示筛选：所有页面仍可通过 URL 和 ⌘K 到达"
       }
+    },
+    "ux": {
+      "openNav": "展开导航",
+      "closeNav": "收起导航",
+      "refresh": "刷新",
+      "retry": "重试",
+      "incomplete": "部分状态尚未核实",
+      "agentsFailed": "无法加载智能体。",
+      "releaseCoverage": "有 {{count}} 个智能体的发布状态读取失败或尚未检查。请在做出决定前查看放行门。",
+      "retryHint": "刷新以重新检查。状态不可用不代表一切正常。",
+      "trafficFailed": "无法加载流量数据。",
+      "unknown": "尚未核实",
+      "status": "状态",
+      "runtimeStatus": "运行状态 · 发布就绪情况单独展示在下方",
+      "releaseFailed": "无法核实发布状态。",
+      "results": "显示 {{count}} 个，共 {{total}} 个智能体",
+      "sort": "排序",
+      "updatedFirst": "最近更新",
+      "nameOrder": "名称顺序",
+      "clearFilters": "清除筛选",
+      "running": "运行中……",
+      "invokeUnavailable": "智能体运行后即可调用。",
+      "stage": {
+        "succeeded": "已完成",
+        "running": "进行中",
+        "failed": "失败",
+        "pending": "待执行",
+        "skipped": "已跳过"
+      },
+      "deployTarget": "部署目标：{{name}} · {{region}}。",
+      "tableScroll": "智能体列表。左右滚动可查看所有列。"
     }
   }
 }

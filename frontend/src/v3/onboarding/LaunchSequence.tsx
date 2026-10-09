@@ -1,4 +1,5 @@
-import { ArrowRight, Check, X } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, X } from "lucide-react";
+import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 
@@ -27,6 +28,9 @@ export function LaunchSequence({
   const { t } = useTranslation();
   const ws = workspace?.id ?? "";
   const [hidden, setHidden] = useLaunchHidden(ws);
+  const [expanded, setExpanded] = useState<boolean | null>(null);
+  const stepsId = useId();
+  const showSteps = expanded ?? agents.length === 0;
   const live = agents.filter((a) => a.status === "active").slice(0, 3);
   // has anyone talked to an agent here yet: the first few live agents' sessions
   const conversed = useLoad(
@@ -65,7 +69,11 @@ export function LaunchSequence({
   return (
     <section className="v3-launch" data-tour="launch" aria-label={t("v3.onboard.launch.title")}>
       <header>
-        <span className="v3-eyebrow" style={{ margin: 0 }}>{t("v3.onboard.launch.title")}</span>
+        <button type="button" className="v3-launch-toggle" aria-expanded={showSteps} aria-controls={stepsId}
+          onClick={() => setExpanded(!showSteps)}>
+          <span>{t("v3.onboard.launch.title")}</span>
+          <ChevronDown size={14} />
+        </button>
         <span className="count mono">{done}/{steps.length}</span>
         <span className="meter" aria-hidden="true">
           {steps.map((s) => <i key={s.key} data-on={s.done ? "true" : undefined} />)}
@@ -75,7 +83,11 @@ export function LaunchSequence({
           <X size={14} />
         </button>
       </header>
-      <ol>
+      {!showSteps && <div className="v3-launch-next">
+        <span><Lamp s="wait" /> {t(`v3.onboard.launch.${next.key}`)}</span>
+        <Link to={next.to} className="v3-btn sm">{t(`v3.onboard.launch.${next.key}Cta`)} <ArrowRight size={13} /></Link>
+      </div>}
+      <ol id={stepsId} hidden={!showSteps}>
         {steps.map((s, i) => {
           const isNext = s.key === next.key;
           const sig: Signal = s.done ? "ok" : isNext ? "wait" : "off";

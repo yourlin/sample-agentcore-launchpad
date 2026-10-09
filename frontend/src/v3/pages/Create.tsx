@@ -1,5 +1,5 @@
 import { ArrowRight, Boxes, Code2, Download, Layers, Rocket, Sparkles, Workflow } from "lucide-react";
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useNavigate } from "react-router-dom";
 
@@ -65,6 +65,7 @@ export function V3Create() {
   const [touched, setTouched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const formRef = useRef<HTMLFormElement>(null);
 
   const rows = useMemo(() => templates.data?.templates ?? [], [templates.data]);
   const template: AgentTemplateInfo | null = rows.find((r) => r.key === pick) ?? null;
@@ -102,7 +103,11 @@ export function V3Create() {
 
   const deploy = async () => {
     setTouched(true);
-    if (!valid || busy || !canDeploy) return;
+    if (!valid) {
+      window.requestAnimationFrame(() => formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus());
+      return;
+    }
+    if (busy || !canDeploy) return;
     setBusy(true);
     setError(null);
     try {
@@ -118,17 +123,29 @@ export function V3Create() {
   return (
     <div className="v3-reveal" style={{ display: "grid", gap: 16 }}>
       <PageHead eyebrow={t("v3.create.eyebrow")} title={t("v3.create.title")} sub={t("v3.create.sub")} />
+      {current && <Notice s={current.tier === "prod" ? "wait" : "info"}>{t("v3.ux.deployTarget", { name: current.name, region: current.region })}</Notice>}
       {!canDeploy && <Notice s="wait">{prodLock.title ?? t("v2.agents.noPermission")}</Notice>}
 
       <div className="v3-grid v3-split" style={{ alignItems: "start" }}>
         <div style={{ display: "grid", gap: 16 }}>
           <Panel title={t("v3.create.startFrom")}>
-            {templates.loading && !templates.data ? (
+            {templates.error ? <Notice s="act">{templates.error} <button type="button" className="v3-btn sm" onClick={templates.reload}>{t("v3.ux.retry")}</button></Notice> : templates.loading && !templates.data ? (
               <Skeleton rows={2} />
             ) : (
-              <div className="v3-scenarios" role="radiogroup" aria-label={t("v3.create.startFrom")}>
+              <div className="v3-scenarios" role="radiogroup" aria-label={t("v3.create.startFrom")}
+                onKeyDown={(e) => {
+                  if (!["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp", "Home", "End"].includes(e.key)) return;
+                  const options = [...e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"]')];
+                  const index = options.indexOf(e.target as HTMLButtonElement);
+                  if (index < 0 || busy) return;
+                  e.preventDefault();
+                  const next = e.key === "Home" ? 0 : e.key === "End" ? options.length - 1 :
+                    (index + (e.key === "ArrowRight" || e.key === "ArrowDown" ? 1 : -1) + options.length) % options.length;
+                  options[next].focus();
+                  options[next].click();
+                }}>
                 {rows.map((r) => (
-                  <button key={r.key} type="button" role="radio" aria-checked={pick === r.key}
+                  <button key={r.key} type="button" role="radio" aria-checked={pick === r.key} tabIndex={pick === r.key ? 0 : -1} disabled={busy}
                     className={pick === r.key ? "v3-scenario on" : "v3-scenario"} onClick={() => choose(r.key)}>
                     <b>{t(r.label_key)}</b>
                     <small>{t(r.description_key)}</small>
@@ -141,7 +158,7 @@ export function V3Create() {
                 ))}
                 {/* the catalogue carries its own blank start; older backends may not */}
                 {!rows.some((r) => r.key === BLANK) && (
-                  <button type="button" role="radio" aria-checked={pick === BLANK}
+                  <button type="button" role="radio" aria-checked={pick === BLANK} tabIndex={pick === BLANK ? 0 : -1} disabled={busy}
                     className={pick === BLANK ? "v3-scenario on" : "v3-scenario"} onClick={() => choose(BLANK)}>
                     <b>{t("v3.create.blank")}</b>
                     <small>{t("v3.create.blankSub")}</small>
@@ -160,12 +177,15 @@ export function V3Create() {
               </div>
             ) : (
               <form
+                ref={formRef}
+                aria-busy={busy}
                 onSubmit={(e) => {
                   e.preventDefault();
                   void deploy();
                 }}
                 style={{ display: "grid", gap: 16 }}
               >
+                <fieldset disabled={busy} className="v3-form-fields">
                 <div className="v3-grid c2" style={{ alignItems: "start" }}>
                   <label className="v3-field">
                     <span>{t("v2.agents.wizard.displayName")}</span>
@@ -183,21 +203,24 @@ export function V3Create() {
                   <label className="v3-field">
                     <span>{t("v2.agents.wizard.resourceName")}</span>
                     <input className="v3-input mono" value={form.name} maxLength={48} placeholder="hr-assistant"
+                      aria-describedby="v3-resource-name-hint"
                       aria-invalid={touched && !!nameError}
                       onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value.toLowerCase(), nameEdited: true }))} />
-                    <small className={touched && nameError ? "v3-err" : "v3-hint"}>{touched && nameError ? nameError : t("v2.agents.wizard.nameHint")}</small>
+                    <small id="v3-resource-name-hint" className={touched && nameError ? "v3-err" : "v3-hint"}>{touched && nameError ? nameError : t("v2.agents.wizard.nameHint")}</small>
                   </label>
                 </div>
                 <label className="v3-field">
                   <span>{t("v2.agents.wizard.quick.promptLabel")}</span>
                   <textarea className="v3-input" rows={7} maxLength={20000} value={form.systemPrompt}
                     placeholder={t("v2.agents.wizard.promptPlaceholder")} aria-invalid={touched && !!promptError}
+                    aria-describedby={touched && promptError ? "v3-prompt-error" : undefined}
                     onChange={(e) => setForm((prev) => ({ ...prev, systemPrompt: e.target.value }))} />
-                  {touched && promptError && <small className="v3-err">{promptError}</small>}
+                  {touched && promptError && <small id="v3-prompt-error" className="v3-err">{promptError}</small>}
                 </label>
-                <div className="v3-field">
+                <div className="v3-field" role="group" aria-label={t("v3.create.knowledge")} tabIndex={-1}
+                  aria-invalid={touched && !!kbError} aria-describedby={touched && kbError ? "v3-kb-error" : undefined}>
                   <span>{t("v3.create.knowledge")}{needsKb ? ` · ${t("v3.create.required")}` : ""}</span>
-                  {kbs.loading && !kbs.data ? (
+                  {kbs.error ? <Notice s="act">{kbs.error} <button type="button" className="v3-btn sm" onClick={kbs.reload}>{t("v3.ux.retry")}</button></Notice> : kbs.loading && !kbs.data ? (
                     <Skeleton rows={1} />
                   ) : activeKbs.length === 0 ? (
                     <small className="v3-hint">
@@ -220,7 +243,7 @@ export function V3Create() {
                       })}
                     </div>
                   )}
-                  {touched && kbError && <small className="v3-err">{kbError}</small>}
+                  {touched && kbError && <small id="v3-kb-error" className="v3-err">{kbError}</small>}
                 </div>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", color: "var(--v3-text-3)", fontSize: 13 }}>
                   <span>{t("v3.create.carries")}</span>
@@ -234,6 +257,7 @@ export function V3Create() {
                   <Btn kind="primary" type="submit" disabled={busy || !canDeploy}><Rocket size={14} /> {busy ? t("v3.create.deploying") : t("v3.create.deploy")}</Btn>
                   <span style={{ color: "var(--v3-text-3)", fontSize: 13 }}>{t("v3.create.deployHint")}</span>
                 </div>
+                </fieldset>
               </form>
             )}
           </Panel>
@@ -245,7 +269,7 @@ export function V3Create() {
             <WayCard to="/v2/agents?view=new&method=container" icon={<Boxes size={16} />} title={t("v3.create.waySdk")} desc={t("v3.create.waySdkSub")} />
             <WayCard to="/v2/agents?view=new&method=byoc" icon={<Code2 size={16} />} title={t("v3.create.wayByoc")} desc={t("v3.create.wayByocSub")} />
             <div style={{ height: 1, background: "var(--v3-line)", margin: "6px 0" }} aria-hidden="true" />
-            <WayCard to="/v2/assistant" icon={<Sparkles size={16} />} title={t("v3.create.wayAssistant")} desc={t("v3.create.wayAssistantSub")} />
+            <WayCard to="/v3/assistant" icon={<Sparkles size={16} />} title={t("v3.create.wayAssistant")} desc={t("v3.create.wayAssistantSub")} />
             <WayCard to="/create/studio" icon={<Workflow size={16} />} title={t("v3.create.wayStudio")} desc={t("v3.create.wayStudioSub")} />
             <WayCard to="/agents/import" icon={<Download size={16} />} title={t("v3.create.wayImport")} desc={t("v3.create.wayImportSub")} />
             <WayCard to="/agents/new" icon={<Layers size={16} />} title={t("v3.create.wayPresets")} desc={t("v3.create.wayPresetsSub")} />

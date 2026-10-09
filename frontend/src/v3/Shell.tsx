@@ -16,11 +16,13 @@ import {
   ListChecks,
   LogOut,
   MessagesSquare,
+  Menu,
   PlayCircle,
   Scale,
   Search,
+  X,
 } from "lucide-react";
-import { type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
@@ -105,7 +107,7 @@ function WorkspaceSwitch() {
   if (workspaces.length === 0) return null;
   return (
     <label className="v3-ws" data-tier={current?.tier ?? "dev"} title={t("v3.top.workspace")}>
-      <span style={{ color: "var(--v3-text-3)" }}>ws</span>
+      <span className="v3-ws-label">{t("v3.top.workspace")}</span>
       <select value={current?.id ?? ""} onChange={(e) => select(e.target.value)} aria-label={t("v3.top.workspace")}>
         {workspaces.map((ws) => (
           <option key={ws.id} value={ws.id}>
@@ -141,7 +143,7 @@ function Lang() {
  */
 /** Pages whose content belongs to the installation, not a workspace: they must not
  *  remount (and lose an admin's draft) when the workspace switches. */
-const HUB_GLOBAL = new Set(["/announcements", "/v2/announcements", "/videos", "/v2/videos", "/v2/video-management"]);
+const HUB_GLOBAL = new Set(["/announcements", "/v2/announcements", "/v3/announcements", "/videos", "/v2/videos", "/v3/videos", "/v2/video-management", "/v3/video-management"]);
 
 export function V3Shell({ hosted }: { hosted?: "v2" | "classic" } = {}) {
   const { t } = useTranslation();
@@ -150,6 +152,20 @@ export function V3Shell({ hosted }: { hosted?: "v2" | "classic" } = {}) {
   const { isAdmin, authRequired, username, logout } = useAuth();
   const { current } = useWorkspace();
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [railOpen, setRailOpen] = useState(false);
+  const railToggle = useRef<HTMLButtonElement>(null);
+  useEffect(() => setRailOpen(false), [location.pathname, location.search]);
+  useEffect(() => {
+    if (!railOpen) return;
+    const close = (e: globalThis.KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setRailOpen(false);
+        railToggle.current?.focus();
+      }
+    };
+    window.addEventListener("keydown", close);
+    return () => window.removeEventListener("keydown", close);
+  }, [railOpen]);
   const agents = useLoad(() => api.listAgents(), `v3-shell-agents:${current?.id ?? ""}`);
 
   // Opening a /v3 page is choosing V3 — reloads and "/" land back here.
@@ -273,40 +289,44 @@ export function V3Shell({ hosted }: { hosted?: "v2" | "classic" } = {}) {
   const failing = (agents.data?.agents ?? []).filter((a) => a.status === "failed").length;
 
   return (
-    <div className="v3" data-testid="v3-shell">
-      <div className="v3-atmos" aria-hidden="true" />
+    <div className="v3" data-testid="v3-shell" data-rail-open={railOpen}>
       <ToastProvider>
         <header className="v3-top">
+          <button ref={railToggle} type="button" className="v3-btn ghost sm v3-rail-toggle"
+            aria-label={t(railOpen ? "v3.ux.closeNav" : "v3.ux.openNav")}
+            aria-expanded={railOpen} aria-controls="v3-navigation" onClick={() => setRailOpen((v) => !v)}>
+            {railOpen ? <X size={18} /> : <Menu size={18} />}
+          </button>
           <Link to="/v3" className="v3-brand">
             <span className="v3-brand-mark" aria-hidden="true" />
             Launchpad
             <sup>V3</sup>
           </Link>
-          <button type="button" className="v3-cmdk-trigger" data-tour="cmdk" onClick={() => setPaletteOpen(true)}>
+          <button type="button" className="v3-cmdk-trigger" data-tour="cmdk" aria-label={t("v3.top.search")} title={t("v3.top.search")} onClick={() => setPaletteOpen(true)}>
             <Search size={15} aria-hidden="true" />
-            {t("v3.top.search")}
+            <span>{t("v3.top.search")}</span>
             <kbd>⌘K</kbd>
           </button>
           <div className="v3-top-right">
             <WorkspaceSwitch />
             <Lang />
             <HelpMenu />
-            <button type="button" className="v3-btn sm" onClick={backToV2} data-testid="v3-switch-v2">
+            <button type="button" className="v3-btn sm v3-version-switch" onClick={backToV2} data-testid="v3-switch-v2" aria-label={t("v3.switch.back")} title={t("v3.switch.back")}>
               <ArrowLeftRight size={13} aria-hidden="true" />
-              {t("v3.switch.back")}
+              <span>{t("v3.switch.back")}</span>
             </button>
-            <span className="v3-chip" title={displayName}>
+            <span className="v3-chip v3-account" title={displayName}>
               {displayName}
             </span>
             {authRequired && (
-              <button type="button" className="v3-btn ghost sm" onClick={() => void logout()} aria-label={t("auth.logout")}>
+              <button type="button" className="v3-btn ghost sm" onClick={() => void logout()} aria-label={`${t("auth.logout")} · ${displayName}`} title={displayName}>
                 <LogOut size={14} />
               </button>
             )}
           </div>
         </header>
 
-        <nav className="v3-rail" aria-label={t("v3.nav.label")}>
+        <nav id="v3-navigation" className="v3-rail" aria-label={t("v3.nav.label")}>
           {NATIVE.map((item) => (
             <NavLink
               key={item.to}
@@ -397,9 +417,11 @@ export function V3Shell({ hosted }: { hosted?: "v2" | "classic" } = {}) {
               </RouteChunk>
             </div>
           ) : (
-            <RouteChunk>
-              <Outlet />
-            </RouteChunk>
+            <div key={HUB_GLOBAL.has(location.pathname) ? "hub-global-content" : current?.id ?? "none"}>
+              <RouteChunk>
+                <Outlet />
+              </RouteChunk>
+            </div>
           )}
         </main>
 
