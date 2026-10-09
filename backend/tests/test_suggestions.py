@@ -44,6 +44,8 @@ def test_model_questions_are_used_and_capped():
     assert out["questions"] == qs[:5]
     call = bedrock.calls[0]
     assert call["inferenceConfig"]["maxTokens"] <= 300
+    # Claude 5 rejects `temperature` with a ValidationException
+    assert "temperature" not in call["inferenceConfig"]
     assert "HR policy" in call["messages"][0]["content"][0]["text"]
 
 

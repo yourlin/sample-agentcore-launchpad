@@ -145,6 +145,8 @@ def test_the_real_converse_call_goes_through_the_client_funnel(monkeypatch):
     groups, flagged = intents._model_groups(ctx, [turn], "zh-CN")
     assert seen["service"] == "bedrock-runtime" and groups[0]["label"] == "Leave"
     assert "Simplified Chinese" in fake.calls[0]["system"][0]["text"]
+    # Claude 5 rejects `temperature` with a ValidationException
+    assert "temperature" not in fake.calls[0]["inferenceConfig"]
 
 
 def test_rule_answers_and_presets_are_not_unanswered(client, monkeypatch):

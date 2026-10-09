@@ -241,7 +241,9 @@ def _model_groups(
         modelId=PLATFORM_MODEL_ID,
         system=[{"text": system}],
         messages=[{"role": "user", "content": [{"text": _prompt_lines(turns)}]}],
-        inferenceConfig={"maxTokens": MAX_OUTPUT_TOKENS, "temperature": 0.0},
+        # No temperature: Claude 5 rejects it ("`temperature` is deprecated for this
+        # model"), which silently pushed every view onto the mechanical fallback.
+        inferenceConfig={"maxTokens": MAX_OUTPUT_TOKENS},
     )
     blocks = (resp.get("output") or {}).get("message", {}).get("content") or []
     raw = "".join(b["text"] for b in blocks if isinstance(b.get("text"), str))

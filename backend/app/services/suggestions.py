@@ -138,7 +138,9 @@ def _generate(workspace: WorkspaceContext, spec: dict[str, Any], lang: str) -> l
         modelId=PLATFORM_MODEL_ID,
         system=[{"text": system}],
         messages=[{"role": "user", "content": [{"text": "\n\n".join(parts)}]}],
-        inferenceConfig={"maxTokens": MAX_OUTPUT_TOKENS, "temperature": 0.4},
+        # No temperature: Claude 5 rejects it ("`temperature` is deprecated for this
+        # model"), which silently replaced every suggestion with the static fallback.
+        inferenceConfig={"maxTokens": MAX_OUTPUT_TOKENS},
     )
     blocks = (resp.get("output") or {}).get("message", {}).get("content") or []
     return _parse("".join(b["text"] for b in blocks if isinstance(b.get("text"), str)))
