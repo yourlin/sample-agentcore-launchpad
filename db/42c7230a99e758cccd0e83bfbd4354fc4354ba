@@ -1,0 +1,21 @@
+samples/byoc/langchain-to-strands/main.py
+  s_53a2f2bba8d550::t_f8690c6e087b14 26-27,81-85
+samples/byoc/langchain-to-strands/policy_tools.py
+  s_53a2f2bba8d550::t_17f95c6b7fbb5f 72-74,116-117,174-176
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "db42c7230a99e758cccd0e83bfbd4354fc4354ba",
+  "prompts": {},
+  "sessions": {
+    "s_53a2f2bba8d550": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "02cd8b20-ce8a-4249-a923-83798a0e06c4",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "AI Ape Wisdom <xiehust@163.com>"
+    }
+  }
+}
