@@ -52,7 +52,11 @@ MAX_CLUSTERS = 12
 MAX_SESSIONS_PER_CLUSTER = 50
 QUESTION_CHARS = 200
 ANSWER_CHARS = 120
-MAX_OUTPUT_TOKENS = 1800
+# Claude 5 reasons before it answers, and the reasoning counts against maxTokens:
+# grouping 70 sessions on the test hub spent all of 1800 on reasoning and returned
+# no text (stopReason max_tokens), so every multi-agent view fell back. 3695 tokens
+# were used once given room; 8000 leaves headroom for MAX_SESSIONS.
+MAX_OUTPUT_TOKENS = 8000
 CACHE_TTL_SECONDS = 600.0
 FALLBACK_TTL_SECONDS = 60.0
 MIN_RECURRING = 2
@@ -234,8 +238,8 @@ def _model_groups(
     )
     client = workspace.client(
         "bedrock-runtime",
-        cache_token="intents;read_timeout=45;max_attempts=1",
-        config=Config(read_timeout=45, retries={"max_attempts": 1, "mode": "standard"}),
+        cache_token="intents;read_timeout=90;max_attempts=1",
+        config=Config(read_timeout=90, retries={"max_attempts": 1, "mode": "standard"}),
     )
     resp = client.converse(
         modelId=PLATFORM_MODEL_ID,

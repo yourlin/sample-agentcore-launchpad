@@ -160,3 +160,9 @@ def test_an_empty_window_answers_without_calling_the_model(client):
     make_agent()
     body = client.get("/api/intents").json()
     assert body["clusters"] == [] and body["unanswered"] == [] and body["sessions_considered"] == 0
+
+
+def test_the_output_budget_leaves_room_for_claude_5_reasoning():
+    # Reasoning tokens count against maxTokens; at 1800 a 70-session prompt
+    # returned only reasoning and no JSON, so the view always fell back.
+    assert intents.MAX_OUTPUT_TOKENS >= 8000
