@@ -6,7 +6,7 @@ import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router-dom";
 
 import { useAuth } from "../../auth/auth-context";
-import { AGENT_PERMISSIONS, api, type ConsoleUser, type UserState } from "../../lib/api";
+import { AGENT_PERMISSIONS, togglePermission, api, type ConsoleUser, type UserState } from "../../lib/api";
 import { isStatusFilter, PAGE_SIZE, USER_STATES } from "../../v2/pages/users/common";
 import { useWorkspace } from "../../workspace/workspace-context";
 import { ago } from "../format";
@@ -359,7 +359,7 @@ function UserDetail({ username }: { username: string }) {
               const granted = user.permissions?.[key] !== false;
               return (
                 <GrantChip key={key} on={granted} disabled={busy} title={key}
-                  onClick={() => void actions.patch(user, { permissions: { [key]: !granted } }, "usersPage.permissionsUpdated")}>
+                  onClick={() => void actions.patch(user, { permissions: togglePermission(user.permissions, key, !granted) }, "usersPage.permissionsUpdated")}>
                   {t(`v2.users.perm.${key.replace(".", "_")}`)}
                   <small className="mono">{key}</small>
                 </GrantChip>
