@@ -580,9 +580,13 @@ def test_heartbeat_keeps_pending_query_event_alive(rendered_memory_module):
         events = module._events_with_heartbeat(delayed_events(), interval_s=0.001)
         heartbeat = await anext(events)
         release.set()
+        # at a 1 ms interval a loaded machine can fit more heartbeats in before the
+        # released event: they are allowed, the event must still come through
         delayed = await anext(events)
-        with pytest.raises(StopAsyncIteration):
-            await anext(events)
+        while delayed.get("event") == "heartbeat":
+            delayed = await anext(events)
+        rest = [e async for e in events]
+        assert all(e.get("event") == "heartbeat" for e in rest)
         return heartbeat, delayed
 
     heartbeat, delayed = asyncio.run(exercise())

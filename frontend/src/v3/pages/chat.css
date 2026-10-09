@@ -150,3 +150,16 @@
   .v3 .v3-chat-side { max-height: 280px; }
   .v3 .v3-chat-main { height: 70vh; }
 }
+
+/* a Cedar policy denied a tool call: coral, because it needs a person to change a rule */
+.v3 .v3-deny {
+  display: grid; gap: 10px; padding: 14px 16px; border-radius: 10px;
+  border: 1px solid rgba(255, 92, 108, 0.4); background: var(--v3-act-dim);
+}
+.v3 .v3-deny .head { display: flex; align-items: center; gap: 10px; color: var(--v3-act); }
+.v3 .v3-deny .head b { color: var(--v3-text); }
+.v3 .v3-deny .head .mono { color: var(--v3-text-2); font-size: 12.5px; }
+.v3 .v3-deny .head .v3-chip { margin-left: auto; }
+.v3 .v3-deny p { margin: 0; color: var(--v3-text-2); font-size: 13px; }
+.v3 .v3-deny .v3-kv { grid-template-columns: 110px minmax(0, 1fr); }
+.v3 .v3-deny .v3-btn { justify-self: start; }

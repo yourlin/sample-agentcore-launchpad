@@ -140,6 +140,12 @@ def persist_events(
                 pending_asks.append(ask)
             else:
                 save_message(workspace_id, agent_id, session_id, "auth", ask[0], name=ask[1])
+        elif kind == "policy_denied" and session_id:
+            # a Gateway tool call a Cedar policy denied: the tool event already
+            # closed the open bubble, so the card follows its tool row; the
+            # reason carries the policy id, which a restored card is rebuilt from
+            save_message(workspace_id, agent_id, session_id, "policy",
+                         data.get("reason", ""), name=data.get("tool"))
         elif kind == "delta":
             answer_parts.append(data.get("text", ""))
         elif kind == "error" and session_id:

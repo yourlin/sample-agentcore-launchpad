@@ -1,10 +1,11 @@
 import type { ChatAttachmentMetadata, FeedbackVerdict } from "../../../lib/api";
+import type { PolicyDeny } from "../../../lib/policy-deny";
 import type { AuthAsk } from "../../../lib/user-grants";
 
 export { retryPromptFor } from "../../../lib/user-grants";
 
 export interface ChatMessage {
-  kind: "user" | "agent" | "tool" | "memory" | "error" | "auth";
+  kind: "user" | "agent" | "tool" | "memory" | "error" | "auth" | "policy";
   text: string;
   name?: string;
   streaming?: boolean;
@@ -17,6 +18,8 @@ export interface ChatMessage {
   verdict?: FeedbackVerdict | null;
   /** T35: a curated answer (rule), not the model, produced this reply */
   curated?: boolean;
+  /** kind "policy": a Gateway tool call a Cedar policy denied */
+  policy?: PolicyDeny;
 }
 
 /** Append a streamed delta. An auth card asked mid-answer sits after the open

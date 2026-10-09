@@ -16,9 +16,13 @@ from typing import Any
 
 from botocore.config import Config
 
-from app.schemas.agent import DEFAULT_MODEL_ID
 from app.services import knowledge
 from app.services.workspace import WorkspaceContext
+
+# The model answer suggestions runs on — a platform feature, so it does not follow the
+# agent default (AgentSpec.DEFAULT_MODEL_ID) and its prompts stay on the model they
+# were written for.
+PLATFORM_MODEL_ID = "global.anthropic.claude-sonnet-5"
 
 logger = logging.getLogger("launchpad.suggestions")
 
@@ -131,7 +135,7 @@ def _generate(workspace: WorkspaceContext, spec: dict[str, Any], lang: str) -> l
         config=Config(read_timeout=20, retries={"max_attempts": 1, "mode": "standard"}),
     )
     resp = client.converse(
-        modelId=DEFAULT_MODEL_ID,
+        modelId=PLATFORM_MODEL_ID,
         system=[{"text": system}],
         messages=[{"role": "user", "content": [{"text": "\n\n".join(parts)}]}],
         inferenceConfig={"maxTokens": MAX_OUTPUT_TOKENS, "temperature": 0.4},
