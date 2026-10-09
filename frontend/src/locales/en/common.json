@@ -4192,7 +4192,15 @@
       "eval_run": "EVAL RUN",
       "identity_manage": "IDENTITY",
       "memory_manage": "MEMORY",
-      "identity_grant": "IDENTITY GRANT"
+      "identity_grant": "IDENTITY GRANT",
+      "promotion_request": "REQUEST PROMOTION",
+      "promotion_approve": "APPROVE PROMOTION",
+      "criteria_manage": "MANAGE CRITERIA",
+      "criteria_sign": "SIGN CRITERIA",
+      "golden_admit": "ADMIT TO GOLDEN SET",
+      "judge_calibrate": "DECIDE CALIBRATION",
+      "waiver_approve": "APPROVE WAIVERS",
+      "release_sign": "SIGN RELEASES"
     },
     "extendTitle": "Extend validity",
     "extendBody": "Add how many days to {{username}}'s account?",
@@ -8191,7 +8199,8 @@
       },
       "role": {
         "admin": "Administrator",
-        "member": "Member"
+        "member": "Member",
+        "operator": "Operator"
       },
       "state": {
         "pending": "Pending approval",
@@ -8247,7 +8256,15 @@
         "eval_run": "Eval run",
         "identity_manage": "Manage identity",
         "memory_manage": "Memory",
-        "identity_grant": "Grant own access"
+        "identity_grant": "Grant own access",
+        "promotion_request": "Request promotion",
+        "promotion_approve": "Approve promotion",
+        "criteria_manage": "Manage criteria",
+        "criteria_sign": "Sign criteria",
+        "golden_admit": "Admit to golden set",
+        "judge_calibrate": "Decide calibration",
+        "waiver_approve": "Approve waivers",
+        "release_sign": "Sign releases"
       }
     },
     "workspaces": {

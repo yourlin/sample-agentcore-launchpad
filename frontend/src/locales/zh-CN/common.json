@@ -4192,7 +4192,15 @@
       "eval_run": "评估运行",
       "identity_manage": "身份",
       "memory_manage": "记忆资源",
-      "identity_grant": "身份授权"
+      "identity_grant": "身份授权",
+      "promotion_request": "申请发布",
+      "promotion_approve": "批准发布",
+      "criteria_manage": "编辑判据",
+      "criteria_sign": "签署判据",
+      "golden_admit": "准入黄金集",
+      "judge_calibrate": "判定校准",
+      "waiver_approve": "批准豁免",
+      "release_sign": "签署放行"
     },
     "extendTitle": "延长有效期",
     "extendBody": "为 {{username}} 增加多少天？",
@@ -8191,7 +8199,8 @@
       },
       "role": {
         "admin": "管理员",
-        "member": "成员"
+        "member": "成员",
+        "operator": "运维"
       },
       "state": {
         "pending": "待审批",
@@ -8247,7 +8256,15 @@
         "eval_run": "评估运行",
         "identity_manage": "管理身份",
         "memory_manage": "记忆资源",
-        "identity_grant": "授权本人访问"
+        "identity_grant": "授权本人访问",
+        "promotion_request": "申请发布",
+        "promotion_approve": "批准发布",
+        "criteria_manage": "编辑判据",
+        "criteria_sign": "签署判据",
+        "golden_admit": "准入黄金集",
+        "judge_calibrate": "判定校准",
+        "waiver_approve": "批准豁免",
+        "release_sign": "签署放行"
       }
     },
     "workspaces": {
