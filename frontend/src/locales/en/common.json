@@ -10903,6 +10903,37 @@
         "showBusiness": "Show the everyday modules only",
         "hint": "A view filter: every page stays reachable by URL and ⌘K"
       }
+    },
+    "ux": {
+      "openNav": "Open navigation",
+      "closeNav": "Close navigation",
+      "refresh": "Refresh",
+      "retry": "Retry",
+      "incomplete": "Some status checks are incomplete",
+      "agentsFailed": "Unable to load agents.",
+      "releaseCoverage": "Release status is unavailable or unchecked for {{count}} agents. Review the release gate before making a decision.",
+      "retryHint": "Refresh to check again. Unavailable status does not mean everything is healthy.",
+      "trafficFailed": "Unable to load traffic.",
+      "unknown": "Not verified",
+      "status": "Status",
+      "runtimeStatus": "Runtime status · release readiness is shown separately below",
+      "releaseFailed": "Unable to verify the release state.",
+      "results": "Showing {{count}} of {{total}} agents",
+      "sort": "Sort by",
+      "updatedFirst": "Recently updated",
+      "nameOrder": "Name A–Z",
+      "clearFilters": "Clear filters",
+      "running": "Running…",
+      "invokeUnavailable": "Invocation is available once the agent is running.",
+      "stage": {
+        "succeeded": "Completed",
+        "running": "In progress",
+        "failed": "Failed",
+        "pending": "Pending",
+        "skipped": "Skipped"
+      },
+      "deployTarget": "Deploying to {{name}} · {{region}}.",
+      "tableScroll": "Agent table. Scroll horizontally to see all columns."
     }
   }
 }
