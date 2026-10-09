@@ -112,7 +112,8 @@ def main() -> int:
 
         visit("home", "/v3", ".v3-title")
         visit("agents", "/v3/agents", "table.v3-table, .v3-empty")
-        first = page.locator("table.v3-table tbody tr.click").first
+        # the agent's name is the link into its detail (the row itself is not clickable)
+        first = page.locator("table.v3-table tbody a.v3-inline-link").first
         if first.count():
             first.click()
             page.wait_for_timeout(1500)
