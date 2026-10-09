@@ -23,6 +23,8 @@ from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from strands import Agent, tool
 from strands.models import BedrockModel
 
+# isort: split
+# the sample's own module, shared with legacy_langchain/main.py
 from policy_tools import SYSTEM_PROMPT, baggage_allowance, refund_quote
 
 MODEL_ID = os.environ.get("MODEL_ID", "global.zai.glm-5.3")
@@ -76,7 +78,11 @@ async def invoke(payload: dict) -> AsyncIterator[dict[str, Any]]:
                 key = str(tool_use.get("toolUseId") or tool_use["name"])
                 if key not in seen:
                     seen.add(key)
-                    yield {"event": "tool", "name": str(tool_use["name"]), "id": tool_use.get("toolUseId")}
+                    yield {
+                        "event": "tool",
+                        "name": str(tool_use["name"]),
+                        "id": tool_use.get("toolUseId"),
+                    }
             if "result" in event:
                 result = event["result"]
     except Exception as exc:  # surfaced as a failed turn in the console

@@ -69,7 +69,9 @@ def _normalize(fare_family: str) -> str:
     }
     key = aliases.get(key, key)
     if key not in FAMILIES:
-        raise ValueError(f"unknown fare family {fare_family!r}; expected one of {', '.join(FAMILIES)}")
+        raise ValueError(
+            f"unknown fare family {fare_family!r}; expected one of {', '.join(FAMILIES)}"
+        )
     return key
 
 
@@ -111,7 +113,8 @@ def refund_quote(
             "fare_family": family, "window": "involuntary", "fee_pct": 0, "fee_cny": 0,
             "taxes_refunded_cny": TAXES_CNY if action == "refund" else 0,
             "total_refund_cny": round(fare_cny + TAXES_CNY, 2) if action == "refund" else 0,
-            "rule": "A-08", "note": "航班取消、延误 3 小时以上或航司变更航班：免费改期或全额退票（含税费）。",
+            "rule": "A-08",
+            "note": "航班取消、延误 3 小时以上或航司变更航班：免费改期或全额退票（含税费）。",
         }
 
     table = REFUND_FEE_PCT if action == "refund" else CHANGE_FEE_PCT
@@ -168,7 +171,9 @@ def baggage_allowance(fare_family: str) -> dict[str, Any]:
     if family == "lite":
         out["paid_checked_bag_cny"] = LITE_PAID_BAG_CNY
         out["rule"] += " + A-14"
-        out["note"] = "轻享无免费托运额；起飞前 24 小时以上线上购买 ¥120/20 kg，机场柜台 ¥200/20 kg。"
+        out["note"] = (
+            "轻享无免费托运额；起飞前 24 小时以上线上购买 ¥120/20 kg，机场柜台 ¥200/20 kg。"
+        )
     return out
 
 
