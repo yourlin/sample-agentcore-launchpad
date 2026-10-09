@@ -6885,7 +6885,8 @@
         "taskStatus": {
           "open": "标注中",
           "adjudicating": "仲裁中",
-          "closed": "已关闭"
+          "closed": "已关闭",
+          "labeling": "标注中"
         },
         "purposeCol": "用途",
         "purpose": {

@@ -6885,7 +6885,8 @@
         "taskStatus": {
           "open": "Labelling",
           "adjudicating": "Adjudicating",
-          "closed": "Closed"
+          "closed": "Closed",
+          "labeling": "Labelling"
         },
         "purposeCol": "Purpose",
         "purpose": {
