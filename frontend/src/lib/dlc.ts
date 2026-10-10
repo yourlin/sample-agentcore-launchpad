@@ -351,7 +351,7 @@ export interface Agreement {
   disagreements: Disagreement[];
   accuracy: number | null;
   policy: CalibrationPolicy;
-  suggested_verdict: "aligned" | "not_aligned" | "insufficient_n";
+  suggested_verdict: "aligned" | "not_aligned" | "insufficient_n" | "one_class";
 }
 
 export interface CalibrationRecord {

@@ -288,6 +288,9 @@ def agreement(db: Session, task: AnnotationTask) -> dict[str, Any]:
         "band": stats.kappa_band(jh),
         "human_band": stats.kappa_band(hh),
         "confusion": stats.confusion(judge, human) if human else {},
+        # which outcomes the agreed human labels contain — a sample people judged all
+        # one way never asked the judge to tell a pass from a fail
+        "human_classes": sorted({h for h in human if h in ("pass", "fail")}),
         "disagreements": disagreements,
         "accuracy": (sum(1 for j, h in zip(judge, human, strict=True) if j == h) / len(human))
         if human else None,
@@ -305,6 +308,11 @@ def suggested_verdict(stats_out: dict[str, Any], policy: dict[str, Any]) -> str:
     # judge stand in for a person" has no answer yet.
     if hh is None or (stats_out.get("pairs") or 0) < MIN_ITEMS:
         return "insufficient_n"
+    # Cohen's κ is 1.0 by convention when everyone used one label throughout, which says
+    # nothing about whether the judge can separate a pass from a fail. Certifying on
+    # such a sample would let a judge gate that was never shown a single violation.
+    if "human_classes" in stats_out and len(stats_out["human_classes"]) < 2:
+        return "one_class"
     return "aligned" if jh >= max(policy["kappa_floor"], hh - 0.05) else "not_aligned"
 
 

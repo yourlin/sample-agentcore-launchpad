@@ -245,10 +245,11 @@ def test_one_rater_is_not_a_consensus_so_a_judge_cannot_be_self_certified(db):
 
 def test_an_annotator_cannot_rule_on_their_own_labels(db):
     """The labels are the evidence, so the person who wrote them does not rule on them."""
-    task = _task(db, ["pass"] * 12)
+    labels = ["pass", "fail"] * 6
+    task = _task(db, labels)
     for who in ("ann1", "ann2"):
-        for n in range(12):
-            cal.record_label(db, task, annotator=who, item_ref=f"i{n}", label="pass")
+        for n, label in enumerate(labels):
+            cal.record_label(db, task, annotator=who, item_ref=f"i{n}", label=label)
     db.commit()
     policy = cal.policy_of(None)
     assert cal.suggested_verdict(cal.agreement(db, task), policy) == "aligned"
@@ -261,3 +262,26 @@ def test_an_annotator_cannot_rule_on_their_own_labels(db):
                         evaluator_id="Builtin.Helpfulness", evaluator_updated_at=None,
                         criteria_lineage_id=None, criteria_set_version=None)
     assert record.verdict == "aligned"
+
+
+def test_a_sample_judged_all_one_way_cannot_certify_a_judge(db):
+    """κ is 1.0 by convention when everyone said "pass" every time; that shows nothing
+    about telling a pass from a fail, so "aligned" is refused and the reason is named."""
+    task = _task(db, ["pass"] * 15)
+    for who in ("ann1", "ann2"):
+        for n in range(15):
+            cal.record_label(db, task, annotator=who, item_ref=f"i{n}", label="pass")
+    db.commit()
+    policy = cal.policy_of(None)
+    measured = cal.agreement(db, task)
+    assert measured["judge_human_kappa"] == 1.0 and measured["human_classes"] == ["pass"]
+    assert cal.suggested_verdict(measured, policy) == "one_class"
+    with pytest.raises(AppError) as exc:
+        cal.decide(db, task, verdict="aligned", actor="ops", policy=policy,
+                   evaluator_id="Builtin.Helpfulness", evaluator_updated_at=None,
+                   criteria_lineage_id=None, criteria_set_version=None)
+    assert exc.value.code == "calibration.not_supported"
+    record = cal.decide(db, task, verdict="not_aligned", actor="ops", policy=policy,
+                        evaluator_id="Builtin.Helpfulness", evaluator_updated_at=None,
+                        criteria_lineage_id=None, criteria_set_version=None)
+    assert record.verdict == "not_aligned"

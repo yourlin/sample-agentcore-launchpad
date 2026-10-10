@@ -255,6 +255,9 @@ function TaskBench({ taskId, onBack }: { taskId: string; onBack: () => void }) {
               {measured.suggested_verdict === "insufficient_n" && (
                 <Alert tone="warn">{t("v2.dlc.calibration.needMore")}</Alert>
               )}
+              {measured.suggested_verdict === "one_class" && (
+                <Alert tone="warn">{t("v2.dlc.calibration.oneClass")}</Alert>
+              )}
             </div>
             <ConfusionMatrix
               confusion={measured.confusion}

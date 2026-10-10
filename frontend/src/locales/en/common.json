@@ -6928,6 +6928,7 @@
         "needsAdjudication": "Needs adjudication",
         "humansDisagree": "People do not agree with each other here. Rewrite the criterion before blaming the judge.",
         "needMore": "Not enough labelled items to decide yet.",
+        "oneClass": "The annotators gave every item the same outcome, so the judge was never asked to tell a pass from a fail and this κ says nothing about whether it can stand in for a person. Add items that should fail and label another round.",
         "cannotAlign": "The numbers do not support calling this judge aligned.",
         "markAligned": "Aligned",
         "markNotAligned": "Not aligned",

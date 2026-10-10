@@ -169,7 +169,7 @@ function TaskBench({ taskId, onBack }: { taskId: string; onBack: () => void }) {
       </Panel>
 
       {measured && (
-        <Panel title={t("v2.dlc.calibration.agreement")} signal={measured.suggested_verdict === "aligned" ? "ok" : measured.suggested_verdict === "insufficient_n" ? "wait" : "act"}>
+        <Panel title={t("v2.dlc.calibration.agreement")} signal={measured.suggested_verdict === "aligned" ? "ok" : measured.suggested_verdict === "insufficient_n" || measured.suggested_verdict === "one_class" ? "wait" : "act"}>
           <div className="v3-grid v3-split" style={{ alignItems: "start" }}>
             <div style={{ display: "grid", gap: 12 }}>
               <div className="v3-grid c2">
@@ -183,6 +183,7 @@ function TaskBench({ taskId, onBack }: { taskId: string; onBack: () => void }) {
               </div>
               {measured.human_human_kappa !== null && measured.human_human_kappa < 0.6 && <Notice s="wait">{t("v2.dlc.calibration.humansDisagree")}</Notice>}
               {measured.suggested_verdict === "insufficient_n" && <Notice s="wait">{t("v2.dlc.calibration.needMore")}</Notice>}
+              {measured.suggested_verdict === "one_class" && <Notice s="wait">{t("v2.dlc.calibration.oneClass")}</Notice>}
             </div>
             <ConfusionMatrix confusion={measured.confusion} kappa={measured.judge_human_kappa} ci={measured.kappa_ci} />
           </div>
