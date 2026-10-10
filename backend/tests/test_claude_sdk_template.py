@@ -4,6 +4,7 @@ import asyncio
 import importlib.util
 import json
 import py_compile
+import re
 import sys
 from contextlib import contextmanager
 from pathlib import Path
@@ -187,6 +188,10 @@ def test_assemble_build_context(tmp_path: Path):
     assert "linux/arm64" in dockerfile
     assert "python:3.12-slim-bookworm" in dockerfile
     assert "ca-certificates git" not in dockerfile
+    # apt is the only consumer of libgnutls30, whose Debian builds carry an
+    # unfixed CRITICAL CVE the ECR scan gate blocks on: the image must drop both
+    assert re.search(r"dpkg --purge [^\n]*\\\n\s+apt libapt-pkg6\.0 libgnutls30", dockerfile)
+    assert dockerfile.index("libgnutls30") < dockerfile.index("pip install")
     assert "CLAUDE_CODE_USE_BEDROCK=1" in dockerfile
     assert "@anthropic-ai/claude-code" in dockerfile
     requirements = (ctx / "requirements.txt").read_text()
