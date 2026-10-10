@@ -415,10 +415,21 @@ export interface GateRow {
   [key: string]: unknown;
 }
 
+/** What a release froze per golden split: `releases.py` writes the split's
+ * dataset id, its version label (null until the split is versioned) and the
+ * number of active items. Older records may hold a bare label. */
+export interface GoldenSplitVersion {
+  dataset_id: string;
+  version: string | null;
+  items: number;
+}
+
+export type GoldenVersions = Record<string, GoldenSplitVersion | string | null>;
+
 export interface GateProvenance {
   criteria_set_version: number | null;
   criteria_signed_by: string | null;
-  golden_versions: Record<string, string | null>;
+  golden_versions: GoldenVersions;
   evaluator_set_hash: string | null;
   candidate_version: string | null;
   previous_live_version: string | null;
@@ -448,7 +459,7 @@ export interface ReleaseRecord {
   previous_live_version: string | null;
   criteria_set_id: string | null;
   criteria_set_version: number | null;
-  golden_versions: Record<string, string | null>;
+  golden_versions: GoldenVersions;
   evaluator_set_hash: string | null;
   run_ids: string[];
   gate_report: GateReport | Record<string, never>;
@@ -896,4 +907,17 @@ export function compoundRate(thresholds: number[]): number | null {
   const usable = thresholds.filter((t) => typeof t === "number" && t > 0 && t <= 1);
   if (usable.length === 0) return null;
   return usable.reduce((acc, t) => acc * t, 1);
+}
+
+/** One line for the golden versions a release froze, e.g.
+ * `regression v3 (15) · holdout 7746f6ab7ec7 (9)`: the version label when the
+ * split has one, else its dataset id, plus the item count. */
+export function goldenVersionsLabel(golden: GoldenVersions | null | undefined): string {
+  const parts = Object.entries(golden ?? {}).map(([split, v]) => {
+    if (v == null) return `${split} —`;
+    if (typeof v !== "object") return `${split} ${v}`;
+    const label = v.version ?? v.dataset_id ?? "—";
+    return typeof v.items === "number" ? `${split} ${label} (${v.items})` : `${split} ${label}`;
+  });
+  return parts.join(" · ") || "—";
 }

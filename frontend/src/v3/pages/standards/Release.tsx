@@ -13,7 +13,7 @@ import { Link } from "react-router-dom";
 
 import { useAuth } from "../../../auth/auth-context";
 import { dlcApi, errorMessage } from "../../../lib/api";
-import type { GateRow, ReleaseState, Waiver } from "../../../lib/dlc";
+import { type GateRow, type ReleaseState, type Waiver, goldenVersionsLabel } from "../../../lib/dlc";
 import { useWorkspace } from "../../../workspace/workspace-context";
 import { useLoad, useToast } from "../../hooks";
 import { Btn, Chip, Confirm, Dialog, Empty, Lamp, Notice, Panel, Skeleton, Stat } from "../../ui";
@@ -368,7 +368,7 @@ export function Release({ agentId }: { agentId: string }) {
               <dt>{t("v2.dlc.release.criteriaVersion")}</dt><dd>v{report.provenance.criteria_set_version ?? "—"}</dd>
               <dt>{t("v2.dlc.release.signedBy")}</dt><dd>{report.provenance.criteria_signed_by ?? t("v2.dlc.criteria.unsigned")}</dd>
               <dt>{t("v2.dlc.release.goldenVersions")}</dt>
-              <dd className="mono">{Object.entries(report.provenance.golden_versions).map(([s, v]) => `${s} ${v ?? "—"}`).join(" · ") || "—"}</dd>
+              <dd className="mono">{goldenVersionsLabel(report.provenance.golden_versions)}</dd>
               <dt>{t("v2.dlc.release.evaluatorHash")}</dt><dd className="mono">{report.provenance.evaluator_set_hash?.slice(0, 12) ?? "—"}</dd>
               <dt>{t("v2.dlc.release.decidedAt")}</dt><dd>{stamp(report.decided_at, 19)}</dd>
             </dl>

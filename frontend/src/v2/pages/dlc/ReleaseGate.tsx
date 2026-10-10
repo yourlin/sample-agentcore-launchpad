@@ -22,7 +22,7 @@ import { useTranslation } from "react-i18next";
 import { useAuth } from "../../../auth/auth-context";
 import { dlcApi, errorMessage } from "../../../lib/api";
 import { storedWorkspaceId } from "../../../lib/workspace-header";
-import { type GateRow, type ReleaseState, type Waiver, gateTone } from "../../../lib/dlc";
+import { type GateRow, type ReleaseState, type Waiver, gateTone, goldenVersionsLabel } from "../../../lib/dlc";
 import { useLoad, useV2Toast } from "../../hooks";
 import {
   Alert,
@@ -629,10 +629,7 @@ export function ReleaseGate({ agentId }: { agentId: string }) {
                   { label: t("v2.dlc.release.signedBy"), value: report.provenance.criteria_signed_by ?? t("v2.dlc.criteria.unsigned") },
                   {
                     label: t("v2.dlc.release.goldenVersions"),
-                    value:
-                      Object.entries(report.provenance.golden_versions)
-                        .map(([split, version]) => `${split} ${version ?? "—"}`)
-                        .join(" · ") || "—",
+                    value: goldenVersionsLabel(report.provenance.golden_versions),
                   },
                   { label: t("v2.dlc.release.evaluatorHash"), value: report.provenance.evaluator_set_hash?.slice(0, 12) ?? "—" },
                   { label: t("v2.dlc.release.decidedAt"), value: report.decided_at },

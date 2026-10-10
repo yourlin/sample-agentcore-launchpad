@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { type CostEstimate, compoundRate, gateTone, kappaTone, tierTone, unpricedJudges } from "./dlc";
+import { type CostEstimate, compoundRate, gateTone, goldenVersionsLabel, kappaTone, tierTone, unpricedJudges } from "./dlc";
 
 describe("compoundRate", () => {
   it("multiplies the gates, which is the number nobody types on purpose", () => {
@@ -74,5 +74,24 @@ describe("unpricedJudges", () => {
   it("is empty without an estimate", () => {
     expect(unpricedJudges(null)).toEqual([]);
     expect(unpricedJudges(base)).toEqual([]);
+  });
+});
+
+describe("goldenVersionsLabel", () => {
+  it("names each frozen split instead of printing [object Object]", () => {
+    // what releases.py stores today: dataset id, version label (null when the
+    // split is unversioned) and the active item count
+    const label = goldenVersionsLabel({
+      regression: { dataset_id: "4327ce7e1e2b", version: null, items: 15 },
+      holdout: { dataset_id: "7746f6ab7ec7", version: "v2", items: 9 },
+    });
+    expect(label).toBe("regression 4327ce7e1e2b (15) · holdout v2 (9)");
+    expect(label).not.toContain("[object Object]");
+  });
+
+  it("still reads older records that stored a bare label, and empty ones", () => {
+    expect(goldenVersionsLabel({ regression: "v1", holdout: null })).toBe("regression v1 · holdout —");
+    expect(goldenVersionsLabel({})).toBe("—");
+    expect(goldenVersionsLabel(undefined)).toBe("—");
   });
 });
