@@ -241,6 +241,16 @@ _TRANSIENT_CODES = frozenset({
 })
 
 
+def eval_actor(agent_id: str | None, run_id: str, index: int) -> str:
+    """The memory actor for the ``index``-th replayed session of a run.
+
+    Scoped to the agent like a console user (``memory.scoped_actor``), and unique per
+    session so no replay can recall what another one said."""
+    from app.services.memory import scoped_actor
+
+    return scoped_actor(agent_id or "agent", f"eval-{run_id}-{index}")
+
+
 def transient_invoke_error(exc: BaseException) -> bool:
     """An upstream failure worth replaying the scenario: a mid-stream
     ``runtimeClientError`` / ``internalServerException`` (botocore's
@@ -358,6 +368,14 @@ def execute_run(
             # only a pinned endpoint passes `qualifier`; the default path is unchanged
             pinned: dict[str, Any] = {"qualifier": qualifier} if qualifier else {}
 
+            # Each replayed session gets its own memory actor. The runtime's default
+            # actor ("default") is shared by every evaluation of every agent, so with
+            # long-term memory on, facts extracted from one scenario ("轻享票, fare ¥680")
+            # were recalled in the next and a golden item that withholds the fare was
+            # answered with another scenario's number. A fresh actor per session keeps
+            # each replay hermetic, as a golden item assumes.
+            actor: dict[str, str] = {"id": "default"}
+
             def invoke(prompt: str, sid: str | None) -> dict[str, Any]:
                 if method == "harness":  # InvokeHarness, not the runtime data plane
                     attempt["session_id"] = sid or hc.new_session_id()
@@ -376,6 +394,7 @@ def execute_run(
                         inbound_auth_service.m2m_bearer_token(workspace),
                         prompt,
                         session_id=sid,
+                        actor_id=actor["id"],
                         **pinned,
                     )
                 return rt.invoke_runtime_text(
@@ -383,6 +402,7 @@ def execute_run(
                     agent_arn,
                     prompt,
                     session_id=sid,
+                    actor_id=actor["id"],
                     runtime_user_id=runtime_user_id,
                     **pinned,
                 )
@@ -395,8 +415,9 @@ def execute_run(
                 for scenario in scenarios
                 for attempt_no in range(1, max(1, int(repeats or 1)) + 1)
             ]
-            for scenario, attempt_no in plan:
+            for index, (scenario, attempt_no) in enumerate(plan, start=1):
                 _check_stop(run_id)
+                actor["id"] = eval_actor(agent_id, run_id, index)
                 attempt.clear()
                 attempt["scenario_id"] = str(scenario.get("scenario_id") or "unknown")
                 if attempt_no > 1:
