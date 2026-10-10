@@ -6696,7 +6696,8 @@
         "tableTitle": "{{name}} · v{{version}}",
         "status": {
           "draft": "草稿",
-          "published": "已发布"
+          "published": "已发布",
+          "superseded": "已被取代"
         },
         "findingLevel": {
           "error": "错误",

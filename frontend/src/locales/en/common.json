@@ -6696,7 +6696,8 @@
         "tableTitle": "{{name}} · v{{version}}",
         "status": {
           "draft": "Draft",
-          "published": "Published"
+          "published": "Published",
+          "superseded": "Superseded"
         },
         "findingLevel": {
           "error": "Error",
