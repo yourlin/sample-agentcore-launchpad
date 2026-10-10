@@ -5,7 +5,7 @@ view. The estimate is deliberately simple and always labelled with its basis:
 
     items × k × (agent cost per session + Σ judge evaluators × judge cost per item)
 
-* **agent cost per session** — this agent's median spend per session over the last 7
+* **agent cost per session** — this agent's mean spend per session over the last 7
   days (span token usage × the price map). With no history: the model's price × the
   dataset's average turn count × a default token budget, labelled `rough`.
 * **judge cost per item** — the median `tokenUsage` the evaluator's own past results
@@ -58,7 +58,7 @@ def _price_of(model: str | None) -> dict[str, float] | None:
 def _per_session_from_history(
     db: Session, agent: Agent, workspace_ctx: Any, *, days: int = 7
 ) -> tuple[float | None, str]:
-    """Median cost per session from this agent's recent traffic."""
+    """Mean cost per session from this agent's own recent traffic."""
     try:
         from app.services import costs as cost_service
 
@@ -66,15 +66,16 @@ def _per_session_from_history(
     except Exception as exc:  # noqa: BLE001 - estimation never blocks the wizard
         logger.debug("cost history unavailable: %s", exc)
         return None, "unavailable"
+    # One agent can report under several service names (the DEFAULT endpoint, then
+    # live / candidate after the migration). Its cost is divided by its own sessions:
+    # the workspace-wide session count (every other agent's traffic) would understate
+    # the per-session cost by however many other agents the workspace runs.
     rows = [r for r in report.get("by_agent") or [] if r.get("agent_id") == agent.id]
-    if not rows or not rows[0].get("est_cost_usd"):
+    usd = sum(float(r.get("est_cost_usd") or 0.0) for r in rows)
+    sessions = sum(int(r.get("sessions") or 0) for r in rows)
+    if not usd or not sessions:
         return None, "no_history"
-    sessions = 0
-    for row in report.get("by_actor") or []:
-        sessions += int(row.get("sessions") or 0)
-    if not sessions:
-        return None, "no_history"
-    return float(rows[0]["est_cost_usd"]) / sessions, "history_7d"
+    return usd / sessions, "history_7d"
 
 
 def _rough_per_session(spec: dict[str, Any], items: list[dict[str, Any]]) -> float | None:

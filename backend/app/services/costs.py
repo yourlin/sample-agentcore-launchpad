@@ -55,7 +55,8 @@ def q_cost_by_service() -> str:
 | {_IS_LLM_FIELDS}
 | stats sum(llm_in) as tokens_in, sum(llm_out) as tokens_out,
         sum(llm_cache_read) as cache_read, sum(llm_cache_write) as cache_write,
-        sum(is_llm) as llm_calls, latest(telemetry_model) as model
+        sum(is_llm) as llm_calls, latest(telemetry_model) as model,
+        count_distinct(attributes.session.id) as sessions
   by resource.attributes.service.name as service
 | sort tokens_out desc
 | limit 200
@@ -146,6 +147,7 @@ def cost_report(
                     "known": agent is not None,
                     "tokens": int(tokens),
                     "llm_calls": int(_num(row, "llm_calls")),
+                    "sessions": int(_num(row, "sessions")),
                     "est_cost_usd": usd,
                 }
             )

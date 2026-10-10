@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { useNavigate, useSearchParams } from "react-router-dom";
 
 import { api, dlcApi, errorMessage, type V2Range } from "../../../lib/api";
+import { unpricedJudges } from "../../../lib/dlc";
 import { CLOUD_VALUE_PREFIX } from "../../../lib/evaluation";
 import { evaluatorLabel, type EvaluatorLevel } from "../../../lib/evaluators";
 import { INSIGHT_TYPES, insightLabel } from "../../../v2/online";
@@ -612,6 +613,9 @@ export function TaskWizard() {
                   <b className="mono" style={{ fontSize: 20 }}>{estimate.data.total_usd === null ? t("v2.dlc.cost.unknown") : `$${estimate.data.total_usd.toFixed(2)}`}</b>
                   <span style={{ color: "var(--v3-text-2)" }}>{t("v2.dlc.cost.sessions", { sessions: estimate.data.sessions, minutes: estimate.data.duration_minutes ?? 0 })}</span>
                   {estimate.data.unpriced && <Chip s="wait">{t("v2.dlc.cost.unpriced")}</Chip>}
+                  {unpricedJudges(estimate.data).length > 0 && (
+                    <Chip s="wait">{t("v2.dlc.cost.judgeUnpriced", { count: unpricedJudges(estimate.data).length })}</Chip>
+                  )}
                   {estimate.data.over_limit && <Chip s="act">{t("v2.dlc.cost.overLimit")}</Chip>}
                 </div>
               ) : (

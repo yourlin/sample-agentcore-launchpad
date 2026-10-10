@@ -7174,6 +7174,7 @@
         "sessions": "{{sessions}} sessions · about {{minutes}} min",
         "unknown": "Not priced",
         "unpriced": "No price for this model",
+        "judgeUnpriced": "{{count}} judge(s) not included: the judge model has no price",
         "overLimit": "Over the workspace limit"
       },
       "scorecard": {

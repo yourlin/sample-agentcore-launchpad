@@ -773,6 +773,8 @@ export interface RunComparison {
 
 export interface JudgeCostDetail {
   evaluator_id: string;
+  /** agentcore_evaluations (service capacity, no dollar figure) | your_account */
+  billed_by?: string;
   model?: string | null;
   usd?: number | null;
   note?: string;
@@ -796,6 +798,11 @@ export interface CostEstimate {
   over_limit: boolean;
   max_usd: number | null;
   unpriced: boolean;
+}
+
+/** Judges this account pays for whose model has no price: their cost is not in the total. */
+export function unpricedJudges(estimate: CostEstimate | null | undefined): JudgeCostDetail[] {
+  return (estimate?.judges ?? []).filter((j) => j.billed_by === "your_account" && (j.usd ?? null) === null);
 }
 
 /* ── scorecard and audit ─────────────────────────────────────────────────── */

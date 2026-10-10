@@ -81,6 +81,30 @@ def test_estimate_scales_with_repeats_and_flags_confirmation(db, monkeypatch):
     cost.assert_allowed(gated, confirmed=True, is_admin=False)
 
 
+def test_history_divides_the_agents_cost_by_its_own_sessions(db, monkeypatch):
+    """Other agents' traffic must not dilute this agent's per-session cost."""
+    from app.services import costs as cost_service
+
+    agent = _agent(db)
+    report = {
+        "by_agent": [
+            {"agent_id": agent.id, "service": "rt.DEFAULT", "est_cost_usd": 0.03, "sessions": 3},
+            {"agent_id": agent.id, "service": "rt.candidate", "est_cost_usd": 0.01, "sessions": 1},
+            {"agent_id": "someone-else", "service": "x.DEFAULT", "est_cost_usd": 5.0,
+             "sessions": 76},
+        ],
+        # workspace-wide: 80 sessions across every agent
+        "by_actor": [{"actor": "—", "sessions": 80, "tokens": 0, "est_cost_usd": 5.04}],
+    }
+    monkeypatch.setattr(cost_service, "cost_report", lambda *a, **k: report)
+    per_session, basis = cost._per_session_from_history(db, agent, SimpleNamespace())
+    assert basis == "history_7d"
+    assert per_session == pytest.approx(0.01)  # 0.04 over its own 4 sessions, not 80
+
+    report["by_agent"] = [{"agent_id": agent.id, "est_cost_usd": 0.04, "sessions": 0}]
+    assert cost._per_session_from_history(db, agent, SimpleNamespace()) == (None, "no_history")
+
+
 PRICES = {"global.openai.gpt-6-sol": {"input": 2.0, "output": 10.0},
           "claude-sonnet-5-5": {"input": 3.0, "output": 15.0}}
 

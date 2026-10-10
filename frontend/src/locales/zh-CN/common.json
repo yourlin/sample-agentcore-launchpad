@@ -7174,6 +7174,7 @@
         "sessions": "{{sessions}} 个会话 · 约 {{minutes}} 分钟",
         "unknown": "未定价",
         "unpriced": "该模型没有价格数据",
+        "judgeUnpriced": "{{count}} 个评审的费用未计入：评审模型没有价格数据",
         "overLimit": "超出工作区上限"
       },
       "scorecard": {

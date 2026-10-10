@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { compoundRate, gateTone, kappaTone, tierTone } from "./dlc";
+import { type CostEstimate, compoundRate, gateTone, kappaTone, tierTone, unpricedJudges } from "./dlc";
 
 describe("compoundRate", () => {
   it("multiplies the gates, which is the number nobody types on purpose", () => {
@@ -57,5 +57,22 @@ describe("tierTone", () => {
     expect(tierTone("redline")).toBe("red");
     expect(tierTone("gate")).toBe("orange");
     expect(tierTone("observe")).toBe("gray");
+  });
+});
+
+describe("unpricedJudges", () => {
+  const base = { judges: [] } as unknown as CostEstimate;
+  it("names the self-billed judges the price map cannot value", () => {
+    const est = { ...base, judges: [
+      { evaluator_id: "Builtin.Correctness", billed_by: "agentcore_evaluations", usd: null },
+      { evaluator_id: "fee-check", billed_by: "your_account", usd: null, note: "judge model is not in the price map" },
+      { evaluator_id: "privacy", billed_by: "your_account", usd: 0.12 },
+    ] } as CostEstimate;
+    // the service-billed builtin is not "unpriced": it is not this account's bill
+    expect(unpricedJudges(est).map((j) => j.evaluator_id)).toEqual(["fee-check"]);
+  });
+  it("is empty without an estimate", () => {
+    expect(unpricedJudges(null)).toEqual([]);
+    expect(unpricedJudges(base)).toEqual([]);
   });
 });
