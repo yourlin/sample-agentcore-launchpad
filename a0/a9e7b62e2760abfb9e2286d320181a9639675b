@@ -1,0 +1,25 @@
+frontend/src/lib/dlc.test.ts
+  s_aa278816df1c28::t_a642d7f261aad6 3,79-97
+frontend/src/lib/dlc.ts
+  s_aa278816df1c28::t_884cbddfae8dfe 418-428,432,462,911-923
+frontend/src/v2/pages/dlc/ReleaseGate.tsx
+  s_aa278816df1c28::t_cf33eb469f6597 25,632
+frontend/src/v3/pages/standards/Release.tsx
+  s_aa278816df1c28::t_2d54fc6f37976a 16,371
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "a0a9e7b62e2760abfb9e2286d320181a9639675b",
+  "prompts": {},
+  "sessions": {
+    "s_aa278816df1c28": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "58f7e7a4-bb66-4c2b-8c05-2777ae54da47",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "AI Ape Wisdom <xiehust@163.com>"
+    }
+  }
+}
