@@ -232,6 +232,7 @@ function TaskBench({ taskId, onBack }: { taskId: string; onBack: () => void }) {
             <tr>
               <th>{t("v2.dlc.calibration.item")}</th>
               <th>{t("v2.dlc.admission.question")}</th>
+              <th>{t("v2.dlc.admission.expected")}</th>
               <th>{t("v2.dlc.calibration.answer")}</th>
               <th>{t("v2.dlc.calibration.myLabel")}</th>
               {!blind && <th>{t("v2.dlc.calibration.judgeCol")}</th>}
@@ -242,7 +243,8 @@ function TaskBench({ taskId, onBack }: { taskId: string; onBack: () => void }) {
               <tr key={item.ref}>
                 <td className="mono">{item.ref}</td>
                 <td>{item.input ?? "—"}</td>
-                <td className="v3-std-muted">{item.answer ?? "—"}</td>
+                <td className="v3-std-muted">{item.expected || "—"}</td>
+                <td style={{ whiteSpace: "pre-wrap" }}>{item.answer || "—"}</td>
                 <td style={{ whiteSpace: "nowrap" }}>
                   {iAnnotate ? (
                     <span className="v3-std-seg" role="radiogroup">

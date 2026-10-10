@@ -280,7 +280,11 @@ export interface AnnotationLabel {
 export interface AnnotationItem {
   ref: string;
   session_id?: string;
+  scenario_id?: string;
+  /** The user's question and the reference answer, from the run's dataset. */
   input?: string;
+  expected?: string;
+  /** What the agent actually said in this session. */
   answer?: string;
   /** Hidden from annotators until the task closes — labelling is blind. */
   judge_label?: string;

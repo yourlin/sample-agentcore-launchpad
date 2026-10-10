@@ -503,16 +503,62 @@ class CalibrationDecision(BaseModel):
     note: str = Field(default="", max_length=2000)
 
 
-def _items_from_run(db: Session, run: EvalRun, criterion_key: str) -> list[dict[str, Any]]:
-    """Calibration items: the run's own sessions with the judge's verdict attached."""
+def _scenario_texts(db: Session, run: EvalRun) -> dict[str, tuple[str, str]]:
+    """scenario_id -> (first user input, expected answer) from the run's dataset."""
+    dataset = db.get(EvalDataset, run.dataset_id) if run.dataset_id else None
+    if dataset is None or dataset.workspace_id != run.workspace_id:
+        return {}
+    out: dict[str, tuple[str, str]] = {}
+    for item in dataset.items or []:
+        turns = item.get("turns") or []
+        question = turns[0].get("input") if turns else None
+        expected = next((t.get("expected_response") for t in reversed(turns)
+                         if t.get("expected_response")), None)
+        out[str(item.get("scenario_id") or "")] = (
+            question if isinstance(question, str) else "", expected or "")
+    return out
+
+
+def _agent_reply(db: Session, ws: WorkspaceScope, run: EvalRun, session_id: str) -> str:
+    """What the agent actually said in that session, from the memory transcript."""
+    from app.services import observability
+
+    try:
+        turns = observability.get_session_transcript(
+            session_id, db, ws.context, run.agent_id or None,
+        )["transcript"].get("turns") or []
+    except Exception:  # noqa: BLE001 - a missing transcript must not block the task
+        return ""
+    return "\n".join(t.get("text") or "" for t in turns
+                     if str(t.get("role")).upper() == "ASSISTANT").strip()
+
+
+def _items_from_run(
+    db: Session, ws: WorkspaceScope, run: EvalRun, criterion_key: str,
+) -> list[dict[str, Any]]:
+    """Calibration items: the run's own sessions with the judge's verdict attached.
+
+    `input` / `expected` / `answer` are what an annotator needs to label blind: the
+    user's question, the reference answer and the agent's actual reply. `answer`
+    used to carry the judge's explanation, which showed annotators the judge's
+    reasoning during blind labelling and left them without the reply itself; the
+    explanation now stays in `judge_explanation`, hidden until the task closes.
+    """
     rows = engine_svc.results_for(db, run.id, criterion_key)
+    texts = _scenario_texts(db, run)
+    replies: dict[str, str] = {}
     out = []
     for row in rows:
+        question, expected = texts.get(row.scenario_id, ("", ""))
+        if row.session_id and row.session_id not in replies:
+            replies[row.session_id] = _agent_reply(db, ws, run, row.session_id)
         out.append({
             "ref": f"{row.scenario_id}#{row.attempt}",
             "session_id": row.session_id,
-            "input": row.scenario_id,
-            "answer": row.explanation[:2000],
+            "scenario_id": row.scenario_id,
+            "input": question or row.scenario_id,
+            "expected": expected[:2000],
+            "answer": replies.get(row.session_id or "", "")[:4000],
             "judge_label": row.verdict if row.verdict in ("pass", "fail") else "inconclusive",
             "judge_explanation": row.explanation[:2000],
         })
@@ -561,7 +607,7 @@ def create_annotation_task(
         run = db.get(EvalRun, req.run_id)
         if run is None or run.workspace_id != ws.id:
             raise NotFoundError("run.not_found", "run not found")
-        items = _items_from_run(db, run, req.criterion_key)
+        items = _items_from_run(db, ws, run, req.criterion_key)
         if not items:
             raise AppError("annotation.no_items",
                            "that run has no verdicts for this criterion")
