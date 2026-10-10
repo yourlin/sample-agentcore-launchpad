@@ -439,6 +439,11 @@ class LaunchpadBaseStack(Stack):
             handler=facts_lambda,
             proxy=False,
             deploy_options=apigw.StageOptions(stage_name="prod"),
+            # No execution logging, so no account-level API Gateway CloudWatch
+            # role: CDK creates that role with RemovalPolicy.RETAIN, and every
+            # deploy/destroy cycle would orphan one IAM role and leave the
+            # account's API Gateway settings pointing at it after teardown.
+            cloud_watch_role=False,
         )
         facts = facts_api.root.add_resource("facts")
         facts.add_method("GET", api_key_required=True)
