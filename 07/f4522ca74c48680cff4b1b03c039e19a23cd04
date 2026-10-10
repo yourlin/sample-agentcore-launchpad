@@ -1,0 +1,21 @@
+backend/app/routers/dlc.py
+  s_aa278816df1c28::t_50fb04849633f9 1323-1338,1415
+backend/tests/test_dlc_api.py
+  s_aa278816df1c28::t_cd4fb68e11d472 545-568
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "07f4522ca74c48680cff4b1b03c039e19a23cd04",
+  "prompts": {},
+  "sessions": {
+    "s_aa278816df1c28": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "58f7e7a4-bb66-4c2b-8c05-2777ae54da47",
+        "model": "unknown"
+      },
+      "human_author": "AI Ape Wisdom <xiehust@163.com>"
+    }
+  }
+}
