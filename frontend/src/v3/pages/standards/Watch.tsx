@@ -138,7 +138,7 @@ export function Watch({ agentId }: { agentId: string }) {
 
       <Panel title={t("v2.dlc.watch.drift")} flush signal={drift.needs_recalibration.length > 0 || drift.versions_changed ? "wait" : undefined}>
         <div style={{ padding: "0 20px 14px", display: "grid", gap: 12 }}>
-          <Notice>{drift.hint}</Notice>
+          <Notice>{t("v2.dlc.watch.driftHint")}</Notice>
           <div className="v3-grid c2">
             <Stat label={t("v2.dlc.watch.versionsInWindow")} value={<span className="mono" style={{ fontSize: 18 }}>{drift.agent_versions_in_window.join(", ") || "—"}</span>}
               signal={drift.versions_changed ? "wait" : undefined} />

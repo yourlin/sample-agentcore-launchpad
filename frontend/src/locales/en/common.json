@@ -7137,6 +7137,7 @@
         "noSeries": "No scheduled run yet.",
         "drift": "Agent or judge?",
         "driftSub": "A dip can be the agent getting worse or the judge changing its mind. These are different problems.",
+        "driftHint": "Re-run the frozen calibration set: if the judge now disagrees with the human labels, it is judge drift, not an agent regression.",
         "versionsInWindow": "Agent versions in this window",
         "needRecalibration": "Judges needing recalibration",
         "calibrated": "Calibrated",
