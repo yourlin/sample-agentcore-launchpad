@@ -31,6 +31,19 @@ function parseItems(text: string): GoldenItem[] {
     });
 }
 
+/**
+ * The dialog's case tier is the fallback for items that carry none. An item that
+ * already has its own `metadata.dlc` (a golden-set JSON file: case_tier,
+ * criteria_ids, split) keeps it — overwriting it put every item of a seeded file
+ * in one tier and dropped its criteria links, so the coverage matrix and the
+ * stratified holdout were wrong and the only faithful path was the raw API.
+ */
+export function withCaseTier(item: GoldenItem, caseTier: CaseTier): GoldenItem {
+  const meta = (item.metadata ?? {}) as Record<string, unknown>;
+  const dlc = (meta.dlc ?? {}) as Record<string, unknown>;
+  return { ...item, metadata: { ...meta, dlc: { case_tier: caseTier, ...dlc } } };
+}
+
 function ItemsDialog({
   title,
   hint,
@@ -86,6 +99,11 @@ function ItemsDialog({
         <label className="v3-field">
           <span>{t("v2.dlc.golden.itemsField")}</span>
           <textarea className="v3-input mono" rows={10} value={text} onChange={(e) => setText(e.target.value)} />
+          <input type="file" accept=".json,.txt,application/json,text/plain" data-testid="v3-golden-file"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void file.text().then(setText);
+            }} />
           <small className={parseError ? "v3-err" : "v3-hint"}>{parseError ?? t("v2.dlc.golden.itemsHint")}</small>
         </label>
       </div>
@@ -310,7 +328,7 @@ export function GoldenCurator({ goldenSet, onReload, onBack }: { goldenSet: Gold
           onSubmit={(items, caseTier) => {
             const split = adding;
             setAdding(null);
-            void run(() => dlcApi.addGoldenItems(goldenSet.id, split, items.map((i) => ({ ...i, metadata: { dlc: { case_tier: caseTier } } }))), "v2.dlc.golden.added");
+            void run(() => dlcApi.addGoldenItems(goldenSet.id, split, items.map((i) => withCaseTier(i, caseTier))), "v2.dlc.golden.added");
           }}
         />
       )}
@@ -323,7 +341,7 @@ export function GoldenCurator({ goldenSet, onReload, onBack }: { goldenSet: Gold
           onClose={() => setSeeding(false)}
           onSubmit={(items, caseTier) => {
             setSeeding(false);
-            void run(() => dlcApi.seedGolden(goldenSet.id, items.map((i) => ({ ...i, metadata: { dlc: { case_tier: caseTier } } }))), "v2.dlc.golden.seeded");
+            void run(() => dlcApi.seedGolden(goldenSet.id, items.map((i) => withCaseTier(i, caseTier))), "v2.dlc.golden.seeded");
           }}
         />
       )}
