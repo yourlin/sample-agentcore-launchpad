@@ -1320,6 +1320,22 @@ def audit_trail(
 # ── scorecard ──────────────────────────────────────────────────────────────────
 
 
+def _scorecard_release(db: Session, workspace_id: str, agent: Agent) -> dict[str, Any]:
+    """Release tile of the scorecard, without a control-plane call.
+
+    On live / candidate endpoints the ledger version is the newest deploy — the
+    candidate while a release is open — not what serves production. The open record
+    remembers the live version it was deployed over, so the tile shows that one.
+    """
+    state = release_svc.live_state(None, agent)
+    if agent.endpoint_mode == "live":
+        pending = release_svc.pending_for(db, workspace_id, agent.id)
+        if pending is not None and pending.previous_live_version:
+            state["live_version"] = pending.previous_live_version
+            state["candidate_version"] = pending.candidate_version
+    return state
+
+
 @router.get("/agents/{agent_id}/scorecard")
 def scorecard(
     agent_id: str,
@@ -1396,7 +1412,7 @@ def scorecard(
         "last_gate": (last_gate.gate_report or {}).get("verdict") if last_gate else None,
         "last_gate_decision": last_gate.decision if last_gate else None,
         "last_gate_at": (last_gate.gate_report or {}).get("decided_at") if last_gate else None,
-        "release": release_svc.live_state(None, agent),
+        "release": _scorecard_release(db, ws.id, agent),
         "open_waivers": [release_svc.waiver_out(w) for w in open_waivers],
         "calibration_debt": [
             {"criterion_key": key, "reason": status.get("reason")}

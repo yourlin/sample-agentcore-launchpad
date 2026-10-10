@@ -542,6 +542,30 @@ def test_watch_config_and_scorecard(engineer, admin, owner):
     assert card["criteria_set"]["version"] == 1
 
 
+def test_the_scorecard_shows_the_live_version_not_the_open_candidate(engineer, owner,
+                                                                    monkeypatch):
+    """After a gated deploy the ledger version is the candidate; production is still live."""
+    from app.dlc import releases as release_svc
+
+    monkeypatch.setattr(release_svc, "point_endpoint", lambda *a, **k: {})
+    monkeypatch.setattr(release_svc, "endpoint_version", lambda *a, **k: "2")
+    monkeypatch.setattr("app.services.agentcore.client.control_client", lambda ctx: object())
+    agent_id, _ = _release_setup(engineer, owner)
+    db = SessionLocal()
+    try:
+        agent = db.get(Agent, agent_id)
+        agent.version = "3"  # the redeploy that opened the release
+        db.commit()
+        release_svc.after_deploy(db, db.get(Agent, agent_id), note=None, actor="engineer")
+        db.commit()
+    finally:
+        db.close()
+    card = engineer.get(f"/api/agents/{agent_id}/scorecard").json()
+    assert card["release"]["ledger_version"] == "3"
+    assert card["release"]["live_version"] == "2", card["release"]
+    assert card["release"]["candidate_version"] == "3"
+
+
 def test_reads_are_member_visible_but_audit_is_admin_only(engineer, admin):
     assert engineer.get("/api/criteria-sets").status_code == 200
     assert engineer.get("/api/golden-sets").status_code == 200
