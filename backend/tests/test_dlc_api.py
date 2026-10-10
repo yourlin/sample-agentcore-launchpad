@@ -367,9 +367,15 @@ def test_release_gate_blocks_a_red_line_and_signs_a_clean_candidate(engineer, ow
     assert signed.status_code == 200, signed.text
     assert endpoints["live"] == "2"
     assert signed.json()["records"][0]["decision"] == "released"
+    card = engineer.get(f"/api/agents/{agent_id}/scorecard").json()
+    assert card["release"]["live_version"] == "2", card["release"]
 
     rolled = admin.post(f"/api/agents/{agent_id}/release/rollback", json={})
     assert rolled.status_code == 200 and endpoints["live"] == "1"
+    # the scorecard tile follows the rollback, not the ledger (still the rolled-back "2")
+    card = engineer.get(f"/api/agents/{agent_id}/scorecard").json()
+    assert card["release"]["ledger_version"] == "2"
+    assert card["release"]["live_version"] == "1", card["release"]
 
 
 def _session_ids(kw):

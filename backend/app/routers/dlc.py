@@ -1325,14 +1325,30 @@ def _scorecard_release(db: Session, workspace_id: str, agent: Agent) -> dict[str
 
     On live / candidate endpoints the ledger version is the newest deploy — the
     candidate while a release is open — not what serves production. The open record
-    remembers the live version it was deployed over, so the tile shows that one.
+    remembers the live version it was deployed over, so the tile shows that one; once
+    the release is decided, the newest record does.
     """
     state = release_svc.live_state(None, agent)
-    if agent.endpoint_mode == "live":
-        pending = release_svc.pending_for(db, workspace_id, agent.id)
-        if pending is not None and pending.previous_live_version:
-            state["live_version"] = pending.previous_live_version
-            state["candidate_version"] = pending.candidate_version
+    if agent.endpoint_mode != "live":
+        return state
+    pending = release_svc.pending_for(db, workspace_id, agent.id)
+    if pending is not None and pending.previous_live_version:
+        state["live_version"] = pending.previous_live_version
+        state["candidate_version"] = pending.candidate_version
+        return state
+    # No open release: the newest record says what `live` was last pointed at. A sign
+    # moves live to the candidate; a rollback record carries the version it restored on
+    # `live`; a blocked record left live where it was. Without this, a release followed
+    # by a rollback showed the rolled-back candidate (the ledger version) as production.
+    latest = next(iter(release_svc.records_for(db, workspace_id, agent.id, limit=1)), None)
+    if latest is None:
+        return state
+    if latest.decision == "released" or (
+        latest.decision == "rolled_back" and latest.candidate_endpoint == release_svc.LIVE
+    ):
+        state["live_version"] = latest.candidate_version
+    elif latest.previous_live_version:
+        state["live_version"] = latest.previous_live_version
     return state
 
 
