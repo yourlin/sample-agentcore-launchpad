@@ -136,6 +136,15 @@ def _burn_verify(password: str) -> None:
     verify_password(password, hash_password(_DUMMY_HASH_PASSWORD))
 
 
+def credential_stamp(password_hash: str) -> str:
+    """Short, non-reversible tag of the current password hash.
+
+    A session cookie carries it, so changing the password (an admin reset)
+    ends every session that was opened with the previous one.
+    """
+    return hashlib.sha256(password_hash.encode("utf-8")).hexdigest()[:16]
+
+
 def generate_password(length: int = 14) -> str:
     """Admin password reset: a readable-but-random password shown once."""
     alphabet = string.ascii_letters + string.digits + "!@#$%^&*-_"
